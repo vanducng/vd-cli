@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/vanducng/vd-cli/internal/config"
-	"github.com/vanducng/vd-cli/internal/source"
+	"github.com/vanducng/vd-cli/v2/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/source"
 )
 
 // ExecResult records the outcome of executing one Op.

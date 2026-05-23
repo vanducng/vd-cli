@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vanducng/vd-cli/internal/version"
+	"github.com/vanducng/vd-cli/v2/internal/version"
 )
 
 // Global flag values — read by subcommands via Flags() on root or passed down.

@@ -3,7 +3,7 @@ package sync
 import (
 	"testing"
 
-	"github.com/vanducng/vd-cli/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/config"
 )
 
 func makeManifest(skills map[string]config.SkillConfig) *config.Manifest {

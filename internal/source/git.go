@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vanducng/vd-cli/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/config"
 )
 
 // gitFetcher implements Fetcher using shallow git clones + sparse-checkout.

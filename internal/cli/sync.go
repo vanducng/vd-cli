@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vanducng/vd-cli/internal/config"
-	"github.com/vanducng/vd-cli/internal/source"
-	vdsync "github.com/vanducng/vd-cli/internal/sync"
+	"github.com/vanducng/vd-cli/v2/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/source"
+	vdsync "github.com/vanducng/vd-cli/v2/internal/sync"
 )
 
 func newSyncCmd() *cobra.Command {

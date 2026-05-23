@@ -12,7 +12,7 @@ A single binary that tracks, vendors, and publishes Claude Code skills inside a 
 
 **go install (requires Go 1.23+):**
 ```sh
-go install github.com/vanducng/vd-cli/cmd/vd@latest
+go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
 ```
 
 **Homebrew (tap pending):**

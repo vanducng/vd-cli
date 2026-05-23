@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vanducng/vd-cli/internal/config"
-	agentinstall "github.com/vanducng/vd-cli/internal/install"
+	"github.com/vanducng/vd-cli/v2/internal/config"
+	agentinstall "github.com/vanducng/vd-cli/v2/internal/install"
 )
 
 type installOptions struct {

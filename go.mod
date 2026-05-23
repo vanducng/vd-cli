@@ -1,4 +1,4 @@
-module github.com/vanducng/vd-cli
+module github.com/vanducng/vd-cli/v2
 
 go 1.23
 

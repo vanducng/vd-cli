@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/vanducng/vd-cli/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/config"
 )
 
 type perSkillEmitter struct{}

@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/vanducng/vd-cli/internal/updatecheck"
-	"github.com/vanducng/vd-cli/internal/version"
+	"github.com/vanducng/vd-cli/v2/internal/updatecheck"
+	"github.com/vanducng/vd-cli/v2/internal/version"
 )
 
 const (

@@ -4,7 +4,7 @@ package source
 import (
 	"context"
 
-	"github.com/vanducng/vd-cli/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/config"
 )
 
 // Fetcher fetches upstream content for a given source and sub-path.

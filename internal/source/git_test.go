@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vanducng/vd-cli/internal/config"
-	"github.com/vanducng/vd-cli/internal/testutil"
+	"github.com/vanducng/vd-cli/v2/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/testutil"
 )
 
 func skipIfNoGit(t *testing.T) {

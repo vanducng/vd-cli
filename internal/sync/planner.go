@@ -3,7 +3,7 @@ package sync
 import (
 	"fmt"
 
-	"github.com/vanducng/vd-cli/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/config"
 )
 
 // OpKind classifies what the executor should do for a skill.

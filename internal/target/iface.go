@@ -2,7 +2,7 @@
 package target
 
 import (
-	"github.com/vanducng/vd-cli/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/config"
 )
 
 // Emitter produces one or more output files from the current manifest + lock state.

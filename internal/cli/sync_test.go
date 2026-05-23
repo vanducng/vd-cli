@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vanducng/vd-cli/internal/config"
-	"github.com/vanducng/vd-cli/internal/testutil"
+	"github.com/vanducng/vd-cli/v2/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/testutil"
 )
 
 // makeTestRepo creates a temp repo root with skills.toml initialized.

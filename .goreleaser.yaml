@@ -18,7 +18,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/vanducng/vd-cli/internal/version.Version={{.Version}}
+      - -s -w -X github.com/vanducng/vd-cli/v2/internal/version.Version={{.Version}}
     goos:
       - darwin
       - linux

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vanducng/vd-cli/internal/config"
-	vdsync "github.com/vanducng/vd-cli/internal/sync"
+	"github.com/vanducng/vd-cli/v2/internal/config"
+	vdsync "github.com/vanducng/vd-cli/v2/internal/sync"
 )
 
 func TestDoctorReportsDrift(t *testing.T) {

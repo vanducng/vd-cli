@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/vanducng/vd-cli/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/config"
 )
 
 func makeTestSkillDir(t *testing.T, root, name string) {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vanducng/vd-cli/internal/source"
+	"github.com/vanducng/vd-cli/v2/internal/source"
 )
 
 func newCacheCmd() *cobra.Command {

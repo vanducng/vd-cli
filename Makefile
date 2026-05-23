@@ -5,7 +5,7 @@
 GO      ?= $(shell mise which go 2>/dev/null || command -v go)
 VERSION ?= dev
 BINARY  := vd
-LDFLAGS := -ldflags "-X github.com/vanducng/vd-cli/internal/version.Version=$(VERSION)"
+LDFLAGS := -ldflags "-X github.com/vanducng/vd-cli/v2/internal/version.Version=$(VERSION)"
 
 .PHONY: build test vet lint run clean
 

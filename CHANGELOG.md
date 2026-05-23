@@ -4,6 +4,12 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.0.1] (2026-05-23)
+
+### Bug Fixes
+
+* **module:** add required `/v2` suffix to module path per Go semantic-import-versioning. `go install github.com/vanducng/vd-cli/v2/cmd/vd@v2.0.1` now works. Homebrew install unchanged. v2.0.0 is `go install`-broken — skip it.
+
 ## [2.0.0] (2026-05-23)
 
 ### BREAKING

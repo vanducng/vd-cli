@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vanducng/vd-cli/internal/config"
-	"github.com/vanducng/vd-cli/internal/source"
+	"github.com/vanducng/vd-cli/v2/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/source"
 )
 
 // resolveSource looks up srcName in the manifest. If absent and the full

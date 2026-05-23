@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vanducng/vd-cli/internal/config"
-	vdsync "github.com/vanducng/vd-cli/internal/sync"
+	"github.com/vanducng/vd-cli/v2/internal/config"
+	vdsync "github.com/vanducng/vd-cli/v2/internal/sync"
 )
 
 func newDoctorCmd() *cobra.Command {
