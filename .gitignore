@@ -1,0 +1,14 @@
+# Build output
+/vd
+/vd.exe
+/dist/
+
+# Coverage
+*.out
+coverage.*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+.DS_Store
