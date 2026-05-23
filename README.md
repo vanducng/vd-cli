@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.png" alt="vd-cli — a package manager for coding agent skills" width="100%"/>
+<img src="assets/banner.png" alt="vd-cli — vendoring package manager for coding-agent skills" width="100%"/>
 
 <br/>
 
@@ -10,9 +10,9 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/vanducng/vd-cli/test.yml?branch=main&style=flat-square&label=ci&labelColor=0a0a0c)](https://github.com/vanducng/vd-cli/actions/workflows/test.yml)
 
 <p>
-  <b>vd</b> is a single-binary package manager for the skills that power your coding agents.
+  <b>vd</b> is a single-binary <i>vendoring</i> package manager for the skills that power your coding agents.
   <br/>
-  Vendor skills from any upstream, lock them with a SHA, sync them to every agent in your stack.
+  Skills live in your repo as plain files. <code>vd</code> fetches them from any upstream, locks them with a SHA, and dispatches them to every agent in your stack.
 </p>
 
 </div>

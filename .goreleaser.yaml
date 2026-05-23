@@ -93,7 +93,7 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: "https://github.com/vanducng/vd-cli"
-    description: "Package manager for coding agent skills (Claude Code, Codex)"
+    description: "Vendoring package manager for coding-agent skills (Claude Code, Codex)"
     license: MIT
     commit_author:
       name: goreleaserbot
