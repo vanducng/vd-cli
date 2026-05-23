@@ -10,9 +10,9 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/vanducng/vd-cli/test.yml?branch=main&style=flat-square&label=ci&labelColor=0a0a0c)](https://github.com/vanducng/vd-cli/actions/workflows/test.yml)
 
 <p>
-  <b>vd-cli</b> is a single-binary package manager for the skills that power your coding agents.
+  <b>vd</b> is a single-binary package manager for the skills that power your coding agents.
   <br/>
-  Vendor skills from any upstream, lock them, sync across agents, and ship a repo every agent can read.
+  Vendor skills from any upstream, lock them with a SHA, sync them to every agent in your stack.
 </p>
 
 </div>
@@ -21,7 +21,7 @@
 
 ## Supported agents
 
-vd-cli builds a vendor-locked skills tree once and emits the manifest each agent stack expects. Today that's:
+`vd` builds a vendor-locked skills tree once and emits the manifest each agent stack expects. Today that's:
 
 | Agent | Status | What `vd build` emits |
 |---|---|---|
