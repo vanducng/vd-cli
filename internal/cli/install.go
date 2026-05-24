@@ -20,6 +20,7 @@ type installOptions struct {
 	copy   bool
 	force  bool
 	dryRun bool
+	dev    bool
 }
 
 func newInstallCmd() *cobra.Command {
@@ -31,14 +32,16 @@ func newInstallCmd() *cobra.Command {
 		Long: `Install skills from this repository into a local agent environment.
 
 Run without an agent to select an install target:
-  1) Codex user skills       symlink to $HOME/.agents/skills
-  2) Codex repo skills       symlink to .agents/skills
-  3) Codex snapshot copy     copy to $HOME/.agents/skills
-  4) Claude Code plugin      marketplace/plugin install
+  1) Codex user skills            symlink to $HOME/.agents/skills
+  2) Codex repo skills            symlink to .agents/skills
+  3) Codex snapshot copy          copy to $HOME/.agents/skills
+  4) Claude Code plugin           marketplace/plugin install
+  5) Claude Code dev symlinks     symlink to $HOME/.claude/skills
 
 Agents:
-  codex   installs skills into Codex discovery paths
-  claude  registers and installs this repo as a Claude Code plugin`,
+  codex          installs skills into Codex discovery paths
+  claude         registers and installs this repo as a Claude Code plugin
+  claude --dev   per-skill symlink into $HOME/.claude/skills (mirrors codex)`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := resolveRepoRoot(flagRoot)
@@ -54,6 +57,7 @@ Agents:
 	cmd.Flags().BoolVar(&opts.copy, "copy", false, "Copy skills instead of symlinking them")
 	cmd.Flags().BoolVar(&opts.force, "force", false, "Replace existing installed skill directories")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Print actions without changing files")
+	cmd.Flags().BoolVar(&opts.dev, "dev", false, "Claude only: per-skill symlink into $HOME/.claude/skills instead of marketplace plugin install")
 
 	return cmd
 }
@@ -87,8 +91,11 @@ func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts install
 	case "codex":
 		return runInstallCodex(cmd, repoRoot, skills, opts)
 	case "claude":
+		if opts.dev {
+			return runInstallClaudeDev(cmd, repoRoot, skills, opts)
+		}
 		if len(skills) > 0 {
-			return fmt.Errorf("claude install does not accept skill names; it installs the configured plugin bundle")
+			return fmt.Errorf("claude install does not accept skill names without --dev; it installs the configured plugin bundle")
 		}
 		return runInstallClaude(cmd, repoRoot, opts)
 	default:
@@ -120,9 +127,32 @@ func runInstallCodex(cmd *cobra.Command, repoRoot string, skills []string, opts 
 	return nil
 }
 
+func runInstallClaudeDev(cmd *cobra.Command, repoRoot string, skills []string, opts installOptions) error {
+	results, err := agentinstall.ClaudeDev(repoRoot, agentinstall.ClaudeDevOptions{
+		Dest:   opts.dest,
+		Skills: skills,
+		Copy:   opts.copy,
+		Force:  opts.force,
+		DryRun: opts.dryRun,
+	})
+	if err != nil {
+		return err
+	}
+	if flagQuiet {
+		return nil
+	}
+	for _, result := range results {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s claude skill %s -> %s\n", result.Action, result.Name, result.Dest)
+	}
+	if !opts.dryRun {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "restart Claude Code to pick up newly installed skills")
+	}
+	return nil
+}
+
 func runInstallClaude(cmd *cobra.Command, repoRoot string, opts installOptions) error {
 	if opts.dest != "" || opts.copy || opts.force {
-		return fmt.Errorf("--dest, --copy, and --force only apply to codex installs")
+		return fmt.Errorf("--dest, --copy, and --force only apply to codex or --dev installs")
 	}
 	switch opts.scope {
 	case "user", "project", "local":
@@ -228,11 +258,12 @@ func promptInstallSelection(cmd *cobra.Command, opts installOptions) (string, in
 
 	out := cmd.OutOrStdout()
 	_, _ = fmt.Fprintln(out, "Install skills for:")
-	_, _ = fmt.Fprintln(out, "  1) Codex user skills       symlink to $HOME/.agents/skills")
-	_, _ = fmt.Fprintln(out, "  2) Codex repo skills       symlink to .agents/skills")
-	_, _ = fmt.Fprintln(out, "  3) Codex snapshot copy     copy to $HOME/.agents/skills")
-	_, _ = fmt.Fprintln(out, "  4) Claude Code plugin      marketplace/plugin install")
-	_, _ = fmt.Fprint(out, "Select install target [1-4]: ")
+	_, _ = fmt.Fprintln(out, "  1) Codex user skills            symlink to $HOME/.agents/skills")
+	_, _ = fmt.Fprintln(out, "  2) Codex repo skills            symlink to .agents/skills")
+	_, _ = fmt.Fprintln(out, "  3) Codex snapshot copy          copy to $HOME/.agents/skills")
+	_, _ = fmt.Fprintln(out, "  4) Claude Code plugin           marketplace/plugin install")
+	_, _ = fmt.Fprintln(out, "  5) Claude Code dev symlinks     symlink to $HOME/.claude/skills")
+	_, _ = fmt.Fprint(out, "Select install target [1-5]: ")
 
 	reader := bufio.NewReader(in)
 	text, err := reader.ReadString('\n')
@@ -267,10 +298,14 @@ func resolveInstallSelection(selection string, opts installOptions) (string, ins
 		opts.copy = false
 		opts.dest = ""
 		opts.force = false
+		opts.dev = false
 		if opts.scope == "user" || opts.scope == "project" || opts.scope == "local" {
 			return "claude", opts, nil
 		}
 		opts.scope = "user"
+		return "claude", opts, nil
+	case "claude-dev":
+		opts.dev = true
 		return "claude", opts, nil
 	default:
 		return "", opts, fmt.Errorf("invalid selection %q", strings.TrimSpace(selection))
@@ -290,6 +325,8 @@ func normalizeInstallSelection(selection string) string {
 		return "codex-copy"
 	case "4", "claude", "claude-code", "claudecode":
 		return "claude"
+	case "5", "claude-dev", "claude-code-dev", "claudedev", "dev":
+		return "claude-dev"
 	default:
 		return s
 	}

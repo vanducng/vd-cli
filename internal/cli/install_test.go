@@ -135,6 +135,73 @@ func TestResolveInstallSelection_ClaudeRewritesRepoScope(t *testing.T) {
 	}
 }
 
+func TestRunInstallClaudeDev_DryRunOutput(t *testing.T) {
+	root := setupE2ERepo(t)
+	dest := filepath.Join(t.TempDir(), "claude-skills")
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstallClaudeDev(cmd, root, []string{"foo"}, installOptions{
+		dest:   dest,
+		dryRun: true,
+		dev:    true,
+	})
+	if err != nil {
+		t.Fatalf("runInstallClaudeDev: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "would symlink claude skill foo -> "+filepath.Join(dest, "foo")) {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestRunInstall_ClaudeDevAcceptsSkillNames(t *testing.T) {
+	root := setupE2ERepo(t)
+	dest := filepath.Join(t.TempDir(), "claude-skills")
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"claude", "foo"}, installOptions{
+		scope:  "user",
+		dest:   dest,
+		dryRun: true,
+		dev:    true,
+	})
+	if err != nil {
+		t.Fatalf("runInstall claude --dev foo: %v", err)
+	}
+	if !strings.Contains(out.String(), "would symlink claude skill foo") {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestRunInstall_ClaudeWithoutDevRejectsSkillNames(t *testing.T) {
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"claude", "foo"}, installOptions{scope: "user", dryRun: true})
+	if err == nil {
+		t.Fatal("expected rejection without --dev")
+	}
+	if !strings.Contains(err.Error(), "without --dev") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestResolveInstallSelection_ClaudeDevPick(t *testing.T) {
+	agent, opts, err := resolveInstallSelection("5", installOptions{scope: "user"})
+	if err != nil {
+		t.Fatalf("resolveInstallSelection: %v", err)
+	}
+	if agent != "claude" || !opts.dev {
+		t.Fatalf("agent=%q dev=%v, want claude/true", agent, opts.dev)
+	}
+}
+
 func TestRunInstall_RejectsUnknownAgentTypo(t *testing.T) {
 	root := setupE2ERepo(t)
 	cmd := &cobra.Command{}
