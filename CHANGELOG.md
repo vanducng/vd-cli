@@ -4,6 +4,18 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.1.0](https://github.com/vanducng/vd-cli/compare/v2.0.0...v2.1.0) (2026-05-24)
+
+
+### Features
+
+* **install:** add `claude --dev` for per-skill symlinks ([#2](https://github.com/vanducng/vd-cli/issues/2)) ([8fd2743](https://github.com/vanducng/vd-cli/commit/8fd27435f88225fc7ba1a97c91bb70f674ed845c))
+
+
+### Bug Fixes
+
+* **module:** add /v2 suffix to module path for Go SIV compliance ([216aba8](https://github.com/vanducng/vd-cli/commit/216aba8d949747731707216505ebad43f1055728))
+
 ## [2.0.1] (2026-05-23)
 
 ### Bug Fixes
