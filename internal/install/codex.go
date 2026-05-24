@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 )
@@ -78,7 +77,11 @@ func Codex(repoRoot string, opts CodexOptions) ([]Result, error) {
 			return nil, err
 		}
 
-		action, err := installSkill(src, dst, destRoot, opts)
+		action, err := LinkSkill(src, dst, destRoot, LinkOptions{
+			Copy:   opts.Copy,
+			Force:  opts.Force,
+			DryRun: opts.DryRun,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("install %s: %w", name, err)
 		}
@@ -135,53 +138,6 @@ func resolveSkillNames(skillsDir string, requested []string) ([]string, error) {
 	}
 	sort.Strings(names)
 	return names, nil
-}
-
-func installSkill(src, dst, destRoot string, opts CodexOptions) (string, error) {
-	copyMode := opts.Copy || runtime.GOOS == "windows"
-	if opts.DryRun {
-		if copyMode {
-			return "would copy", nil
-		}
-		return "would symlink", nil
-	}
-
-	if !copyMode {
-		rel, err := filepath.Rel(destRoot, src)
-		if err != nil {
-			return "", fmt.Errorf("resolve relative symlink target: %w", err)
-		}
-		if existing, err := os.Readlink(dst); err == nil && existing == rel {
-			return "unchanged", nil
-		}
-	}
-
-	if _, err := os.Lstat(dst); err == nil {
-		if !opts.Force {
-			return "", fmt.Errorf("destination %s already exists; use --force to replace it", dst)
-		}
-		if err := os.RemoveAll(dst); err != nil {
-			return "", fmt.Errorf("remove existing destination: %w", err)
-		}
-	} else if !os.IsNotExist(err) {
-		return "", err
-	}
-
-	if copyMode {
-		if err := copyDir(src, dst); err != nil {
-			return "", err
-		}
-		return "copied", nil
-	}
-
-	rel, err := filepath.Rel(destRoot, src)
-	if err != nil {
-		return "", fmt.Errorf("resolve relative symlink target: %w", err)
-	}
-	if err := os.Symlink(rel, dst); err != nil {
-		return "", fmt.Errorf("create symlink: %w", err)
-	}
-	return "symlinked", nil
 }
 
 // dangerousDestPrefixes are absolute paths (and their subtrees) we refuse to
