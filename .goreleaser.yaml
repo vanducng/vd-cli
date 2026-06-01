@@ -26,10 +26,6 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      # No Windows/arm64 support in v1
-      - goos: windows
-        goarch: arm64
 
 archives:
   - id: default
