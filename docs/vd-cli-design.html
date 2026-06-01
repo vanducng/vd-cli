@@ -376,10 +376,17 @@
       <h2 id="install">Install</h2>
       <p>Install `vd` as a single binary, then run it from any directory inside a Git repository. For local development in this repository, run the command through Go so you exercise the current source tree.</p>
       <pre><code># install the latest release
-go install github.com/vanducng/vd-cli/cmd/vd@latest
+go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
+
+# Windows release archive
+$version = "v2.1.0"
+$asset = "vd_windows_x86_64.zip"
+Invoke-WebRequest "https://github.com/vanducng/vd-cli/releases/download/$version/$asset" -OutFile $asset
+Expand-Archive $asset -DestinationPath ".\vd" -Force
+.\vd\vd.exe --version
 
 # or run from this repository
-cd tools/vd
+cd vd-cli
 mise exec -- go run ./cmd/vd --root /Users/vanducng/skills --version</code></pre>
 
       <h2 id="root">Root resolution</h2>

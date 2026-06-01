@@ -72,17 +72,26 @@ Do not reference AI tools in commit messages.
 Releases are coordinated by [release-please](https://github.com/googleapis/release-please) (version PR) and shipped by GoReleaser (tag → binaries + Homebrew formula).
 
 1. Merge conventional commits to `main` (`feat(vd): ...`, `fix(vd): ...`).
-2. release-please opens a PR titled `chore(main): release vd X.Y.Z` that bumps `tools/vd/CHANGELOG.md` and `.release-please-manifest.json`.
+2. release-please opens a PR titled `chore(main): release vd X.Y.Z` that bumps `CHANGELOG.md` and `.release-please-manifest.json`.
 3. Merge the release PR.
-4. `vd-release-please.yml` detects `release_created` and pushes the `vX.Y.Z` tag automatically (no manual `git tag` needed). The release-please action itself still skips `createRelease` due to a v5 403 — GoReleaser creates the GitHub Release.
-5. The auto-pushed tag triggers `vd-release.yml` → GoReleaser → cross-platform binaries published to a new GitHub Release, plus the Homebrew formula updated in `vanducng/homebrew-tap`.
+4. `release-please.yml` detects `release_created` and pushes the `vX.Y.Z` tag automatically (no manual `git tag` needed). The release-please action itself still skips `createRelease` due to a v5 403 — GoReleaser creates the GitHub Release.
+5. The auto-pushed tag triggers `release.yml` → GoReleaser → cross-platform binaries published to a new GitHub Release, plus the Homebrew formula updated in `vanducng/homebrew-tap`.
+
+Release artifacts include:
+
+- `vd_darwin_x86_64.tar.gz`
+- `vd_darwin_arm64.tar.gz`
+- `vd_linux_x86_64.tar.gz`
+- `vd_linux_arm64.tar.gz`
+- `vd_windows_x86_64.zip`
+- `vd_windows_arm64.zip`
 
 ## CI
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | `vd-test.yml` | Push / PR touching `tools/vd/**` | `go test ./... -race`, `golangci-lint run` |
-| `release.yml` | Tag push `v*` | GoReleaser cross-compile + GitHub Release |
+| `release.yml` | Tag push `v*` | GoReleaser cross-compile + GitHub Release, including Windows zip archives |
 | `release-please.yml` | Push to `main` | release-please PR management |
 | `test.yml` | Push / PR | Go vet, test, lint |
 

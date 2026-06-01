@@ -55,6 +55,18 @@ go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
 
 **Pre-built binaries:** see [releases](https://github.com/vanducng/vd-cli/releases) for darwin/linux/windows × amd64/arm64.
 
+Windows release archives are zip files. In PowerShell:
+
+```powershell
+$version = "v2.1.0"
+$asset = "vd_windows_x86_64.zip"
+Invoke-WebRequest "https://github.com/vanducng/vd-cli/releases/download/$version/$asset" -OutFile $asset
+Expand-Archive $asset -DestinationPath ".\vd" -Force
+.\vd\vd.exe --version
+```
+
+Use `vd_windows_arm64.zip` on Windows ARM64.
+
 **From source:**
 ```sh
 git clone https://github.com/vanducng/vd-cli.git
