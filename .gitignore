@@ -2,6 +2,7 @@
 /vd
 /vd.exe
 /dist/
+/plans/
 
 # Coverage
 *.out
