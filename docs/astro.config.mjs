@@ -13,6 +13,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'vd-cli',
+      logo: { src: './src/assets/logo.svg' },
       description: 'A single-binary vendoring package manager for coding-agent skills.',
       customCss: ['./src/styles/theme.css'],
       expressiveCode: {
