@@ -13,3 +13,8 @@ coverage.*
 .vscode/
 *.swp
 .DS_Store
+
+# Astro / Starlight docs site
+node_modules/
+docs/dist/
+.astro/

@@ -1,4 +1,6 @@
-# vd — Command Reference
+---
+title: "vd — Command Reference"
+---
 
 One section per verb. All commands accept the global flags `--quiet` / `-q`, `--verbose` / `-v`, `--root <path>`, and `--version`.
 
@@ -112,7 +114,7 @@ Prints `no skills tracked` and exits `0` on an empty manifest.
 
 Fetch upstream content for all tracked and pinned skills (or a named subset) and copy them atomically into `skills/<name>/`. Updates `skills.lock`. Runs `vd build` automatically afterward unless `--no-build` is passed.
 
-Skills with local modifications **refuse to sync** by default (see "refuse-on-dirty" in [FAQ](faq.md)). Detached skills are always skipped.
+Skills with local modifications **refuse to sync** by default (see "refuse-on-dirty" in [FAQ](/faq/)). Detached skills are always skipped.
 
 **Signature:**
 ```

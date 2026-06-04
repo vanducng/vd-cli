@@ -1,8 +1,10 @@
-# vd Usage Guide
+---
+title: "vd Usage Guide"
+---
 
-`vd` manages skills in this repository from source import through local agent installation. Use this page as the quick operational guide; see [commands.md](commands.md) for full flag-level reference.
+`vd` manages skills in this repository from source import through local agent installation. Use this page as the quick operational guide; see [commands.md](/commands/) for full flag-level reference.
 
-![vd CLI feature overview](vd-cli-overview.svg)
+![vd CLI feature overview](/vd-cli-overview.svg)
 
 ## Core Workflow
 

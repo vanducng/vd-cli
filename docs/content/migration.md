@@ -1,4 +1,6 @@
-# Migration Guide
+---
+title: "Migration Guide"
+---
 
 Recipes for adopting `vd` when you already manage upstream skills another way.
 

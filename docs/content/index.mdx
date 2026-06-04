@@ -1,0 +1,50 @@
+---
+title: Overview
+description: A single-binary vendoring package manager for coding-agent skills.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+**`vd`** is a single-binary _vendoring_ package manager for the skills that power your coding agents. Skills live in your repo as plain files — `vd` fetches them from any upstream, locks them with a SHA, and dispatches them to every agent in your stack.
+
+## Install
+
+```sh
+# Homebrew (recommended)
+brew install vanducng/tap/vd
+
+# or with Go
+go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
+```
+
+Pre-built binaries (darwin/linux/windows × amd64/arm64) and a from-source build are covered in the [usage guide](/usage/).
+
+## Quick start
+
+```sh
+vd init                                          # bootstrap skills.toml at the repo root
+vd add browserbase/skills/browser --as browser   # track an upstream skill
+vd sync                                          # vendor it locally (fetch, hash, lock)
+vd build                                         # emit manifests for every configured agent
+vd install codex                                 # (optional) install into Codex user scope
+```
+
+After these, `skills/browser/` holds the vendored source, the Claude/Codex manifests are written, and `skills.lock` pins every byte deterministically.
+
+## Supported agents
+
+`vd build` emits the manifest each agent stack expects:
+
+| Agent | What `vd build` emits |
+| --- | --- |
+| **Claude Code** | `.claude-plugin/marketplace.json` + `plugin.json` |
+| **OpenAI Codex** | `.agents/skills/<name>` repo-scope symlinks; `vd install codex` for user scope |
+
+## What's inside
+
+<CardGrid>
+  <LinkCard title="Usage guide" href="/usage/" description="Install, the end-to-end workflow, and how vd fits into your repo." />
+  <LinkCard title="Command reference" href="/commands/" description="Every vd command, its flags, and what it does." />
+  <LinkCard title="Configuration" href="/config-schema/" description="The skills.toml manifest and skills.lock schema." />
+  <LinkCard title="Migration & FAQ" href="/migration/" description="Upgrade notes and answers to common questions." />
+</CardGrid>

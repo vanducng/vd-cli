@@ -1,4 +1,6 @@
-# skills.toml — Configuration Schema Reference
+---
+title: "skills.toml — Configuration Schema Reference"
+---
 
 `skills.toml` lives at the repo root and is created by `vd init`. It is the single source of truth for which skills are tracked, where they come from, and how the Claude Code plugin is emitted.
 
