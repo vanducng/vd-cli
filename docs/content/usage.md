@@ -75,4 +75,6 @@ vd diff <skill>
 vd update <skill>
 ```
 
-`vd sync` and `vd update` refuse to overwrite locally modified skills unless `--force` is passed. Use `vd detach <skill>` when a skill should become locally maintained.
+:::caution
+`vd sync` and `vd update` refuse to overwrite locally modified skills unless `--force` is passed — and `--force` discards those local edits. Use `vd detach <skill>` when a skill should become locally maintained.
+:::

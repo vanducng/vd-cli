@@ -14,6 +14,8 @@ export default defineConfig({
     starlight({
       title: 'vd-cli',
       logo: { src: './src/assets/logo.svg' },
+      // Apply Starlight's markdown pipeline (asides, heading links) to the custom-loader content/ dir.
+      markdown: { processedDirs: ['./content'] },
       description: 'A single-binary vendoring package manager for coding-agent skills.',
       customCss: ['./src/styles/theme.css'],
       expressiveCode: {
@@ -37,6 +39,14 @@ export default defineConfig({
         { label: 'Guide', items: ['usage'] },
         { label: 'Reference', items: ['commands', 'config-schema'] },
         { label: 'Help', items: ['migration', 'faq'] },
+        {
+          label: 'Related docs',
+          items: [
+            { label: 'dotfiles', link: 'https://dotfiles.vanducng.dev', attrs: { target: '_blank' } },
+            { label: 'skills', link: 'https://skills.vanducng.dev', attrs: { target: '_blank' } },
+            { label: 'miudb', link: 'https://miudb.vanducng.dev', attrs: { target: '_blank' } },
+          ],
+        },
       ],
     }),
     react(),

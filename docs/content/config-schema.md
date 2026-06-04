@@ -99,7 +99,9 @@ Controls how `vd build` emits the Claude Code plugin files (`.claude-plugin/mark
 |-------|------|----------|---------|-------------|
 | `mode` | string | no | `"bundle"` | `"bundle"` (one plugin wrapping all skills) or `"per-skill"` (one plugin entry per skill). |
 
-**Note:** `"bundle"` is the safe default. It preserves byte-equal output on first run when seeded from a live `marketplace.json`. Do not change to `"per-skill"` on `main` — it will alter all existing plugin install paths.
+:::caution
+`"bundle"` is the safe default. It preserves byte-equal output on first run when seeded from a live `marketplace.json`. Do not change to `"per-skill"` on `main` — it will alter all existing plugin install paths.
+:::
 
 ---
 

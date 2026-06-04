@@ -148,7 +148,9 @@ git rm -f skills/browser
 rm -rf .git/modules/skills/browser
 ```
 
-This removes the submodule link but leaves the working tree empty. You will repopulate it via `vd sync`.
+:::caution
+This removes the submodule link and leaves the working tree empty. Back up any local changes before running it — you repopulate the directory via `vd sync`.
+:::
 
 ### Step 3 — Commit the submodule removal
 

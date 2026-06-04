@@ -6,7 +6,11 @@ One section per verb. All commands accept the global flags `--quiet` / `-q`, `--
 
 **Repo root resolution.** Order: `--root` flag → `VD_ROOT` env var → walk up from CWD to the first `.git/`. Set `VD_ROOT` in your shell to pin a default repo when invoking `vd` from arbitrary directories. Both `--root` and `VD_ROOT` are validated (must exist, must be a directory).
 
-**Upstream version check.** Each command runs a background lookup against the GitHub releases API, cached for 24 hours under `$XDG_CACHE_HOME/vd/version-check.json` (or `~/.cache/vd/version-check.json`). When a newer release exists, vd prints a single line to stderr: `vd 1.0.0 (latest: 1.1.0). Upgrade: brew upgrade vd`. The check is best-effort and silent on any failure. Disable globally with `VD_NO_UPDATE_CHECK=1`, suppress per-call with `--quiet`. Auto-disabled when `CI` is set, when the binary is a `dev` build, and when stderr is not a terminal.
+**Upstream version check.** Each command runs a background lookup against the GitHub releases API, cached for 24 hours under `$XDG_CACHE_HOME/vd/version-check.json` (or `~/.cache/vd/version-check.json`). When a newer release exists, vd prints a single line to stderr: `vd 1.0.0 (latest: 1.1.0). Upgrade: brew upgrade vd`. The check is best-effort and silent on any failure. Auto-disabled when `CI` is set, when the binary is a `dev` build, and when stderr is not a terminal.
+
+:::tip
+Disable the version check globally with `VD_NO_UPDATE_CHECK=1`, or suppress it per-call with `--quiet`.
+:::
 
 ---
 
@@ -114,7 +118,9 @@ Prints `no skills tracked` and exits `0` on an empty manifest.
 
 Fetch upstream content for all tracked and pinned skills (or a named subset) and copy them atomically into `skills/<name>/`. Updates `skills.lock`. Runs `vd build` automatically afterward unless `--no-build` is passed.
 
-Skills with local modifications **refuse to sync** by default (see "refuse-on-dirty" in [FAQ](/faq/)). Detached skills are always skipped.
+:::caution
+Skills with local modifications **refuse to sync** by default (see "refuse-on-dirty" in [FAQ](/faq/)) — `--force` overwrites them and discards your local edits. Detached skills are always skipped.
+:::
 
 **Signature:**
 ```
@@ -270,7 +276,9 @@ vd detach browser         # keep files, stop syncing
 
 Remove a skill from `skills.toml`, `skills.lock`, and (by default) from `skills/<name>/` on disk.
 
-Without `--force`, refuses to delete the directory if it has local modifications (filesystem hash differs from lock). Use `vd detach` first if you want to keep the edits.
+:::caution
+This deletes `skills/<name>/` from disk by default. Without `--force` it refuses when the directory has local modifications (filesystem hash differs from lock); use `vd detach` first if you want to keep the edits.
+:::
 
 **Signature:**
 ```
