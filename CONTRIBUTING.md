@@ -69,13 +69,18 @@ Do not reference AI tools in commit messages.
 
 ## Release flow
 
-Releases are coordinated by [release-please](https://github.com/googleapis/release-please) (version PR) and shipped by GoReleaser (tag → binaries + Homebrew formula).
+Releases run through a single `release.yml` workflow (mirroring `vanducng/miu-db`
+and `vanducng/skills`) that combines [release-please](https://github.com/googleapis/release-please)
+and GoReleaser. The workflow authenticates as the **MiuMun GitHub App**, not
+`GITHUB_TOKEN` — that is what lets the auto-merged release commit re-trigger the
+workflow and lets release-please create the GitHub Release directly (no
+`skip-github-release` workaround, no manual tag push).
 
-1. Merge conventional commits to `main` (`feat(vd): ...`, `fix(vd): ...`).
-2. release-please opens a PR titled `chore(main): release vd X.Y.Z` that bumps `CHANGELOG.md` and `.release-please-manifest.json`.
-3. Merge the release PR.
-4. `release-please.yml` detects `release_created` and pushes the `vX.Y.Z` tag automatically (no manual `git tag` needed). The release-please action itself still skips `createRelease` due to a v5 403 — GoReleaser creates the GitHub Release.
-5. The auto-pushed tag triggers `release.yml` → GoReleaser → cross-platform binaries published to a new GitHub Release, plus the Homebrew formula updated in `vanducng/homebrew-tap`.
+1. Merge conventional commits to `main` (`feat: ...`, `fix: ...`).
+2. release-please opens a PR titled `chore(main): release X.Y.Z` bumping `CHANGELOG.md` and `.release-please-manifest.json`. The workflow auto-merges it (squash).
+3. The app-token merge commit re-triggers `release.yml`; release-please then reports `release_created`, cuts the `vX.Y.Z` tag + GitHub Release, and GoReleaser uploads binaries and updates the Homebrew formula in `vanducng/homebrew-tap`.
+
+Required repo secrets: `GH_APP_ID`, `GH_APP_MUNMIU_PRIVATE_KEY`, `HOMEBREW_TAP_GITHUB_TOKEN`.
 
 Release artifacts include:
 
@@ -90,10 +95,9 @@ Release artifacts include:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `vd-test.yml` | Push / PR touching `tools/vd/**` | `go test ./... -race`, `golangci-lint run` |
-| `release.yml` | Tag push `v*` | GoReleaser cross-compile + GitHub Release, including Windows zip archives |
-| `release-please.yml` | Push to `main` | release-please PR management |
 | `test.yml` | Push / PR | Go vet, test, lint |
+| `release.yml` | Push to `main` / `workflow_dispatch` | release-please (app token) → auto-merge release PR → GoReleaser cross-compile + GitHub Release + Homebrew formula |
+| `docs.yml` | Push to `main` / `workflow_dispatch` | Build & deploy the docs site to GitHub Pages |
 
 ## Where to file issues
 
