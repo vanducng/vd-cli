@@ -114,12 +114,17 @@ try {
     }
 
     const sessionId  = payload.session_id || null;
-    const model      = payload.model || null;
-    const cwd        = (payload.cwd || process.cwd()).trim();
+    // Claude Code sends model as an object {id, display_name}; tolerate a plain string too.
+    const model      = (payload.model && typeof payload.model === 'object'
+      ? (payload.model.display_name || payload.model.id)
+      : payload.model) || null;
+    const cwd        = (payload.cwd || payload.workspace?.current_dir || process.cwd()).trim();
     const contextPct = typeof payload.context_window_usage_percent === 'number'
-      ? payload.context_window_usage_percent : null;
+      ? payload.context_window_usage_percent
+      : (typeof payload.exceeds_200k_tokens === 'boolean' && payload.exceeds_200k_tokens ? 100 : null);
     const totalCost  = typeof payload.total_cost_usd === 'number'
-      ? payload.total_cost_usd : null;
+      ? payload.total_cost_usd
+      : (payload.cost && typeof payload.cost.total_cost_usd === 'number' ? payload.cost.total_cost_usd : null);
 
     const parts = [];
 
