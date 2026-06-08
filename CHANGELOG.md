@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.2.0](https://github.com/vanducng/vd-cli/compare/v2.1.0...v2.2.0) (2026-05-24)
+
+
+### Features
+
+* **release:** add Windows ARM64 artifacts ([#3](https://github.com/vanducng/vd-cli/issues/3))
+
 ## [2.1.0](https://github.com/vanducng/vd-cli/compare/v2.0.0...v2.1.0) (2026-05-24)
 
 
