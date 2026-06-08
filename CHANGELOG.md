@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.5.0](https://github.com/vanducng/vd-cli/compare/v2.4.0...v2.5.0) (2026-06-08)
+
+
+### Features
+
+* **hooks:** statusline, scout-block, team auxiliaries (clean-room) ([#11](https://github.com/vanducng/vd-cli/issues/11)) ([78e81f1](https://github.com/vanducng/vd-cli/commit/78e81f119f78008292be217943dcaffc2f217bf2))
+
 ## [2.4.0](https://github.com/vanducng/vd-cli/compare/v2.3.0...v2.4.0) (2026-06-08)
 
 
