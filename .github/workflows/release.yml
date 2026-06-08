@@ -1,30 +1,79 @@
-name: Release
+name: release
 
-# Triggered when a v* tag is pushed (e.g. v1.2.3 or v1.2.3-rc1).
-# Merging the release-please PR creates the tag automatically.
+# Single release workflow, mirroring vanducng/miu-db and vanducng/skills.
+#
+# Flow: conventional commits on main -> release-please opens a release PR ->
+# auto-merged with the MiuMun app token (so the merge commit re-triggers this
+# workflow) -> release-please cuts the GitHub release + tag -> GoReleaser
+# uploads binaries and publishes the Homebrew formula.
+#
+# The MiuMun app token (not GITHUB_TOKEN) is what makes this single-workflow
+# design work: commits/PRs created by GITHUB_TOKEN do NOT re-trigger workflows,
+# so the old setup needed a separate tag-push job. The app token re-triggers.
 #
 # Required secrets:
-#   GITHUB_TOKEN              — provided automatically by Actions
+#   GH_APP_ID                 — MiuMun GitHub App id
+#   GH_APP_MUNMIU_PRIVATE_KEY — MiuMun GitHub App private key (PEM)
 #   HOMEBREW_TAP_GITHUB_TOKEN — PAT (repo scope) for vanducng/homebrew-tap
-#                               GoReleaser uses this to push the Formula.
+#   GITHUB_TOKEN              — provided automatically by Actions
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
   packages: write
   id-token: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - name: Checkout (full history for changelog)
+      - name: Generate MiuMun app token
+        id: app_token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_MUNMIU_PRIVATE_KEY }}
+
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app_token.outputs.token }}
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Immediate squash: main is unprotected, so --auto has no checks to gate
+      # on; --repo avoids needing a checkout.
+      - name: Auto-merge release PR
+        if: ${{ steps.release.outputs.pr }}
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: gh pr merge --squash --repo "${{ github.repository }}" "${{ fromJson(steps.release.outputs.pr).number }}"
+
+  goreleaser:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
           fetch-depth: 0
 
       - name: Set up Go
@@ -34,10 +83,21 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Run GoReleaser
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
         uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
         with:
           version: v2.15.4
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ needs.release-please.outputs.tag_name }}
+
+      - name: Run GoReleaser without Homebrew tap
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN == ''
+        uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
+        with:
+          version: v2.15.4
+          args: release --clean --skip=homebrew
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ needs.release-please.outputs.tag_name }}
