@@ -136,6 +136,7 @@ func unregisterHooksFromSettings() error {
 		return err
 	}
 	claudeconfig.UnregisterHooks(s)
+	claudeconfig.UnsetStatusLine(s)
 	return claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{})
 }
 

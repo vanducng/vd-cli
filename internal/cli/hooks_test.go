@@ -308,6 +308,122 @@ func TestNewestBackupPicksLatest(t *testing.T) {
 	}
 }
 
+// ── statusLine install/uninstall ──────────────────────────────────────────
+
+// TestInstallSetsStatusLine mirrors what runInstallHooks does (RegisterHooks +
+// SetStatusLine + WriteSettings) and asserts settings.json gains the statusLine key.
+func TestInstallSetsStatusLine(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"env":{"FOO":"bar"}}`), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	s, err := claudeconfig.ReadSettingsAt(settingsPath)
+	if err != nil {
+		t.Fatalf("read settings: %v", err)
+	}
+	claudeconfig.RegisterHooks(s)
+	claudeconfig.SetStatusLine(s)
+	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
+		t.Fatalf("write settings: %v", err)
+	}
+
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("read result: %v", err)
+	}
+
+	if !strings.Contains(string(data), `"statusLine"`) {
+		t.Error("statusLine key not present after install")
+	}
+	if !strings.Contains(string(data), "statusline.cjs") {
+		t.Error("statusline.cjs not referenced in statusLine command")
+	}
+	if !strings.Contains(string(data), `$HOME`) {
+		t.Error("statusLine command missing literal $HOME")
+	}
+	// Pre-existing key must survive.
+	if !strings.Contains(string(data), `"FOO"`) {
+		t.Error("env.FOO lost after install")
+	}
+}
+
+// TestUninstallRemovesStatusLine mirrors unregisterHooksFromSettings (UnregisterHooks +
+// UnsetStatusLine + WriteSettings) and asserts statusLine is removed.
+func TestUninstallRemovesStatusLine(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"env":{"FOO":"bar"}}`), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	// First: install (set statusLine).
+	s, err := claudeconfig.ReadSettingsAt(settingsPath)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	claudeconfig.RegisterHooks(s)
+	claudeconfig.SetStatusLine(s)
+	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
+		t.Fatalf("install write: %v", err)
+	}
+
+	// Verify it was set.
+	installed, _ := os.ReadFile(settingsPath)
+	if !strings.Contains(string(installed), `"statusLine"`) {
+		t.Fatal("statusLine not set after install step")
+	}
+
+	// Second: uninstall (unset statusLine).
+	s2, err := claudeconfig.ReadSettingsAt(settingsPath)
+	if err != nil {
+		t.Fatalf("read for uninstall: %v", err)
+	}
+	claudeconfig.UnregisterHooks(s2)
+	claudeconfig.UnsetStatusLine(s2)
+	if err := claudeconfig.WriteSettings(s2, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
+		t.Fatalf("uninstall write: %v", err)
+	}
+
+	uninstalled, _ := os.ReadFile(settingsPath)
+	if strings.Contains(string(uninstalled), `"statusLine"`) {
+		t.Error("statusLine still present after uninstall")
+	}
+	// Non-statusLine keys must survive.
+	if !strings.Contains(string(uninstalled), `"FOO"`) {
+		t.Error("env.FOO lost after uninstall")
+	}
+}
+
+// TestInstallStatusLineIdempotent verifies that running install twice yields
+// the same settings.json content (statusLine not duplicated).
+func TestInstallStatusLineIdempotent(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	doInstall := func() {
+		s, err := claudeconfig.ReadSettingsAt(settingsPath)
+		if err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		claudeconfig.RegisterHooks(s)
+		claudeconfig.SetStatusLine(s)
+		if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+
+	doInstall()
+	data1, _ := os.ReadFile(settingsPath)
+	doInstall()
+	data2, _ := os.ReadFile(settingsPath)
+
+	if string(data1) != string(data2) {
+		t.Errorf("install is not idempotent:\nfirst:\n%s\nsecond:\n%s", data1, data2)
+	}
+}
+
 // ── UnregisterHooks idempotency ───────────────────────────────────────────
 
 func TestUnregisterHooksIdempotent(t *testing.T) {

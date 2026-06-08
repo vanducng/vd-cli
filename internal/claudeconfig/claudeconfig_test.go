@@ -445,6 +445,154 @@ func TestRegisterHooksDevRulesReminder(t *testing.T) {
 	}
 }
 
+func TestSetStatusLineWritesSurgically(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	writeFixture(t, settingsPath, `{"env":{"FOO":"bar"}}`)
+
+	s := mustReadSettings(t, settingsPath)
+	SetStatusLine(s)
+	if err := writeSettingsAt(settingsPath, s, false); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	data := mustReadFile(t, settingsPath)
+
+	// statusLine key must be present.
+	if !strings.Contains(string(data), `"statusLine"`) {
+		t.Error("statusLine key not written to settings.json")
+	}
+	// Must reference our hook file.
+	if !strings.Contains(string(data), "statusline.cjs") {
+		t.Error("statusline.cjs not referenced in statusLine command")
+	}
+	// Must use literal $HOME, not an expanded path.
+	if !strings.Contains(string(data), `$HOME`) {
+		t.Error("statusLine command does not contain literal $HOME")
+	}
+	if containsPersonalPath(data) {
+		t.Error("statusLine command contains an absolute home path — must use literal $HOME")
+	}
+	// Pre-existing env key must be preserved.
+	if !strings.Contains(string(data), `"FOO"`) {
+		t.Error("env.FOO was lost after SetStatusLine write")
+	}
+}
+
+func TestSetStatusLineIdempotent(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	writeFixture(t, settingsPath, `{}`)
+
+	s1 := mustReadSettings(t, settingsPath)
+	SetStatusLine(s1)
+	if err := writeSettingsAt(settingsPath, s1, false); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	data1 := mustReadFile(t, settingsPath)
+
+	s2 := mustReadSettings(t, settingsPath)
+	SetStatusLine(s2)
+	if err := writeSettingsAt(settingsPath, s2, false); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	data2 := mustReadFile(t, settingsPath)
+
+	if string(data1) != string(data2) {
+		t.Errorf("SetStatusLine idempotency failed:\nfirst:\n%s\nsecond:\n%s", data1, data2)
+	}
+}
+
+func TestUnsetStatusLineRemovesKey(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	writeFixture(t, settingsPath, `{"env":{"FOO":"bar"}}`)
+
+	s := mustReadSettings(t, settingsPath)
+	SetStatusLine(s)
+	if err := writeSettingsAt(settingsPath, s, false); err != nil {
+		t.Fatalf("set write: %v", err)
+	}
+
+	// Verify it was set.
+	setData := mustReadFile(t, settingsPath)
+	if !strings.Contains(string(setData), `"statusLine"`) {
+		t.Fatal("statusLine not present after SetStatusLine")
+	}
+
+	// Now unset.
+	s2 := mustReadSettings(t, settingsPath)
+	UnsetStatusLine(s2)
+	if err := writeSettingsAt(settingsPath, s2, false); err != nil {
+		t.Fatalf("unset write: %v", err)
+	}
+
+	unsetData := mustReadFile(t, settingsPath)
+	if strings.Contains(string(unsetData), `"statusLine"`) {
+		t.Error("statusLine key still present after UnsetStatusLine")
+	}
+	// Other keys must survive.
+	if !strings.Contains(string(unsetData), `"FOO"`) {
+		t.Error("env.FOO was lost after UnsetStatusLine")
+	}
+}
+
+func TestNewManagedHooksRegistered(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	writeFixture(t, settingsPath, `{}`)
+
+	s := mustReadSettings(t, settingsPath)
+	RegisterHooks(s)
+	if err := writeSettingsAt(settingsPath, s, false); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	data := string(mustReadFile(t, settingsPath))
+
+	// Real events + files that must be registered.
+	for _, expected := range []string{
+		"scout-block.cjs",
+		"team-context-inject.cjs",
+		"PreToolUse",
+	} {
+		if !strings.Contains(data, expected) {
+			t.Errorf("settings.json missing expected content: %q", expected)
+		}
+	}
+
+	// task-completed-handler and teammate-idle-handler ship as assets but must
+	// NOT be registered in settings.json hooks{} — they are not valid CC events.
+	for _, notExpected := range []string{"TaskCompleted", "TeammateIdle"} {
+		if strings.Contains(data, notExpected) {
+			t.Errorf("settings.json contains fake event %q — must not be registered", notExpected)
+		}
+	}
+
+	if !IsRegistered(s) {
+		t.Error("IsRegistered returned false after RegisterHooks with new hooks")
+	}
+}
+
+func TestNewManagedHooksIdempotent(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	writeFixture(t, settingsPath, `{}`)
+
+	s1 := mustReadSettings(t, settingsPath)
+	RegisterHooks(s1)
+	if err := writeSettingsAt(settingsPath, s1, false); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	data1 := mustReadFile(t, settingsPath)
+
+	s2 := mustReadSettings(t, settingsPath)
+	RegisterHooks(s2)
+	if err := writeSettingsAt(settingsPath, s2, false); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	data2 := mustReadFile(t, settingsPath)
+
+	if string(data1) != string(data2) {
+		t.Errorf("new managed hooks idempotency failed")
+	}
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────
 
 func writeFixture(t *testing.T, path, content string) {

@@ -30,6 +30,8 @@ var managedHooks = []struct {
 	{event: "SessionStart", matcher: "startup|resume|clear|compact", file: "session-init.cjs"},
 	{event: "SubagentStart", matcher: "*", file: "subagent-init.cjs"},
 	{event: "UserPromptSubmit", matcher: "", file: "dev-rules-reminder.cjs"},
+	{event: "PreToolUse", matcher: "Bash|Glob|Grep|Read|Edit|Write", file: "scout-block.cjs"},
+	{event: "SubagentStart", matcher: "*", file: "team-context-inject.cjs"},
 }
 
 // HookEntry is one entry in a hooks event array in settings.json.
@@ -49,8 +51,8 @@ type HookItem struct {
 // Settings holds the parsed hooks subtree plus the original raw bytes.
 // The raw bytes are the authoritative representation of everything we don't touch.
 type Settings struct {
-	Hooks    map[string][]HookEntry `json:"hooks,omitempty"`
-	rawOrig  []byte                 // original file bytes; nil for a new file
+	Hooks   map[string][]HookEntry `json:"hooks,omitempty"`
+	rawOrig []byte                 // original file bytes; nil for a new file
 }
 
 // settingsPath returns the absolute path to ~/.claude/settings.json.
@@ -353,6 +355,40 @@ func atomicWrite(path string, data []byte) error {
 
 	ok = true
 	return nil
+}
+
+// statusLineCommand is the literal command written to the statusLine key.
+const statusLineCommand = `node "$HOME/.claude/hooks/statusline.cjs"`
+
+// statusLineEntry is the JSON object written to settings.json "statusLine".
+type statusLineEntry struct {
+	Type    string `json:"type"`
+	Command string `json:"command"`
+}
+
+// SetStatusLine patches the "statusLine" key in s using the raw bytes so that
+// repeated calls are idempotent (same bytes in → same bytes out).
+func SetStatusLine(s *Settings) {
+	if s.rawOrig == nil {
+		s.rawOrig = []byte(`{}`)
+	}
+	entry := statusLineEntry{Type: "command", Command: statusLineCommand}
+	entryJSON, _ := json.Marshal(entry)
+	patched, err := sjson.SetRawBytes(s.rawOrig, "statusLine", entryJSON)
+	if err == nil {
+		s.rawOrig = patched
+	}
+}
+
+// UnsetStatusLine removes the "statusLine" key from s using the raw bytes.
+func UnsetStatusLine(s *Settings) {
+	if s.rawOrig == nil {
+		return
+	}
+	patched, err := sjson.DeleteBytes(s.rawOrig, "statusLine")
+	if err == nil {
+		s.rawOrig = patched
+	}
 }
 
 // UnregisterHooks removes only our managed hook commands from s.Hooks.
