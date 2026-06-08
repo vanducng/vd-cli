@@ -55,6 +55,7 @@ Run 'vd --help' on any subcommand for details.`,
 	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "Verbose output (reserved for future phases)")
 	pf.StringVar(&flagRoot, "root", "", "Override repo root path (must be an existing directory; takes precedence over VD_ROOT env var)")
 
+	root.AddCommand(newBootstrapCmd())
 	root.AddCommand(newInitCmd())
 	root.AddCommand(newListCmd())
 	root.AddCommand(newAddCmd())
@@ -68,6 +69,7 @@ Run 'vd --help' on any subcommand for details.`,
 	root.AddCommand(newRemoveCmd())
 	root.AddCommand(newBuildCmd())
 	root.AddCommand(newInstallCmd())
+	root.AddCommand(newUpgradeCmd())
 
 	return root
 }
