@@ -4,6 +4,14 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.3.0](https://github.com/vanducng/vd-cli/compare/v2.2.0...v2.3.0) (2026-06-08)
+
+
+### Features
+
+* add 'vd upgrade' self-upgrade command ([f8bc629](https://github.com/vanducng/vd-cli/commit/f8bc6295e1fe98d8f5b734f89c9e4df4c0fbaf17))
+* **install:** multi-select picker and bootstrap skills into ~/.vd/skills ([95ac5fc](https://github.com/vanducng/vd-cli/commit/95ac5fc354fa1f10da9d21d3774e0ef80be0e6f5))
+
 ## [2.2.0](https://github.com/vanducng/vd-cli/compare/v2.1.0...v2.2.0) (2026-05-24)
 
 
