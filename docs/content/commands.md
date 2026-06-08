@@ -4,9 +4,9 @@ title: "vd — Command Reference"
 
 One section per verb. All commands accept the global flags `--quiet` / `-q`, `--verbose` / `-v`, `--root <path>`, and `--version`.
 
-**Repo root resolution.** Order: `--root` flag → `VD_ROOT` env var → walk up from CWD to the first `.git/`. Set `VD_ROOT` in your shell to pin a default repo when invoking `vd` from arbitrary directories. Both `--root` and `VD_ROOT` are validated (must exist, must be a directory).
+**Repo root resolution.** Order: `--root` flag → `VD_ROOT` env var → walk up from CWD to the first `.git/` → the bootstrapped home `~/.vd/skills` (when populated by [`vd bootstrap`](#vd-bootstrap)). Set `VD_ROOT` in your shell to pin a default repo when invoking `vd` from arbitrary directories. Both `--root` and `VD_ROOT` are validated (must exist, must be a directory).
 
-**Upstream version check.** Each command runs a background lookup against the GitHub releases API, cached for 24 hours under `$XDG_CACHE_HOME/vd/version-check.json` (or `~/.cache/vd/version-check.json`). When a newer release exists, vd prints a single line to stderr: `vd 1.0.0 (latest: 1.1.0). Upgrade: brew upgrade vd`. The check is best-effort and silent on any failure. Auto-disabled when `CI` is set, when the binary is a `dev` build, and when stderr is not a terminal.
+**Upstream version check.** Each command runs a background lookup against the GitHub releases API, cached for 24 hours under `$XDG_CACHE_HOME/vd/version-check.json` (or `~/.cache/vd/version-check.json`). When a newer release exists, vd prints a single line to stderr: `vd 1.0.0 (latest: 1.1.0). Upgrade: brew upgrade vd`. Apply it with [`vd upgrade`](#vd-upgrade) (standalone binaries) or `brew upgrade vd` (Homebrew). The check is best-effort and silent on any failure. Auto-disabled when `CI` is set, when the binary is a `dev` build, and when stderr is not a terminal.
 
 :::tip
 Disable the version check globally with `VD_NO_UPDATE_CHECK=1`, or suppress it per-call with `--quiet`.
@@ -333,6 +333,40 @@ vd build agents           # regenerate .agents/skills/ symlinks only
 
 ---
 
+## vd bootstrap
+
+Clone the skills content repository (default `vanducng/skills`) into `$HOME/.vd/skills` at the latest **release tag**, so a freshly installed `vd` has skills to install from without cloning anything by hand. Afterwards `vd install` (and other commands) resolve `~/.vd/skills` as the repo root when no `--root`, `VD_ROOT`, or `.git` repo applies.
+
+Re-run with `--update` to move an existing checkout to the latest release; pin a specific tag or branch with `--ref`.
+
+**Signature:**
+```
+vd bootstrap [--repo <url>] [--ref <tag|branch>] [--update] [--dry-run]
+```
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--repo <url>` | Skills repo URL. Defaults to `vanducng/skills` or `$VD_SKILLS_REPO`. |
+| `--ref <ref>` | Pin a specific tag or branch instead of the latest release. |
+| `--update` | Move an existing `~/.vd/skills` to the target release (no-op without it). |
+| `--dry-run` | Print what would be cloned/updated without changing files. |
+
+**Examples:**
+```sh
+vd bootstrap                            # clone vanducng/skills@<latest tag> into ~/.vd/skills
+vd bootstrap --update                   # move an existing checkout to the latest release
+vd bootstrap --ref v0.25.0              # pin a specific release
+VD_SKILLS_REPO=me/skills vd bootstrap   # use a fork
+```
+
+**Side effects:** clones or updates `$HOME/.vd/skills` (a shallow checkout at the target tag). Requires `git` ≥ 2.25 in `PATH`.
+
+**Exit codes:** `0` success (including already-present / already-current), `1` git missing, no release tags found, or clone/fetch failure.
+
+---
+
 ## vd install
 
 Install local skills into an agent environment. With no agent argument, `vd install` opens a terminal picker with these choices:
@@ -341,12 +375,16 @@ Install local skills into an agent environment. With no agent argument, `vd inst
 2. Codex repo skills — symlink to `.agents/skills`
 3. Codex snapshot copy — copy to `$HOME/.agents/skills`
 4. Claude Code plugin — marketplace/plugin install
+5. Claude Code dev symlinks — per-skill symlink into `$HOME/.claude/skills`
 
-Passing the agent is recommended for scripts.
+Pick several at once with a comma-separated list (e.g. `1,3,5`) or `all`. Passing the agent is recommended for scripts.
+
+If no skills are found locally (no `--root`/`VD_ROOT`/`.git` repo and no `~/.vd/skills`), `vd install` offers to run [`vd bootstrap`](#vd-bootstrap) first; in non-interactive contexts it errors with that hint instead.
 
 **Agents:**
 - `codex` — installs local `skills/<name>/` directories into Codex discovery paths. Default scope is user, which writes symlinks to `$HOME/.agents/skills`. Use `--scope repo` to write `.agents/skills/<name>` in the current repo.
 - `claude` — runs `vd build claude`, registers this repo as a Claude Code marketplace, and installs the configured plugin bundle.
+- `claude --dev` — per-skill symlinks into `$HOME/.claude/skills` (mirrors the codex symlink flow) instead of the marketplace plugin install. Accepts skill-name arguments.
 
 **Signature:**
 ```
@@ -361,6 +399,7 @@ vd install [agent] [skill...]
 | `--dest` | Override Codex destination directory. |
 | `--copy` | Copy Codex skills instead of symlinking. |
 | `--force` | Replace existing Codex destination entries. |
+| `--dev` | Claude only: per-skill symlink into `$HOME/.claude/skills` instead of the marketplace plugin install. |
 | `--dry-run` | Print planned actions without changing files. |
 
 **Examples:**
@@ -370,7 +409,10 @@ vd install codex research plan           # install selected skills only
 vd install codex --scope repo            # symlink all skills into .agents/skills
 vd install codex --copy --force          # replace existing installs with copies
 vd install                               # open the install target picker
+vd install 1,3,5                         # picker: install multiple targets at once
+vd install all                           # picker: install every target
 vd install claude                        # install configured Claude Code plugin bundle
+vd install claude --dev research         # symlink selected skills into ~/.claude/skills
 vd install claude --dry-run              # print Claude plugin commands
 ```
 
@@ -397,3 +439,36 @@ vd cache clean            # remove .vd-cache/
 **Side effects:** removes `.vd-cache/` entirely. Safe to run at any time; no manifest or skill data is touched.
 
 **Exit codes:** `0` always (no-op if cache is already empty).
+
+---
+
+## vd upgrade
+
+Upgrade the `vd` binary itself to the latest GitHub release. Downloads the platform archive, verifies it against the published `checksums.txt`, extracts the binary, and atomically replaces the running executable in place.
+
+:::note
+Homebrew installs are **not** self-replaced — `vd upgrade` detects them and tells you to run `brew upgrade vd` instead. This only applies when an upgrade is actually available; if you are already on the latest version it reports so and exits.
+:::
+
+**Signature:**
+```
+vd upgrade [--check] [--version <tag>]
+```
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--check` | Report current vs latest and whether an update is available; do not install. |
+| `--version <tag>` | Install a specific release tag (e.g. `v2.3.0`) instead of the latest. |
+
+**Examples:**
+```sh
+vd upgrade                 # download + self-replace with the latest release
+vd upgrade --check         # just report current vs latest
+vd upgrade --version v2.3.0 # install a specific release
+```
+
+**Side effects:** replaces the running binary on disk. No repo, manifest, or skill data is touched.
+
+**Exit codes:** `0` success or already up to date, `1` Homebrew-managed install (use `brew upgrade vd`), unsupported platform, download/checksum failure, or no write permission to the binary's directory.
