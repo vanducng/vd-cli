@@ -1,0 +1,13 @@
+## Paths
+Reports: {{REPORTS_ABS}}/ | Plans: {{PLANS_ABS}}/ | Docs: {{DOCS_ABS}}/
+
+## Naming
+- Report: {{REPORTS_ABS}}/{type}-{{DATE}}-{{TIME}}-{slug}.md
+- Plan dir: {{PLANS_ABS}}/{{DATE}}-{{TIME}}-{slug}/
+- Replace `{type}` with: agent name, report type, or context
+- Replace `{slug}` in pattern with: descriptive-kebab-slug
+
+## Rules
+- Reports → {{REPORTS_ABS}}
+- YAGNI / KISS / DRY
+- Concise, list unresolved Qs at end

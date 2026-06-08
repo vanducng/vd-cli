@@ -29,6 +29,7 @@ var managedHooks = []struct {
 }{
 	{event: "SessionStart", matcher: "startup|resume|clear|compact", file: "session-init.cjs"},
 	{event: "SubagentStart", matcher: "*", file: "subagent-init.cjs"},
+	{event: "UserPromptSubmit", matcher: "", file: "dev-rules-reminder.cjs"},
 }
 
 // HookEntry is one entry in a hooks event array in settings.json.
@@ -68,6 +69,11 @@ func ReadSettings() (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
+	return readSettingsAt(path)
+}
+
+// ReadSettingsAt reads settings from an explicit path (used in tests).
+func ReadSettingsAt(path string) (*Settings, error) {
 	return readSettingsAt(path)
 }
 
@@ -347,6 +353,22 @@ func atomicWrite(path string, data []byte) error {
 
 	ok = true
 	return nil
+}
+
+// UnregisterHooks removes only our managed hook commands from s.Hooks.
+// Matcher blocks that become empty are pruned; unmanaged hooks are untouched.
+func UnregisterHooks(s *Settings) {
+	if s.Hooks == nil {
+		return
+	}
+	for _, mh := range managedHooks {
+		if entries, ok := s.Hooks[mh.event]; ok {
+			s.Hooks[mh.event] = removeHookCommand(entries, mh.file)
+			if len(s.Hooks[mh.event]) == 0 {
+				delete(s.Hooks, mh.event)
+			}
+		}
+	}
 }
 
 // IsRegistered reports whether all managed hooks are present in s.

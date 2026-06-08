@@ -13,6 +13,7 @@ import (
 var expectedCJS = []string{
 	"session-init.cjs",
 	"subagent-init.cjs",
+	"dev-rules-reminder.cjs",
 	filepath.Join("lib", "config.cjs"),
 	filepath.Join("lib", "paths.cjs"),
 	filepath.Join("lib", "state.cjs"),

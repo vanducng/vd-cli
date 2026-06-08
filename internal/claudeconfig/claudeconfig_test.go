@@ -409,6 +409,42 @@ func TestCKConfigMissingFile(t *testing.T) {
 	}
 }
 
+func TestRegisterHooksDevRulesReminder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	writeFixture(t, path, `{}`)
+
+	s := mustReadSettings(t, path)
+	RegisterHooks(s)
+	if err := writeSettingsAt(path, s, false); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	data := mustReadFile(t, path)
+
+	// dev-rules-reminder.cjs must appear in UserPromptSubmit.
+	if !strings.Contains(string(data), "dev-rules-reminder.cjs") {
+		t.Error("dev-rules-reminder.cjs not found in settings.json after RegisterHooks")
+	}
+	if !strings.Contains(string(data), "UserPromptSubmit") {
+		t.Error("UserPromptSubmit event not found in settings.json after RegisterHooks")
+	}
+
+	// Idempotency: register again — count must stay at 1.
+	s2 := mustReadSettings(t, path)
+	RegisterHooks(s2)
+	count := 0
+	for _, entry := range s2.Hooks["UserPromptSubmit"] {
+		for _, item := range entry.Hooks {
+			if strings.Contains(item.Command, "dev-rules-reminder.cjs") {
+				count++
+			}
+		}
+	}
+	if count != 1 {
+		t.Errorf("dev-rules-reminder.cjs appears %d times in UserPromptSubmit (want 1)", count)
+	}
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────
 
 func writeFixture(t *testing.T, path, content string) {
