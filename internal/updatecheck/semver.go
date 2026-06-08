@@ -65,6 +65,13 @@ func Less(a, b string) bool {
 	return ap < bp
 }
 
+// IsValid reports whether s parses as MAJOR.MINOR.PATCH (after the usual
+// "v"/alpha-prefix trimming). Pre-release and build metadata are rejected.
+func IsValid(s string) bool {
+	_, _, _, ok := parse(s)
+	return ok
+}
+
 // Equal reports whether a and b normalize to the same (major, minor, patch).
 // Returns false if either side is unparseable.
 func Equal(a, b string) bool {

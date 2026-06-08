@@ -23,6 +23,11 @@ type installOptions struct {
 	dev    bool
 }
 
+type installTarget struct {
+	agent string
+	opts  installOptions
+}
+
 func newInstallCmd() *cobra.Command {
 	var opts installOptions
 
@@ -31,12 +36,14 @@ func newInstallCmd() *cobra.Command {
 		Short: "Install local skills into an agent environment",
 		Long: `Install skills from this repository into a local agent environment.
 
-Run without an agent to select an install target:
+Run without an agent to select one or more install targets:
   1) Codex user skills            symlink to $HOME/.agents/skills
   2) Codex repo skills            symlink to .agents/skills
   3) Codex snapshot copy          copy to $HOME/.agents/skills
   4) Claude Code plugin           marketplace/plugin install
   5) Claude Code dev symlinks     symlink to $HOME/.claude/skills
+
+Pick several at once with a comma-separated list (e.g. 1,3,5) or 'all'.
 
 Agents:
   codex          installs skills into Codex discovery paths
@@ -44,7 +51,7 @@ Agents:
   claude --dev   per-skill symlink into $HOME/.claude/skills (mirrors codex)`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			root, err := resolveRepoRoot(flagRoot)
+			root, err := resolveInstallRoot(cmd, flagRoot, opts.dryRun)
 			if err != nil {
 				return err
 			}
@@ -78,15 +85,26 @@ func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts install
 		}
 	}
 
-	if agent == "" {
-		pickedAgent, pickedOpts, err := promptInstallSelection(cmd, opts)
-		if err != nil {
-			return err
-		}
-		agent = pickedAgent
-		opts = pickedOpts
+	if agent != "" {
+		return runInstallTarget(cmd, repoRoot, agent, skills, opts)
 	}
 
+	targets, err := promptInstallSelection(cmd, opts)
+	if err != nil {
+		return err
+	}
+	for i, t := range targets {
+		if len(targets) > 1 && !flagQuiet {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n==> [%d/%d] %s\n", i+1, len(targets), describeInstallTarget(t))
+		}
+		if err := runInstallTarget(cmd, repoRoot, t.agent, skills, t.opts); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runInstallTarget(cmd *cobra.Command, repoRoot, agent string, skills []string, opts installOptions) error {
 	switch agent {
 	case "codex":
 		return runInstallCodex(cmd, repoRoot, skills, opts)
@@ -100,6 +118,27 @@ func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts install
 		return runInstallClaude(cmd, repoRoot, opts)
 	default:
 		return fmt.Errorf("unknown agent %q (valid: codex, claude)", agent)
+	}
+}
+
+func describeInstallTarget(t installTarget) string {
+	switch t.agent {
+	case "codex":
+		switch {
+		case t.opts.copy:
+			return "Codex snapshot copy"
+		case t.opts.scope == "repo":
+			return "Codex repo skills"
+		default:
+			return "Codex user skills"
+		}
+	case "claude":
+		if t.opts.dev {
+			return "Claude Code dev symlinks"
+		}
+		return "Claude Code plugin"
+	default:
+		return t.agent
 	}
 }
 
@@ -242,18 +281,10 @@ func normalizeInstallAgent(s string) string {
 	}
 }
 
-func promptInstallSelection(cmd *cobra.Command, opts installOptions) (string, installOptions, error) {
+func promptInstallSelection(cmd *cobra.Command, opts installOptions) ([]installTarget, error) {
 	in := cmd.InOrStdin()
-	file, ok := in.(*os.File)
-	if !ok {
-		return "", opts, fmt.Errorf("agent argument required when stdin is not interactive")
-	}
-	info, err := file.Stat()
-	if err != nil {
-		return "", opts, fmt.Errorf("inspect stdin: %w", err)
-	}
-	if info.Mode()&os.ModeCharDevice == 0 {
-		return "", opts, fmt.Errorf("agent argument required when stdin is not interactive")
+	if !isInteractive(in) {
+		return nil, fmt.Errorf("agent argument required when stdin is not interactive")
 	}
 
 	out := cmd.OutOrStdout()
@@ -263,18 +294,62 @@ func promptInstallSelection(cmd *cobra.Command, opts installOptions) (string, in
 	_, _ = fmt.Fprintln(out, "  3) Codex snapshot copy          copy to $HOME/.agents/skills")
 	_, _ = fmt.Fprintln(out, "  4) Claude Code plugin           marketplace/plugin install")
 	_, _ = fmt.Fprintln(out, "  5) Claude Code dev symlinks     symlink to $HOME/.claude/skills")
-	_, _ = fmt.Fprint(out, "Select install target [1-5]: ")
+	_, _ = fmt.Fprint(out, "Select install target(s) [1-5, comma-separated, or 'all']: ")
 
 	reader := bufio.NewReader(in)
 	text, err := reader.ReadString('\n')
 	if err != nil {
-		return "", opts, fmt.Errorf("read selection: %w", err)
+		return nil, fmt.Errorf("read selection: %w", err)
 	}
-	agent, opts, err := resolveInstallSelection(text, opts)
-	if err != nil {
-		return "", opts, err
+	return resolveInstallSelections(text, opts)
+}
+
+// resolveInstallSelections parses a comma-separated picker response (e.g.
+// "1,3,5", "codex repo, claude", or "all") into install targets, expanding
+// "all" to every menu entry and dropping duplicates while preserving order.
+func resolveInstallSelections(selection string, opts installOptions) ([]installTarget, error) {
+	tokens := splitInstallSelections(selection)
+	if len(tokens) == 0 {
+		return nil, fmt.Errorf("no install target selected")
 	}
-	return agent, opts, nil
+
+	expanded := make([]string, 0, len(tokens))
+	for _, tok := range tokens {
+		if normalizeInstallSelection(tok) == "all" {
+			expanded = append(expanded, "1", "2", "3", "4", "5")
+			continue
+		}
+		expanded = append(expanded, tok)
+	}
+
+	seen := make(map[string]bool, len(expanded))
+	targets := make([]installTarget, 0, len(expanded))
+	for _, tok := range expanded {
+		key := normalizeInstallSelection(tok)
+		if seen[key] {
+			continue
+		}
+		agent, resolved, err := resolveInstallSelection(tok, opts)
+		if err != nil {
+			return nil, err
+		}
+		seen[key] = true
+		targets = append(targets, installTarget{agent: agent, opts: resolved})
+	}
+	return targets, nil
+}
+
+func splitInstallSelections(selection string) []string {
+	tokens := make([]string, 0, 5)
+	for _, part := range strings.Split(selection, ",") {
+		part = strings.TrimSpace(part)
+		part = strings.Trim(part, "[]")
+		part = strings.TrimSpace(part)
+		if part != "" {
+			tokens = append(tokens, part)
+		}
+	}
+	return tokens
 }
 
 func resolveInstallSelection(selection string, opts installOptions) (string, installOptions, error) {
@@ -327,6 +402,8 @@ func normalizeInstallSelection(selection string) string {
 		return "claude"
 	case "5", "claude-dev", "claude-code-dev", "claudedev", "dev":
 		return "claude-dev"
+	case "all", "a", "*":
+		return "all"
 	default:
 		return s
 	}

@@ -192,6 +192,62 @@ func TestRunInstall_ClaudeWithoutDevRejectsSkillNames(t *testing.T) {
 	}
 }
 
+func TestResolveInstallSelections_Multiple(t *testing.T) {
+	targets, err := resolveInstallSelections("1,3,5", installOptions{scope: "user"})
+	if err != nil {
+		t.Fatalf("resolveInstallSelections: %v", err)
+	}
+	if len(targets) != 3 {
+		t.Fatalf("len(targets) = %d, want 3", len(targets))
+	}
+	if targets[0].agent != "codex" || targets[0].opts.copy {
+		t.Fatalf("target[0] = %+v, want codex user symlink", targets[0])
+	}
+	if targets[1].agent != "codex" || !targets[1].opts.copy {
+		t.Fatalf("target[1] = %+v, want codex snapshot copy", targets[1])
+	}
+	if targets[2].agent != "claude" || !targets[2].opts.dev {
+		t.Fatalf("target[2] = %+v, want claude dev", targets[2])
+	}
+}
+
+func TestResolveInstallSelections_All(t *testing.T) {
+	for _, in := range []string{"all", "[all]", " ALL "} {
+		targets, err := resolveInstallSelections(in, installOptions{scope: "user"})
+		if err != nil {
+			t.Fatalf("resolveInstallSelections(%q): %v", in, err)
+		}
+		if len(targets) != 5 {
+			t.Fatalf("resolveInstallSelections(%q) len = %d, want 5", in, len(targets))
+		}
+	}
+}
+
+func TestResolveInstallSelections_DedupesAndPreservesOrder(t *testing.T) {
+	targets, err := resolveInstallSelections("5, 1, 5, codex repo", installOptions{scope: "user"})
+	if err != nil {
+		t.Fatalf("resolveInstallSelections: %v", err)
+	}
+	if len(targets) != 3 {
+		t.Fatalf("len(targets) = %d, want 3 (deduped)", len(targets))
+	}
+	if targets[0].agent != "claude" || !targets[0].opts.dev {
+		t.Fatalf("target[0] = %+v, want claude dev", targets[0])
+	}
+	if targets[2].agent != "codex" || targets[2].opts.scope != "repo" {
+		t.Fatalf("target[2] = %+v, want codex repo", targets[2])
+	}
+}
+
+func TestResolveInstallSelections_RejectsEmptyAndInvalid(t *testing.T) {
+	if _, err := resolveInstallSelections("   ", installOptions{scope: "user"}); err == nil {
+		t.Fatal("expected error for empty selection")
+	}
+	if _, err := resolveInstallSelections("1,99", installOptions{scope: "user"}); err == nil {
+		t.Fatal("expected error for invalid token in list")
+	}
+}
+
 func TestResolveInstallSelection_ClaudeDevPick(t *testing.T) {
 	agent, opts, err := resolveInstallSelection("5", installOptions{scope: "user"})
 	if err != nil {

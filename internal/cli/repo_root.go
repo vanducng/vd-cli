@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vanducng/vd-cli/v2/internal/bootstrap"
 	"github.com/vanducng/vd-cli/v2/internal/config"
 )
 
@@ -30,7 +31,17 @@ func resolveRepoRoot(override string) (string, error) {
 		return "", fmt.Errorf("cannot determine working directory: %w", err)
 	}
 
-	return config.FindRepoRoot(cwd)
+	root, err := config.FindRepoRoot(cwd)
+	if err != nil {
+		// No skills repo in the CWD ancestry — fall back to the bootstrapped
+		// home (~/.vd/skills) so a consumer who ran `vd bootstrap` can use
+		// vd from anywhere.
+		if home, herr := bootstrap.DefaultRoot(); herr == nil && bootstrap.IsBootstrapped(home) {
+			return home, nil
+		}
+		return "", err
+	}
+	return root, nil
 }
 
 // validateRootDir asserts that path exists and is a directory, returning a
