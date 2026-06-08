@@ -258,6 +258,7 @@ func runInstallHooks(cmd *cobra.Command, opts installOptions) error {
 			return fmt.Errorf("read settings: %w", err)
 		}
 		claudeconfig.RegisterHooks(s)
+		claudeconfig.SetStatusLine(s)
 		if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{DryRun: true}); err != nil {
 			return err
 		}
@@ -285,6 +286,7 @@ func runInstallHooks(cmd *cobra.Command, opts installOptions) error {
 		return fmt.Errorf("read settings.json: %w", err)
 	}
 	claudeconfig.RegisterHooks(s)
+	claudeconfig.SetStatusLine(s)
 	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{}); err != nil {
 		return fmt.Errorf("register hooks in settings.json: %w", err)
 	}
