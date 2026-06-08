@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.4.0](https://github.com/vanducng/vd-cli/compare/v2.3.0...v2.4.0) (2026-06-08)
+
+
+### Features
+
+* own the Claude Code control plane (clean-room hooks + .work umbrella) ([#9](https://github.com/vanducng/vd-cli/issues/9)) ([ec57537](https://github.com/vanducng/vd-cli/commit/ec5753749f029b899855cc2c2b9ca0e1ab408599))
+
 ## [2.3.0](https://github.com/vanducng/vd-cli/compare/v2.2.0...v2.3.0) (2026-06-08)
 
 
