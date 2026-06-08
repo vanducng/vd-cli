@@ -1,4 +1,4 @@
-# Makefile for tools/vd — run targets from this directory.
+# Makefile for the vd CLI.
 # Usage: make build | make test | make vet | make lint | make run
 
 # Use mise-managed Go if available; callers can still override: GO=/path/to/go make build

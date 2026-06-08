@@ -12,9 +12,8 @@ import (
 
 // Global flag values — read by subcommands via Flags() on root or passed down.
 var (
-	flagQuiet   bool
-	flagVerbose bool
-	flagRoot    string
+	flagQuiet bool
+	flagRoot  string
 
 	// Background upstream version check; populated in PersistentPreRunE,
 	// consumed in PersistentPostRunE. nil if any gate disables the check.
@@ -27,7 +26,7 @@ func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "vd",
 		Short: "Manage and vendor Claude skills in your repo",
-		Long: `vd tracks, vendors, and publishes Claude skills inside a skills monorepo.
+		Long: `vd tracks, vendors, and publishes Claude skills inside your repo.
 
 Run 'vd --help' on any subcommand for details.`,
 
@@ -52,7 +51,6 @@ Run 'vd --help' on any subcommand for details.`,
 	// Persistent flags — inherited by all subcommands.
 	pf := root.PersistentFlags()
 	pf.BoolVarP(&flagQuiet, "quiet", "q", false, "Suppress non-error output")
-	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "Verbose output (reserved for future phases)")
 	pf.StringVar(&flagRoot, "root", "", "Override repo root path (must be an existing directory; takes precedence over VD_ROOT env var)")
 
 	root.AddCommand(newBootstrapCmd())
