@@ -9,7 +9,7 @@ title: "FAQ"
 Both belong to the same user and repo — this is intentional duplication, not a conflict.
 
 - **The Claude plugin** named `vd` is the skill bundle that users install via `/plugin install vd@vanducng-skills`. It lives in `.claude-plugin/` and appears in Claude Code as `vd:research`, `vd:plan`, etc.
-- **The CLI binary** named `vd` is a Go program in `tools/vd/` that manages the skill repo (fetch, sync, build). It runs in your terminal.
+- **The CLI binary** named `vd` is a Go program (the [`vanducng/vd-cli`](https://github.com/vanducng/vd-cli) repo) that manages a skill repo (fetch, sync, build). It runs in your terminal.
 
 The two artifacts share a name because they belong to the same ecosystem. The CLI *builds* the plugin. There is no runtime conflict: one is a PATH binary, the other is a Claude Code plugin identifier.
 
@@ -21,7 +21,7 @@ Possibly, if you have `visidata` installed. Both install a binary named `vd`.
 
 Options:
 - **Alias one of them:** add `alias vd-skills=/usr/local/bin/vd` or `alias vd-csv=~/.local/bin/vd` to your shell profile.
-- **Use the full path:** call `./tools/vd/vd` from the repo root instead of relying on PATH resolution.
+- **Use the full path:** call `./vd` from the build directory (or wherever you installed it) instead of relying on PATH resolution.
 - **Rename the build output:** `make build BINARY=skill` produces a `skill` binary you can put on PATH under a different name.
 
 The conflict is acknowledged and accepted. Most users of this repo do not use visidata interactively; those who do can alias safely.
@@ -51,16 +51,11 @@ The refuse-on-dirty check only triggers when a `TreeHash` was recorded at last s
 
 ---
 
-## Why keep the CLI in the same repo as the skills it manages (monorepo)?
+## Is the CLI the same repo as the skills?
 
-Single source of truth. Changes to the build tooling and to the skills they manage are atomic — one PR, one review, one tag. You never have "tool is at v1.2 but skills are at v0.9" drift.
+No. The `vd` CLI is its own repo ([`vanducng/vd-cli`](https://github.com/vanducng/vd-cli)), forked out of the original skills monorepo. The maintained skill set lives separately in [`vanducng/skills`](https://github.com/vanducng/skills).
 
-The alternative (separate repo for the CLI) would mean:
-- Cross-repo PRs for coordinated changes.
-- Keeping two repos in sync when the schema evolves.
-- Publishing the CLI separately before skills can use new features.
-
-The CLI is scoped to `tools/vd/` with its own `go.mod`, path-filtered CI, and GoReleaser config — it behaves like a separate module without the overhead of a separate repo.
+`vd` is a *vendoring* manager: it fetches skills from any upstream repo, pins them with a SHA, and dispatches them to your agents. `vd bootstrap` clones `vanducng/skills` into `~/.vd/skills` if you just want the published set; otherwise point `vd` at any repo with a `skills.toml`. Splitting the tool from the content keeps the CLI releasable on its own cadence (Homebrew, `go install`, `vd upgrade`) while skills version independently.
 
 ---
 
