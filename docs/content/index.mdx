@@ -19,6 +19,8 @@ go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
 
 Pre-built binaries (darwin/linux/windows × amd64/arm64) and a from-source build are covered in the [usage guide](/usage/).
 
+To update an existing install: `brew upgrade vd` for Homebrew, or `vd upgrade` for standalone binaries (downloads the latest release and self-replaces; Homebrew installs are deferred back to `brew`).
+
 ## Quick start
 
 ```sh
@@ -31,6 +33,10 @@ vd install codex                                 # (optional) install into Codex
 
 :::note
 After these, `skills/browser/` holds the vendored source, the Claude/Codex manifests are written, and `skills.lock` pins every byte deterministically.
+:::
+
+:::tip[Just want the published skills?]
+If you only want to install the maintained skill set (no repo of your own), run `vd bootstrap` to fetch [`vanducng/skills`](https://skills.vanducng.dev) into `~/.vd/skills`, then `vd install` to symlink them into your agents.
 :::
 
 ## Supported agents

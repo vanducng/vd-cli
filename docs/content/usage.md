@@ -24,12 +24,14 @@ vd build
 | Feature | Commands | Purpose |
 |---|---|---|
 | Manifest setup | `vd init` | Create or refresh `skills.toml` from repository defaults. |
+| Fetch skills | `vd bootstrap` | Clone `vanducng/skills` into `~/.vd/skills` so a fresh install has skills to install from. |
 | Upstream tracking | `vd add`, `vd sync`, `vd update` | Register skills, vendor them locally, and move tracked skills to upstream HEAD. |
 | Version control | `vd pin`, `vd detach`, `vd remove` | Freeze a skill at a SHA, stop tracking it, or remove it cleanly. |
 | Inspection | `vd list`, `vd diff`, `vd doctor` | Review tracked skills, compare local edits, and detect drift from `skills.lock`. |
 | Target builds | `vd build claude`, `vd build agents` | Generate `.claude-plugin/` files and `.agents/skills/` symlinks. |
 | Agent install | `vd install codex`, `vd install claude` | Install local skills into Codex or Claude Code. |
 | Cache control | `vd cache clean` | Remove `.vd-cache/` and force future fetches to repopulate it. |
+| Self-update | `vd upgrade` | Replace the running binary with the latest release (`brew upgrade vd` for Homebrew). |
 
 ## Common Commands
 
@@ -48,6 +50,8 @@ Use `--root <path>` or `VD_ROOT=/path/to/repo` when running `vd` outside the rep
 
 ## Installing Into Agents
 
+No skills repo of your own? Run `vd bootstrap` first to fetch the maintained skill set into `~/.vd/skills`; `vd install` then resolves it automatically (and offers to bootstrap if nothing is found).
+
 Codex installs use symlinks by default so local edits in `skills/<name>/` are visible after restarting Codex:
 
 ```sh
@@ -55,13 +59,14 @@ vd install codex                    # symlink all skills to $HOME/.agents/skills
 vd install codex research plan      # install selected skills
 vd install codex --scope repo       # symlink into .agents/skills for this repo
 vd install codex --copy --force     # replace existing entries with copied snapshots
-vd install                          # open the TUI picker for agent/install mode
+vd install                          # open the picker (single, comma-separated, or 'all')
 ```
 
-Claude Code installs build the plugin bundle, register this repository as a marketplace, and install the configured plugin:
+Claude Code installs build the plugin bundle, register this repository as a marketplace, and install the configured plugin. Use `--dev` for per-skill symlinks into `$HOME/.claude/skills` instead:
 
 ```sh
 vd install claude
+vd install claude --dev             # per-skill symlinks into ~/.claude/skills
 vd install claude --dry-run
 ```
 
