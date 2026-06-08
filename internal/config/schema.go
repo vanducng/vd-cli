@@ -8,6 +8,17 @@ type Manifest struct {
 	Skills  map[string]SkillConfig    `toml:"skills"`
 	Targets TargetsConfig             `toml:"targets"`
 	Plugin  map[string]PluginOverride `toml:"plugin"`
+	Hooks   HooksConfig               `toml:"hooks"`
+}
+
+// HooksConfig holds the optional [hooks] block in skills.toml.
+type HooksConfig struct {
+	// Enabled lists hook filenames that vd should register in settings.json.
+	// Absent / empty means "register all managed hooks" (the default).
+	Enabled []string `toml:"enabled,omitempty"`
+	// Source is the origin of the hook files: "embed" (default) uses the
+	// built-in embedded assets; "local" uses a path relative to the repo root.
+	Source string `toml:"source,omitempty"`
 }
 
 // MetaConfig holds the [meta] block.
