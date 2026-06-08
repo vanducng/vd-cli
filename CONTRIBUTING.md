@@ -63,7 +63,7 @@ Do not reference AI tools in commit messages.
 
 ## File ownership rules
 
-- CLI source lives entirely in `tools/vd/`. Do not modify files outside this tree unless explicitly coordinated.
+- CLI source lives in `cmd/vd/` (entrypoint) and `internal/` (packages). Do not restructure these without explicit coordination.
 - Test files in `internal/*/` are owned by the same team as the package they test.
 - Snapshot data in `internal/target/testdata/` is generated — update it by running the test with `-update` flag (see test file header).
 

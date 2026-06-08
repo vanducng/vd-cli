@@ -32,4 +32,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/vanducng/skills/tools/vd
+        - github.com/vanducng/vd-cli
