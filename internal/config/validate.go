@@ -6,13 +6,16 @@ import (
 	"sort"
 )
 
-// Validate checks all skills in the manifest against their mode rules.
+// Validate checks all skills and the hooks block in the manifest.
 // All errors are accumulated and returned together via errors.Join.
 //
 // Mode rules:
 //   - "pinned"   → pin must be non-empty; source + path required
 //   - "tracked"  → source + path required; pin must be empty
 //   - "detached" → source and pin must both be empty
+//
+// Hooks rules:
+//   - source must be "" (default "embed") or "local"
 func Validate(m *Manifest) error {
 	if m == nil {
 		return errors.New("manifest is nil")
@@ -30,8 +33,18 @@ func Validate(m *Manifest) error {
 		s := m.Skills[name]
 		errs = append(errs, validateSkill(name, s)...)
 	}
+	errs = append(errs, validateHooks(m.Hooks)...)
 
 	return errors.Join(errs...)
+}
+
+func validateHooks(h HooksConfig) []error {
+	switch h.Source {
+	case "", "embed", "local":
+		return nil
+	default:
+		return []error{fmt.Errorf("[hooks].source %q is invalid (valid: embed, local)", h.Source)}
+	}
 }
 
 func validateSkill(name string, s SkillConfig) []error {

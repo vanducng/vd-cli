@@ -10,7 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/vanducng/vd-cli/v2/internal/claudeconfig"
 	"github.com/vanducng/vd-cli/v2/internal/config"
+	"github.com/vanducng/vd-cli/v2/internal/hooks"
 	agentinstall "github.com/vanducng/vd-cli/v2/internal/install"
 )
 
@@ -48,7 +50,8 @@ Pick several at once with a comma-separated list (e.g. 1,3,5) or 'all'.
 Agents:
   codex          installs skills into Codex discovery paths
   claude         registers and installs this repo as a Claude Code plugin
-  claude --dev   per-skill symlink into $HOME/.claude/skills (mirrors codex)`,
+  claude --dev   per-skill symlink into $HOME/.claude/skills (mirrors codex)
+  hooks          deploys clean-room session/subagent hooks to $HOME/.claude/hooks`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := resolveInstallRoot(cmd, flagRoot, opts.dryRun)
@@ -81,7 +84,7 @@ func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts install
 			// typo'd agent name. Fail fast with a clear hint instead of
 			// silently treating it as a skill and confusing the user
 			// downstream.
-			return fmt.Errorf("unknown agent or skill %q (valid agents: codex, claude)", args[0])
+			return fmt.Errorf("unknown agent or skill %q (valid agents: codex, claude, hooks)", args[0])
 		}
 	}
 
@@ -116,8 +119,13 @@ func runInstallTarget(cmd *cobra.Command, repoRoot, agent string, skills []strin
 			return fmt.Errorf("claude install does not accept skill names without --dev; it installs the configured plugin bundle")
 		}
 		return runInstallClaude(cmd, repoRoot, opts)
+	case "hooks":
+		if len(skills) > 0 {
+			return fmt.Errorf("hooks install does not accept skill names; it deploys the embedded hook files")
+		}
+		return runInstallHooks(cmd, opts)
 	default:
-		return fmt.Errorf("unknown agent %q (valid: codex, claude)", agent)
+		return fmt.Errorf("unknown agent %q (valid: codex, claude, hooks)", agent)
 	}
 }
 
@@ -232,6 +240,61 @@ func runInstallClaude(cmd *cobra.Command, repoRoot string, opts installOptions) 
 	return nil
 }
 
+func runInstallHooks(cmd *cobra.Command, opts installOptions) error {
+	dest := opts.dest
+	if dest == "" {
+		var err error
+		dest, err = hooks.DefaultDest()
+		if err != nil {
+			return err
+		}
+	}
+
+	if opts.dryRun {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "would install hooks to %s\n", dest)
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "would register hooks in settings.json (dry-run):")
+		s, err := claudeconfig.ReadSettings()
+		if err != nil {
+			return fmt.Errorf("read settings: %w", err)
+		}
+		claudeconfig.RegisterHooks(s)
+		if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{DryRun: true}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	results, err := hooks.Install(dest)
+	if err != nil {
+		return err
+	}
+
+	if !flagQuiet {
+		for _, r := range results {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s hooks/%s -> %s\n", r.Action, r.RelPath, r.Dest)
+		}
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "hooks installed to %s\n", dest)
+	}
+
+	// Register hooks in settings.json. Live ~/.claude write is deferred to
+	// Phase 6; for now we use the default path (which IS ~/.claude/settings.json
+	// when dest is the real hooks dir). Tests pass an explicit --dest pointing
+	// to a temp dir, so the settings path is always derived independently.
+	s, err := claudeconfig.ReadSettings()
+	if err != nil {
+		return fmt.Errorf("read settings.json: %w", err)
+	}
+	claudeconfig.RegisterHooks(s)
+	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{}); err != nil {
+		return fmt.Errorf("register hooks in settings.json: %w", err)
+	}
+
+	if !flagQuiet {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "hooks registered in settings.json")
+	}
+	return nil
+}
+
 func claudePluginSpec(repoRoot string) (pluginName, marketplaceName string, err error) {
 	manifestPath := filepath.Join(repoRoot, "skills.toml")
 	manifest, err := config.Load(manifestPath)
@@ -263,7 +326,7 @@ func runExternal(cmd *cobra.Command, name string, args ...string) error {
 
 func isKnownInstallAgent(s string) bool {
 	switch normalizeInstallAgent(s) {
-	case "codex", "claude":
+	case "codex", "claude", "hooks":
 		return true
 	default:
 		return false
@@ -276,6 +339,8 @@ func normalizeInstallAgent(s string) string {
 		return "codex"
 	case "claude", "claude-code", "claudecode":
 		return "claude"
+	case "hooks":
+		return "hooks"
 	default:
 		return strings.ToLower(s)
 	}
