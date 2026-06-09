@@ -4,7 +4,7 @@
  * subagent-init.cjs - VD-CLI clean-room SubagentStart hook.
  *
  * Emits hookSpecificOutput.additionalContext JSON to stdout.
- * Re-derives all paths independently (does not rely on CK_* env vars).
+ * Re-derives all paths independently (does not rely on VD_* env vars).
  */
 
 try {
@@ -41,7 +41,7 @@ try {
     const agentType = payload.agent_type || 'unknown';
     const agentId = payload.agent_id || 'unknown';
     const effectiveCwd = payload.cwd?.trim() || process.cwd();
-    const sessionId = payload.session_id || process.env.CK_SESSION_ID || null;
+    const sessionId = payload.session_id || process.env.VD_SESSION_ID || null;
 
     const config = loadConfig();
 

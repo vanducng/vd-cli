@@ -62,15 +62,15 @@ try {
     } catch { return null; }
   }
 
-  function buildCkContext() {
+  function buildVdContext() {
     const env = process.env;
     const ctx = [];
-    if (env.CK_REPORTS_PATH) ctx.push(`Reports: ${env.CK_REPORTS_PATH}`);
-    if (env.CK_PLANS_PATH)   ctx.push(`Plans: ${env.CK_PLANS_PATH}`);
-    if (env.CK_PROJECT_ROOT) ctx.push(`Project: ${env.CK_PROJECT_ROOT}`);
-    if (env.CK_NAME_PATTERN) ctx.push(`Naming: ${env.CK_NAME_PATTERN}`);
-    if (env.CK_GIT_BRANCH)   ctx.push(`Branch: ${env.CK_GIT_BRANCH}`);
-    if (env.CK_ACTIVE_PLAN)  ctx.push(`Active plan: ${env.CK_ACTIVE_PLAN}`);
+    if (env.VD_REPORTS_PATH) ctx.push(`Reports: ${env.VD_REPORTS_PATH}`);
+    if (env.VD_PLANS_PATH)   ctx.push(`Plans: ${env.VD_PLANS_PATH}`);
+    if (env.VD_PROJECT_ROOT) ctx.push(`Project: ${env.VD_PROJECT_ROOT}`);
+    if (env.VD_NAME_PATTERN) ctx.push(`Naming: ${env.VD_NAME_PATTERN}`);
+    if (env.VD_GIT_BRANCH)   ctx.push(`Branch: ${env.VD_GIT_BRANCH}`);
+    if (env.VD_ACTIVE_PLAN)  ctx.push(`Active plan: ${env.VD_ACTIVE_PLAN}`);
     ctx.push('Commits: conventional (feat:, fix:, docs:, refactor:, test:, chore:)');
     return ctx;
   }
@@ -104,11 +104,11 @@ try {
       lines.push(`Task summary: ${counts.pending} pending, ${counts.inProgress} in progress, ${counts.completed} completed`);
     }
 
-    const ckCtx = buildCkContext();
-    if (ckCtx.length > 0) {
+    const vdCtx = buildVdContext();
+    if (vdCtx.length > 0) {
       lines.push('');
-      lines.push('## CK Context');
-      lines.push(...ckCtx);
+      lines.push('## VD Context');
+      lines.push(...vdCtx);
     }
 
     lines.push('');

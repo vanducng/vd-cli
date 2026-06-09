@@ -2,7 +2,7 @@
 /**
  * state.cjs - Per-session temp-file state manager.
  *
- * File: os.tmpdir()/ck-session-<sessionId>.json (NOT ~/.claude/session.json).
+ * File: os.tmpdir()/vd-session-<sessionId>.json (NOT ~/.claude/session.json).
  * Write is atomic via O_EXCL lock + temp-file rename.
  * Superset-compatible: never drops keys written by session-state.cjs (statusline,
  * lastTranscriptPath, devRulesReminder).
@@ -12,12 +12,12 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const LOCK_TIMEOUT_MS = 500;
-const LOCK_RETRY_MS = 10;
-const LOCK_STALE_MS = 5000;
+const VD_TIMEOUT_MS = 500;
+const VD_RETRY_MS = 10;
+const VD_STALE_MS = 5000;
 
 function getSessionTempPath(sessionId) {
-  return path.join(os.tmpdir(), `ck-session-${sessionId}.json`);
+  return path.join(os.tmpdir(), `vd-session-${sessionId}.json`);
 }
 
 function getLockPath(sessionId) {
@@ -38,7 +38,7 @@ function sleepSync(ms) {
 function removeStale(lockPath) {
   try {
     const st = fs.statSync(lockPath);
-    if (Date.now() - st.mtimeMs < LOCK_STALE_MS) return false;
+    if (Date.now() - st.mtimeMs < VD_STALE_MS) return false;
     fs.unlinkSync(lockPath);
     return true;
   } catch {
@@ -48,7 +48,7 @@ function removeStale(lockPath) {
 
 function acquireLock(sessionId) {
   const lockPath = getLockPath(sessionId);
-  const deadline = Date.now() + LOCK_TIMEOUT_MS;
+  const deadline = Date.now() + VD_TIMEOUT_MS;
   while (Date.now() <= deadline) {
     try {
       const fd = fs.openSync(lockPath, 'wx');
@@ -57,7 +57,7 @@ function acquireLock(sessionId) {
     } catch (e) {
       if (e?.code !== 'EEXIST') return null;
       removeStale(lockPath);
-      sleepSync(LOCK_RETRY_MS);
+      sleepSync(VD_RETRY_MS);
     }
   }
   return null;

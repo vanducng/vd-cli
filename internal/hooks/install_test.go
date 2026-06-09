@@ -181,7 +181,7 @@ func TestInstallSessionInitRunsViaNode(t *testing.T) {
 		t.Fatalf("Install: %v", err)
 	}
 
-	// The hook writes CK_* vars to CLAUDE_ENV_FILE, not stdout.
+	// The hook writes VD_* vars to CLAUDE_ENV_FILE, not stdout.
 	envFile := filepath.Join(t.TempDir(), "env.sh")
 
 	hookPath := filepath.Join(dest, "session-init.cjs")
@@ -194,13 +194,13 @@ func TestInstallSessionInitRunsViaNode(t *testing.T) {
 		t.Fatalf("session-init.cjs exited non-zero: %v\noutput:\n%s", err, out)
 	}
 
-	// Verify CK_* variables were written to the env file.
+	// Verify VD_* variables were written to the env file.
 	envContent, err := os.ReadFile(envFile)
 	if err != nil {
 		t.Fatalf("read CLAUDE_ENV_FILE %s: %v", envFile, err)
 	}
-	if !strings.Contains(string(envContent), "CK_") {
-		t.Errorf("CLAUDE_ENV_FILE contains no CK_* lines:\n%s", envContent)
+	if !strings.Contains(string(envContent), "VD_") {
+		t.Errorf("CLAUDE_ENV_FILE contains no VD_* lines:\n%s", envContent)
 	}
 }
 

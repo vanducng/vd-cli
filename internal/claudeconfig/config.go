@@ -1,4 +1,4 @@
-// Package claudeconfig manages ~/.claude/.ck.json and ~/.claude/settings.json
+// Package claudeconfig manages ~/.claude/.vd.json and ~/.claude/settings.json
 // on behalf of vd install hooks.
 package claudeconfig
 
@@ -12,9 +12,10 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-const ckConfigFile = ".ck.json"
+const ckConfigFile = ".vd.json"
+const ckConfigFileLegacy = ".ck.json" // legacy fallback: read-only, never written
 
-// CKConfig is a partial view of ~/.claude/.ck.json sufficient for vd's needs.
+// CKConfig is a partial view of ~/.claude/.vd.json sufficient for vd's needs.
 // rawOrig holds the complete original file bytes; writes patch only the keys
 // vd owns rather than rewriting the whole file.
 type CKConfig struct {
@@ -48,7 +49,7 @@ type CKLocale struct {
 	ResponseLanguage *string `json:"responseLanguage,omitempty"`
 }
 
-// ckConfigPath returns the absolute path to ~/.claude/.ck.json.
+// ckConfigPath returns the absolute path to ~/.claude/.vd.json.
 func ckConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -57,14 +58,36 @@ func ckConfigPath() (string, error) {
 	return filepath.Join(home, ".claude", ckConfigFile), nil
 }
 
-// ReadCKConfig reads ~/.claude/.ck.json.
-// If the file does not exist, an empty config is returned (not an error).
+// ckConfigLegacyPath returns the absolute path to ~/.claude/.ck.json (legacy read fallback).
+func ckConfigLegacyPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home directory: %w", err)
+	}
+	return filepath.Join(home, ".claude", ckConfigFileLegacy), nil
+}
+
+// ReadCKConfig reads ~/.claude/.vd.json.
+// If .vd.json is absent, falls back to reading ~/.claude/.ck.json (legacy migration support).
+// If neither exists, an empty config is returned (not an error).
 func ReadCKConfig() (*CKConfig, error) {
-	path, err := ckConfigPath()
+	newPath, err := ckConfigPath()
 	if err != nil {
 		return nil, err
 	}
-	return readCKConfigAt(path)
+	cfg, err := readCKConfigAt(newPath)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.rawOrig != nil {
+		return cfg, nil
+	}
+	// .vd.json absent — try legacy .ck.json fallback
+	legacyPath, err := ckConfigLegacyPath()
+	if err != nil {
+		return cfg, nil
+	}
+	return readCKConfigAt(legacyPath)
 }
 
 func readCKConfigAt(path string) (*CKConfig, error) {
@@ -88,14 +111,14 @@ func readCKConfigAt(path string) (*CKConfig, error) {
 }
 
 // EnsureUmbrellaSlot ensures the paths block exists so the umbrella key can be
-// set later. This is the only structural mutation vd makes to .ck.json.
+// set later. This is the only structural mutation vd makes to .vd.json.
 func EnsureUmbrellaSlot(cfg *CKConfig) {
 	if cfg.Paths == nil {
 		cfg.Paths = &CKPaths{}
 	}
 }
 
-// WriteCKConfig atomically writes cfg back to ~/.claude/.ck.json.
+// WriteCKConfig atomically writes cfg back to ~/.claude/.vd.json.
 // Only the keys vd owns (paths) are patched; all other keys stay
 // byte-for-byte identical in their original positions.
 func WriteCKConfig(cfg *CKConfig) error {

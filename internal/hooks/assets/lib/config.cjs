@@ -4,6 +4,7 @@
  *
  * Fix vs ck: local config resolves via git-root, not a literal unexpanded HOME string.
  * P3 addition: paths.umbrella (default null) opts a repo into the .work/ layout.
+ * Config file: .vd.json (legacy fallback: .ck.json if .vd.json absent).
  */
 
 const fs = require('fs');
@@ -31,8 +32,8 @@ const DEFAULT_CONFIG = {
   paths: {
     docs: 'docs',
     plans: 'plans',
-    // Umbrella: null = legacy CWD-anchored layout (byte-identical to P2).
-    // Set to a relative name (e.g. ".work") in <git-root>/.ck.json to opt in.
+    // Umbrella: null = legacy CWD-anchored layout.
+    // Set to a relative name (e.g. ".work") in <git-root>/.vd.json to opt in.
     umbrella: null,
     visuals: 'visuals',
     journals: 'journals',
@@ -130,16 +131,31 @@ function sanitizeUmbrella(raw, gitRoot) {
 }
 
 /**
- * Load config: DEFAULT ← global (~/.claude/.ck.json) ← project (<git-root>/.ck.json).
+ * Read config file at path, with legacy fallback: try .vd.json first, then .ck.json if absent.
+ * Legacy .ck.json fallback keeps existing setups working until migrated.
+ */
+function readJsonWithLegacyFallback(newPath, legacyPath) {
+  const result = readJson(newPath);
+  if (result !== null) return result;
+  return readJson(legacyPath); // legacy fallback: .ck.json
+}
+
+/**
+ * Load config: DEFAULT ← global (~/.claude/.vd.json) ← project (<git-root>/.vd.json).
+ * Legacy fallback: reads .ck.json if .vd.json is absent (both global and project-local).
  * Falls back to defaults on any error.
  */
 function loadConfig() {
-  const globalPath = path.join(os.homedir(), '.claude', '.ck.json');
+  const globalPath = path.join(os.homedir(), '.claude', '.vd.json');
+  const globalLegacyPath = path.join(os.homedir(), '.claude', '.ck.json');
   const gitRoot = getGitRoot(process.cwd());
-  const localPath = gitRoot ? path.join(gitRoot, '.ck.json') : null;
+  const localPath = gitRoot ? path.join(gitRoot, '.vd.json') : null;
+  const localLegacyPath = gitRoot ? path.join(gitRoot, '.ck.json') : null;
 
-  const globalCfg = readJson(globalPath);
-  const localCfg = localPath ? readJson(localPath) : null;
+  const globalCfg = readJsonWithLegacyFallback(globalPath, globalLegacyPath);
+  const localCfg = (localPath && localLegacyPath)
+    ? readJsonWithLegacyFallback(localPath, localLegacyPath)
+    : null;
 
   if (!globalCfg && !localCfg) return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot);
 
@@ -180,4 +196,4 @@ function buildResult(merged, gitRoot) {
   };
 }
 
-module.exports = { DEFAULT_CONFIG, layerConfigs, loadConfig, getGitRoot, sanitizeUmbrella };
+module.exports = { DEFAULT_CONFIG, layerConfigs, loadConfig, getGitRoot, sanitizeUmbrella, readJsonWithLegacyFallback };

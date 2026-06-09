@@ -35,7 +35,7 @@ try {
     if (!raw) { process.exit(0); }
 
     const payload = JSON.parse(raw);
-    const sessionId = payload.session_id || process.env.CK_SESSION_ID || null;
+    const sessionId = payload.session_id || process.env.VD_SESSION_ID || null;
     const baseDir = (payload.cwd && payload.cwd.trim()) ? payload.cwd.trim() : process.cwd();
 
     const config = loadConfig();

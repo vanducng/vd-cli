@@ -4,7 +4,7 @@
  * task-completed-handler.cjs - VD-CLI clean-room TaskCompleted hook.
  *
  * Fires when a task is marked completed in a team session.
- * Appends a completion log entry to CK_REPORTS_PATH and emits a
+ * Appends a completion log entry to VD_REPORTS_PATH and emits a
  * progress summary as additionalContext.
  * No-op when team_name is absent. Fail-open: always exits 0.
  */
@@ -40,7 +40,7 @@ try {
   }
 
   function appendCompletionLog(teamName, taskId, taskSubject, teammateName) {
-    const reportsPath = process.env.CK_REPORTS_PATH;
+    const reportsPath = process.env.VD_REPORTS_PATH;
     if (!reportsPath) return;
     try {
       fs.mkdirSync(reportsPath, { recursive: true });
