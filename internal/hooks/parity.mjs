@@ -8,21 +8,21 @@
  *     2. session-init custom    (session-init.custom.env)
  *     3. subagent-init context  (subagent-init.context.txt)
  *   Session-active plan (HIGH-1 regression)
- *     4. relative activePlan — session-init and subagent-init emit same CK_REPORTS_PATH
+ *     4. relative activePlan — session-init and subagent-init emit same VD_REPORTS_PATH
  *     5. absolute activePlan — same assertion; guards against double-anchor bug
  *   Issue-branch naming (LOW-2)
- *     6. feat/gh-88-x branch + issuePrefix='GH-' → CK_NAME_PATTERN contains GH-88
+ *     6. feat/gh-88-x branch + issuePrefix='GH-' → VD_NAME_PATTERN contains GH-88
  *   Degenerate repos
  *     7. non-git dir
  *     8. detached HEAD
- *     9. no .ck.json
- *    10. malformed .ck.json
+ *     9. no .vd.json
+ *    10. malformed .vd.json
  *   Coexistence & hygiene
  *    11. session.json coexistence
  *    12. personal-path grep clean
  *    13. standalone run
  *
- * Machine-specific vars (CK_USER, CK_LOCALE, CK_TIMEZONE, CK_NODE_VERSION) are
+ * Machine-specific vars (VD_USER, VD_LOCALE, VD_TIMEZONE, VD_NODE_VERSION) are
  * VALUE-masked to {{USER}}, {{LOCALE}}, {{TIMEZONE}}, {{NODE_VERSION}} so their
  * presence, position, and line format are still asserted — only the value differs.
  */
@@ -39,7 +39,7 @@ const GOLDEN_DIR = path.join(__dirname, 'testdata', 'golden');
 const SESSION_INIT  = path.join(ASSETS_DIR, 'session-init.cjs');
 const SUBAGENT_INIT = path.join(ASSETS_DIR, 'subagent-init.cjs');
 const REAL_HOME  = os.userInfo().homedir; // immune to HOME env changes
-const CK_SESSION_STATE = path.join(REAL_HOME, '.claude', 'hooks', 'session-state.cjs');
+const VD_SESSION_STATE = path.join(REAL_HOME, '.claude', 'hooks', 'session-state.cjs');
 
 const FIXED_SESSION_ID = '00000000-0000-0000-0000-000000000001';
 const VERBOSE = process.argv.includes('--verbose');
@@ -79,12 +79,12 @@ function mkTempRepo(label, branchName = 'main') {
   return real;
 }
 
-/** Create a fake HOME dir containing .claude/.ck.json. Also symlinks real skills/.venv. */
+/** Create a fake HOME dir containing .claude/.vd.json. Also symlinks real skills/.venv. */
 function mkFakeHome(ckJsonContent) {
   const fakeHome  = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-fake-home-'));
   const claudeDir = path.join(fakeHome, '.claude');
   fs.mkdirSync(claudeDir, { recursive: true });
-  fs.writeFileSync(path.join(claudeDir, '.ck.json'), JSON.stringify(ckJsonContent, null, 2));
+  fs.writeFileSync(path.join(claudeDir, '.vd.json'), JSON.stringify(ckJsonContent, null, 2));
   const skillsDir = path.join(claudeDir, 'skills');
   fs.mkdirSync(skillsDir, { recursive: true });
   const realVenv = path.join(REAL_HOME, '.claude', 'skills', '.venv');
@@ -105,7 +105,7 @@ function runSessionInit(repoDir, fakeHome, extraEnv = {}) {
     HOME: fakeHome,
     CLAUDE_ENV_FILE: envFile,
     CLAUDE_SESSION_ID: FIXED_SESSION_ID,
-    CK_SESSION_ID: FIXED_SESSION_ID,
+    VD_SESSION_ID: FIXED_SESSION_ID,
     TMPDIR: process.env.TMPDIR || '/tmp',
     ...extraEnv
   };
@@ -134,7 +134,7 @@ function runSubagentInit(repoDir, fakeHome, extraEnv = {}) {
     ...process.env,
     HOME: fakeHome,
     CLAUDE_SESSION_ID: FIXED_SESSION_ID,
-    CK_SESSION_ID: FIXED_SESSION_ID,
+    VD_SESSION_ID: FIXED_SESSION_ID,
     TMPDIR: process.env.TMPDIR || '/tmp',
     ...extraEnv
   };
@@ -176,7 +176,7 @@ function extractContext(stdout) {
 /**
  * Mask volatile and machine-specific tokens.
  *
- * Machine-specific vars (CK_USER, CK_LOCALE, CK_TIMEZONE, CK_NODE_VERSION) are
+ * Machine-specific vars (VD_USER, VD_LOCALE, VD_TIMEZONE, VD_NODE_VERSION) are
  * VALUE-masked rather than line-stripped so presence, order, and format stay asserted.
  * customReportsDir: when set, masks that path as {{CUSTOM_REPORTS_ABS}} before the
  * generic plans-path masker would absorb the prefix.
@@ -208,10 +208,10 @@ function mask(content, repoDir, fakeHome, customReportsDir) {
 
   // Value-mask machine-specific vars (keeps line structure, only value changes)
   out = out
-    .replace(/(CK_USER=")[^"]*(")/g,        '$1{{USER}}$2')
-    .replace(/(CK_LOCALE=")[^"]*(")/g,       '$1{{LOCALE}}$2')
-    .replace(/(CK_TIMEZONE=")[^"]*(")/g,     '$1{{TIMEZONE}}$2')
-    .replace(/(CK_NODE_VERSION=")[^"]*(")/g, '$1{{NODE_VERSION}}$2');
+    .replace(/(VD_USER=")[^"]*(")/g,        '$1{{USER}}$2')
+    .replace(/(VD_LOCALE=")[^"]*(")/g,       '$1{{LOCALE}}$2')
+    .replace(/(VD_TIMEZONE=")[^"]*(")/g,     '$1{{TIMEZONE}}$2')
+    .replace(/(VD_NODE_VERSION=")[^"]*(")/g, '$1{{NODE_VERSION}}$2');
 
   return out;
 }
@@ -219,10 +219,10 @@ function mask(content, repoDir, fakeHome, customReportsDir) {
 /** Apply same value-masking to a golden file so comparison is symmetric. */
 function maskGolden(content) {
   return content
-    .replace(/(CK_USER=")[^"]*(")/g,        '$1{{USER}}$2')
-    .replace(/(CK_LOCALE=")[^"]*(")/g,       '$1{{LOCALE}}$2')
-    .replace(/(CK_TIMEZONE=")[^"]*(")/g,     '$1{{TIMEZONE}}$2')
-    .replace(/(CK_NODE_VERSION=")[^"]*(")/g, '$1{{NODE_VERSION}}$2');
+    .replace(/(VD_USER=")[^"]*(")/g,        '$1{{USER}}$2')
+    .replace(/(VD_LOCALE=")[^"]*(")/g,       '$1{{LOCALE}}$2')
+    .replace(/(VD_TIMEZONE=")[^"]*(")/g,     '$1{{TIMEZONE}}$2')
+    .replace(/(VD_NODE_VERSION=")[^"]*(")/g, '$1{{NODE_VERSION}}$2');
 }
 
 function diffLines(a, b) {
@@ -242,7 +242,7 @@ function diffLines(a, b) {
 
 // ── config fixtures ───────────────────────────────────────────────────────
 
-const DEFAULT_CK_CONFIG = {
+const DEFAULT_VD_CONFIG = {
   plan: {
     namingFormat: '{date}-{issue}-{slug}',
     dateFormat: 'YYMMDD-HHmm',
@@ -256,7 +256,7 @@ const DEFAULT_CK_CONFIG = {
   paths: { docs: 'docs', plans: 'plans' }
 };
 
-const CUSTOM_CK_CONFIG = {
+const CUSTOM_VD_CONFIG = {
   plan: {
     namingFormat: '{date}-{issue}-{slug}',
     dateFormat: 'YYMMDD-HHmm',
@@ -272,7 +272,7 @@ const CUSTOM_CK_CONFIG = {
 
 // ── test helpers ──────────────────────────────────────────────────────────
 
-/** Parse env file into a Map<key, value>. */
+/** Parse env file into a Map<key, value>. Handles both VD_* and CLAUDE_* prefixes. */
 function parseEnvMap(envContent) {
   const m = new Map();
   for (const line of envContent.split('\n')) {
@@ -284,7 +284,7 @@ function parseEnvMap(envContent) {
 
 /** Inject an activePlan into the session temp file for a given sessionId. */
 function injectActivePlan(sessionId, activePlan, sessionOrigin) {
-  const tmpFile = path.join(os.tmpdir(), `ck-session-${sessionId}.json`);
+  const tmpFile = path.join(os.tmpdir(), `vd-session-${sessionId}.json`);
   const state = fs.existsSync(tmpFile)
     ? JSON.parse(fs.readFileSync(tmpFile, 'utf8'))
     : {};
@@ -302,7 +302,7 @@ function injectActivePlan(sessionId, activePlan, sessionOrigin) {
 
 async function testGoldenDefaults() {
   const repoDir  = mkTempRepo('defaults');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     const raw    = runSessionInit(repoDir, fakeHome);
     const ours   = mask(raw, repoDir, fakeHome, null);
@@ -322,7 +322,7 @@ async function testGoldenDefaults() {
 
 async function testGoldenCustom() {
   const repoDir  = mkTempRepo('custom');
-  const fakeHome = mkFakeHome(CUSTOM_CK_CONFIG);
+  const fakeHome = mkFakeHome(CUSTOM_VD_CONFIG);
   try {
     const raw    = runSessionInit(repoDir, fakeHome);
     const ours   = mask(raw, repoDir, fakeHome, 'my-reports');
@@ -342,7 +342,7 @@ async function testGoldenCustom() {
 
 async function testGoldenSubagent() {
   const repoDir  = mkTempRepo('subagent');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     const rawOut = runSubagentInit(repoDir, fakeHome);
     const ctx    = extractContext(rawOut);
@@ -369,7 +369,7 @@ async function testGoldenSubagent() {
 
 async function testSessionActivePlanRelative() {
   const repoDir  = mkTempRepo('active-rel');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     // Inject a relative activePlan into the session temp file before running
     const relativePlan = 'plans/260101-1200-my-plan';
@@ -377,7 +377,7 @@ async function testSessionActivePlanRelative() {
 
     const envRaw     = runSessionInit(repoDir, fakeHome);
     const envMap     = parseEnvMap(envRaw);
-    const siReports  = envMap.get('CK_REPORTS_PATH') || '';
+    const siReports  = envMap.get('VD_REPORTS_PATH') || '';
 
     const subagentOut = runSubagentInit(repoDir, fakeHome);
     const subCtx      = extractContext(subagentOut);
@@ -390,13 +390,13 @@ async function testSessionActivePlanRelative() {
     const subBase = subReports.replace(/\/$/, '');
 
     if (siBase && subBase && siBase === subBase) {
-      pass('session-active plan: relative path — session-init and subagent-init agree on CK_REPORTS_PATH');
+      pass('session-active plan: relative path — session-init and subagent-init agree on VD_REPORTS_PATH');
     } else {
-      fail('session-active plan: relative path — CK_REPORTS_PATH mismatch',
+      fail('session-active plan: relative path — VD_REPORTS_PATH mismatch',
         `session-init: ${siReports}\nsubagent-init: ${subReports}`);
     }
   } finally {
-    try { fs.unlinkSync(path.join(os.tmpdir(), `ck-session-${FIXED_SESSION_ID}.json`)); } catch { /* ignore */ }
+    try { fs.unlinkSync(path.join(os.tmpdir(), `vd-session-${FIXED_SESSION_ID}.json`)); } catch { /* ignore */ }
     fs.rmSync(repoDir,  { recursive: true, force: true });
     fs.rmSync(fakeHome, { recursive: true, force: true });
   }
@@ -404,7 +404,7 @@ async function testSessionActivePlanRelative() {
 
 async function testSessionActivePlanAbsolute() {
   const repoDir  = mkTempRepo('active-abs');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     // Absolute plan path — the critical double-anchor regression case
     const absolutePlan = path.join(repoDir, 'plans', '260101-1200-abs-plan');
@@ -412,13 +412,13 @@ async function testSessionActivePlanAbsolute() {
 
     const envRaw    = runSessionInit(repoDir, fakeHome);
     const envMap    = parseEnvMap(envRaw);
-    const siReports = envMap.get('CK_REPORTS_PATH') || '';
+    const siReports = envMap.get('VD_REPORTS_PATH') || '';
 
     // Must NOT contain repoDir twice (double-anchor symptom)
     const doubleAnchored = siReports.includes(repoDir + repoDir.slice(1)) ||
                            siReports.split(repoDir).length > 2;
     if (doubleAnchored) {
-      fail('session-active plan: absolute path — double-anchor detected', `CK_REPORTS_PATH=${siReports}`);
+      fail('session-active plan: absolute path — double-anchor detected', `VD_REPORTS_PATH=${siReports}`);
       return;
     }
 
@@ -426,9 +426,9 @@ async function testSessionActivePlanAbsolute() {
     const expected = path.join(absolutePlan, 'reports');
     const siBase   = siReports.replace(/\/$/, '');
     if (siBase === expected) {
-      pass('session-active plan: absolute path — no double-anchor, CK_REPORTS_PATH correct');
+      pass('session-active plan: absolute path — no double-anchor, VD_REPORTS_PATH correct');
     } else {
-      fail('session-active plan: absolute path — unexpected CK_REPORTS_PATH',
+      fail('session-active plan: absolute path — unexpected VD_REPORTS_PATH',
         `expected: ${expected}\n     got: ${siReports}`);
     }
 
@@ -446,7 +446,7 @@ async function testSessionActivePlanAbsolute() {
         `expected: ${expected}\n     got: ${subReports}`);
     }
   } finally {
-    try { fs.unlinkSync(path.join(os.tmpdir(), `ck-session-${FIXED_SESSION_ID}.json`)); } catch { /* ignore */ }
+    try { fs.unlinkSync(path.join(os.tmpdir(), `vd-session-${FIXED_SESSION_ID}.json`)); } catch { /* ignore */ }
     fs.rmSync(repoDir,  { recursive: true, force: true });
     fs.rmSync(fakeHome, { recursive: true, force: true });
   }
@@ -455,18 +455,18 @@ async function testSessionActivePlanAbsolute() {
 // ── issue-branch naming test (LOW-2) ──────────────────────────────────────
 
 async function testIssueBranchNaming() {
-  // Branch feat/gh-88-x with issuePrefix='GH-' → CK_NAME_PATTERN contains GH-88
+  // Branch feat/gh-88-x with issuePrefix='GH-' → VD_NAME_PATTERN contains GH-88
   const repoDir  = mkTempRepo('issue-branch', 'feat/gh-88-x');
-  const fakeHome = mkFakeHome(CUSTOM_CK_CONFIG); // has issuePrefix='GH-'
+  const fakeHome = mkFakeHome(CUSTOM_VD_CONFIG); // has issuePrefix='GH-'
   try {
     const raw    = runSessionInit(repoDir, fakeHome);
     const envMap = parseEnvMap(raw);
-    const pattern = envMap.get('CK_NAME_PATTERN') || '';
+    const pattern = envMap.get('VD_NAME_PATTERN') || '';
 
     if (pattern.includes('GH-88')) {
-      pass(`issue-branch naming: CK_NAME_PATTERN contains GH-88 (got: ${pattern})`);
+      pass(`issue-branch naming: VD_NAME_PATTERN contains GH-88 (got: ${pattern})`);
     } else {
-      fail('issue-branch naming: GH-88 not found in CK_NAME_PATTERN', `CK_NAME_PATTERN=${pattern}`);
+      fail('issue-branch naming: GH-88 not found in VD_NAME_PATTERN', `VD_NAME_PATTERN=${pattern}`);
     }
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
@@ -478,16 +478,16 @@ async function testIssueBranchNaming() {
 
 async function testNonGitDir() {
   const dir      = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-nongit-'));
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     const raw   = runSessionInit(dir, fakeHome);
-    const found = raw.split('\n').find(l => l.startsWith('export CK_GIT_ROOT='));
-    if (found?.includes('CK_GIT_ROOT=""')) {
-      pass('degenerate: non-git dir (CK_GIT_ROOT empty)');
+    const found = raw.split('\n').find(l => l.startsWith('export VD_GIT_ROOT='));
+    if (found?.includes('VD_GIT_ROOT=""')) {
+      pass('degenerate: non-git dir (VD_GIT_ROOT empty)');
     } else if (found) {
       pass('degenerate: non-git dir (ran without throw)');
     } else {
-      fail('degenerate: non-git dir', 'CK_GIT_ROOT line missing');
+      fail('degenerate: non-git dir', 'VD_GIT_ROOT line missing');
     }
   } finally {
     fs.rmSync(dir,      { recursive: true, force: true });
@@ -497,14 +497,14 @@ async function testNonGitDir() {
 
 async function testDetachedHead() {
   const repoDir  = mkTempRepo('detached');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     const sha = execSync('git rev-parse HEAD', { cwd: repoDir, encoding: 'utf8' }).trim();
     execSync(`git checkout --detach ${sha}`, { cwd: repoDir, stdio: 'ignore' });
     const raw  = runSessionInit(repoDir, fakeHome);
-    const line = raw.split('\n').find(l => l.startsWith('export CK_GIT_BRANCH='));
-    if (line?.includes('CK_GIT_BRANCH=""')) {
-      pass('degenerate: detached HEAD (CK_GIT_BRANCH empty)');
+    const line = raw.split('\n').find(l => l.startsWith('export VD_GIT_BRANCH='));
+    if (line?.includes('VD_GIT_BRANCH=""')) {
+      pass('degenerate: detached HEAD (VD_GIT_BRANCH empty)');
     } else {
       pass('degenerate: detached HEAD (ran without throw)');
     }
@@ -520,11 +520,11 @@ async function testNoCkJson() {
   fs.mkdirSync(path.join(fakeHome, '.claude'), { recursive: true });
   try {
     const raw  = runSessionInit(repoDir, fakeHome);
-    const line = raw.split('\n').find(l => l.startsWith('export CK_PLAN_REPORTS_DIR='));
+    const line = raw.split('\n').find(l => l.startsWith('export VD_PLAN_REPORTS_DIR='));
     if (line?.includes('"reports"')) {
-      pass('degenerate: no .ck.json (defaults applied)');
+      pass('degenerate: no .vd.json (defaults applied)');
     } else {
-      fail('degenerate: no .ck.json', `unexpected: ${line}`);
+      fail('degenerate: no .vd.json', `unexpected: ${line}`);
     }
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
@@ -536,13 +536,13 @@ async function testMalformedCkJson() {
   const repoDir  = mkTempRepo('malformed');
   const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-fake-home-bad-'));
   fs.mkdirSync(path.join(fakeHome, '.claude'), { recursive: true });
-  fs.writeFileSync(path.join(fakeHome, '.claude', '.ck.json'), '{this is not json}');
+  fs.writeFileSync(path.join(fakeHome, '.claude', '.vd.json'), '{this is not json}');
   try {
     const raw = runSessionInit(repoDir, fakeHome);
-    if (raw.includes('CK_SESSION_ID=')) {
-      pass('degenerate: malformed .ck.json (defaults applied, no crash)');
+    if (raw.includes('VD_SESSION_ID=')) {
+      pass('degenerate: malformed .vd.json (defaults applied, no crash)');
     } else {
-      fail('degenerate: malformed .ck.json', 'env output missing');
+      fail('degenerate: malformed .vd.json', 'env output missing');
     }
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
@@ -553,16 +553,16 @@ async function testMalformedCkJson() {
 // ── coexistence & hygiene tests ───────────────────────────────────────────
 
 async function testSessionCoexistence() {
-  if (!fs.existsSync(CK_SESSION_STATE)) {
+  if (!fs.existsSync(VD_SESSION_STATE)) {
     console.log('  SKIP  session.json coexistence (ck session-state.cjs not found)');
     return;
   }
   const repoDir  = mkTempRepo('coexist');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     runSessionInit(repoDir, fakeHome);
 
-    const sessionFile = path.join(os.tmpdir(), `ck-session-${FIXED_SESSION_ID}.json`);
+    const sessionFile = path.join(os.tmpdir(), `vd-session-${FIXED_SESSION_ID}.json`);
     if (!fs.existsSync(sessionFile)) {
       fail('session.json coexistence', 'our session file not written');
       return;
@@ -636,7 +636,7 @@ async function testStandaloneRun() {
       stdio: ['pipe', 'pipe', 'pipe']
     });
     const content = fs.readFileSync(envFile, 'utf8');
-    if (content.includes('CK_SESSION_ID=')) {
+    if (content.includes('VD_SESSION_ID=')) {
       pass('standalone run (no ck present)');
     } else {
       fail('standalone run', 'env output empty');
@@ -651,12 +651,12 @@ async function testStandaloneRun() {
 
 // ── umbrella helpers ──────────────────────────────────────────────────────
 
-/** Create a repo with <git-root>/.ck.json opting in umbrella=".work". */
+/** Create a repo with <git-root>/.vd.json opting in umbrella=".work". */
 function mkUmbrellaRepo(label) {
   const repoDir = mkTempRepo(label);
-  fs.writeFileSync(path.join(repoDir, '.ck.json'),
+  fs.writeFileSync(path.join(repoDir, '.vd.json'),
     JSON.stringify({ paths: { umbrella: '.work' } }, null, 2));
-  execSync('git add .ck.json && git commit -m "opt-in umbrella"',
+  execSync('git add .vd.json && git commit -m "opt-in umbrella"',
     { cwd: repoDir, stdio: 'ignore', shell: true });
   return repoDir;
 }
@@ -688,10 +688,10 @@ function maskUmbrella(content, repoDir, fakeHome) {
     .replace(new RegExp(escapeRe(fakeHome),     'g'), '{{FAKE_HOME}}')
     .replace(new RegExp(escapeRe(FIXED_SESSION_ID), 'g'), '{{SESSION_ID}}')
     .replace(datePat, '{{DATE}}-{{TIME}}')
-    .replace(/(CK_USER=")[^"]*(")/g,        '$1{{USER}}$2')
-    .replace(/(CK_LOCALE=")[^"]*(")/g,       '$1{{LOCALE}}$2')
-    .replace(/(CK_TIMEZONE=")[^"]*(")/g,     '$1{{TIMEZONE}}$2')
-    .replace(/(CK_NODE_VERSION=")[^"]*(")/g, '$1{{NODE_VERSION}}$2');
+    .replace(/(VD_USER=")[^"]*(")/g,        '$1{{USER}}$2')
+    .replace(/(VD_LOCALE=")[^"]*(")/g,       '$1{{LOCALE}}$2')
+    .replace(/(VD_TIMEZONE=")[^"]*(")/g,     '$1{{TIMEZONE}}$2')
+    .replace(/(VD_NODE_VERSION=")[^"]*(")/g, '$1{{NODE_VERSION}}$2');
   return out;
 }
 
@@ -699,7 +699,7 @@ function maskUmbrella(content, repoDir, fakeHome) {
 
 async function testUmbrellaGolden() {
   const repoDir  = mkUmbrellaRepo('umbrella-golden');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     const raw    = runSessionInit(repoDir, fakeHome);
     const ours   = maskUmbrella(raw, repoDir, fakeHome);
@@ -719,21 +719,21 @@ async function testUmbrellaGolden() {
 
 async function testUmbrellaPaths() {
   const repoDir  = mkUmbrellaRepo('umbrella-paths');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     const raw    = runSessionInit(repoDir, fakeHome);
     const envMap = parseEnvMap(raw);
 
     const workRoot = path.join(repoDir, '.work');
     const checks = [
-      ['CK_PLANS_PATH',    path.join(workRoot, 'plans')],
-      ['CK_REPORTS_PATH',  path.join(workRoot, 'reports') + '/'],
-      ['CK_VISUALS_PATH',  path.join(workRoot, 'visuals')],
-      ['CK_JOURNALS_PATH', path.join(workRoot, 'journals')],
-      ['CK_STATE_PATH',    path.join(workRoot, 'state')],
-      ['CK_UMBRELLA',      '.work'],
+      ['VD_PLANS_PATH',    path.join(workRoot, 'plans')],
+      ['VD_REPORTS_PATH',  path.join(workRoot, 'reports') + '/'],
+      ['VD_VISUALS_PATH',  path.join(workRoot, 'visuals')],
+      ['VD_JOURNALS_PATH', path.join(workRoot, 'journals')],
+      ['VD_STATE_PATH',    path.join(workRoot, 'state')],
+      ['VD_UMBRELLA',      '.work'],
       // Docs must NOT be under .work — stays at repo root
-      ['CK_DOCS_PATH',     path.join(repoDir, 'docs')]
+      ['VD_DOCS_PATH',     path.join(repoDir, 'docs')]
     ];
 
     let allOk = true;
@@ -744,7 +744,7 @@ async function testUmbrellaPaths() {
         allOk = false;
       }
     }
-    if (allOk) pass('umbrella paths: all 7 path vars correct (reports/plans/visuals/journals/state under .work; docs at repo-root)');
+    if (allOk) pass('umbrella paths: all 7 VD_* path vars correct (reports/plans/visuals/journals/state under .work; docs at repo-root)');
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
     fs.rmSync(fakeHome, { recursive: true, force: true });
@@ -756,13 +756,13 @@ async function testUmbrellaSubdirAnchor() {
   const repoDir  = mkUmbrellaRepo('umbrella-subdir');
   const subdir   = path.join(repoDir, 'src');
   fs.mkdirSync(subdir, { recursive: true });
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     // Run session-init with CWD = subdir
     const envFile = path.join(os.tmpdir(), `vd-subdir-${Date.now()}.sh`);
     fs.writeFileSync(envFile, '');
     const env = { ...process.env, HOME: fakeHome, CLAUDE_ENV_FILE: envFile,
-                  CLAUDE_SESSION_ID: FIXED_SESSION_ID, CK_SESSION_ID: FIXED_SESSION_ID,
+                  CLAUDE_SESSION_ID: FIXED_SESSION_ID, VD_SESSION_ID: FIXED_SESSION_ID,
                   TMPDIR: process.env.TMPDIR || '/tmp' };
     try {
       execFileSync(process.execPath, [SESSION_INIT], {
@@ -776,13 +776,13 @@ async function testUmbrellaSubdirAnchor() {
     const envMap = parseEnvMap(raw);
     try { fs.unlinkSync(envFile); } catch { /* ignore */ }
 
-    const plansPath = envMap.get('CK_PLANS_PATH') || '';
+    const plansPath = envMap.get('VD_PLANS_PATH') || '';
     const workRoot  = path.join(repoDir, '.work');  // expected anchor = git-root
 
     if (plansPath.startsWith(workRoot)) {
-      pass(`umbrella subdir anchor: CK_PLANS_PATH anchored to git-root (${path.basename(repoDir)}/.work)`);
+      pass(`umbrella subdir anchor: VD_PLANS_PATH anchored to git-root (${path.basename(repoDir)}/.work)`);
     } else {
-      fail('umbrella subdir anchor: CK_PLANS_PATH not under git-root/.work', `CK_PLANS_PATH=${plansPath}`);
+      fail('umbrella subdir anchor: VD_PLANS_PATH not under git-root/.work', `VD_PLANS_PATH=${plansPath}`);
     }
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
@@ -792,25 +792,25 @@ async function testUmbrellaSubdirAnchor() {
 
 async function testUmbrellaEscapeRejected() {
   const repoDir  = mkTempRepo('umbrella-escape');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
-    // Write a .ck.json with path-traversal umbrella
-    fs.writeFileSync(path.join(repoDir, '.ck.json'),
+    // Write a .vd.json with path-traversal umbrella
+    fs.writeFileSync(path.join(repoDir, '.vd.json'),
       JSON.stringify({ paths: { umbrella: '../escape' } }, null, 2));
 
     const raw    = runSessionInit(repoDir, fakeHome);
     const envMap = parseEnvMap(raw);
 
-    // Umbrella should be rejected → null → no CK_UMBRELLA, legacy CWD paths
-    const umbrellaVar  = envMap.get('CK_UMBRELLA');
-    const plansPath    = envMap.get('CK_PLANS_PATH') || '';
+    // Umbrella should be rejected → null → no VD_UMBRELLA, legacy CWD paths
+    const umbrellaVar  = envMap.get('VD_UMBRELLA');
+    const plansPath    = envMap.get('VD_PLANS_PATH') || '';
     const legacyPlans  = path.join(repoDir, 'plans');
 
     if (!umbrellaVar && plansPath === legacyPlans) {
-      pass('umbrella "../escape" rejected → legacy layout, no CK_UMBRELLA');
+      pass('umbrella "../escape" rejected → legacy layout, no VD_UMBRELLA');
     } else {
       fail('umbrella escape not rejected',
-        `CK_UMBRELLA=${umbrellaVar}, CK_PLANS_PATH=${plansPath} (expected legacy: ${legacyPlans})`);
+        `VD_UMBRELLA=${umbrellaVar}, VD_PLANS_PATH=${plansPath} (expected legacy: ${legacyPlans})`);
     }
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
@@ -820,23 +820,23 @@ async function testUmbrellaEscapeRejected() {
 
 async function testUmbrellaAbsoluteRejected() {
   const repoDir  = mkTempRepo('umbrella-abs');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
-    fs.writeFileSync(path.join(repoDir, '.ck.json'),
+    fs.writeFileSync(path.join(repoDir, '.vd.json'),
       JSON.stringify({ paths: { umbrella: '/tmp/evil-umbrella' } }, null, 2));
 
     const raw    = runSessionInit(repoDir, fakeHome);
     const envMap = parseEnvMap(raw);
 
-    const umbrellaVar = envMap.get('CK_UMBRELLA');
-    const plansPath   = envMap.get('CK_PLANS_PATH') || '';
+    const umbrellaVar = envMap.get('VD_UMBRELLA');
+    const plansPath   = envMap.get('VD_PLANS_PATH') || '';
     const legacyPlans = path.join(repoDir, 'plans');
 
     if (!umbrellaVar && plansPath === legacyPlans) {
-      pass('umbrella absolute path rejected → legacy layout, no CK_UMBRELLA');
+      pass('umbrella absolute path rejected → legacy layout, no VD_UMBRELLA');
     } else {
       fail('umbrella absolute path not rejected',
-        `CK_UMBRELLA=${umbrellaVar}, CK_PLANS_PATH=${plansPath}`);
+        `VD_UMBRELLA=${umbrellaVar}, VD_PLANS_PATH=${plansPath}`);
     }
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
@@ -845,25 +845,25 @@ async function testUmbrellaAbsoluteRejected() {
 }
 
 async function testNullUmbrellaByteIdentity() {
-  // Re-confirm: no umbrella in project .ck.json → legacy layout, no CK_UMBRELLA emitted.
+  // Re-confirm: no umbrella in project .vd.json → legacy layout, no VD_UMBRELLA emitted.
   const repoDir  = mkTempRepo('null-umbrella');
-  const fakeHome = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHome = mkFakeHome(DEFAULT_VD_CONFIG);
   try {
     const raw    = runSessionInit(repoDir, fakeHome);
     const envMap = parseEnvMap(raw);
 
-    const hasUmbrella  = envMap.has('CK_UMBRELLA');
-    const hasVisuals   = envMap.has('CK_VISUALS_PATH');
-    const hasJournals  = envMap.has('CK_JOURNALS_PATH');
-    const hasState     = envMap.has('CK_STATE_PATH');
-    const plansPath    = envMap.get('CK_PLANS_PATH') || '';
+    const hasUmbrella  = envMap.has('VD_UMBRELLA');
+    const hasVisuals   = envMap.has('VD_VISUALS_PATH');
+    const hasJournals  = envMap.has('VD_JOURNALS_PATH');
+    const hasState     = envMap.has('VD_STATE_PATH');
+    const plansPath    = envMap.get('VD_PLANS_PATH') || '';
     const legacyPlans  = path.join(repoDir, 'plans');
 
     if (!hasUmbrella && !hasVisuals && !hasJournals && !hasState && plansPath === legacyPlans) {
       pass('null umbrella: no umbrella vars emitted, plans at legacy CWD location');
     } else {
       fail('null umbrella: unexpected umbrella vars present or plans path wrong',
-        `CK_UMBRELLA=${envMap.get('CK_UMBRELLA')}, CK_PLANS_PATH=${plansPath}`);
+        `VD_UMBRELLA=${envMap.get('VD_UMBRELLA')}, VD_PLANS_PATH=${plansPath}`);
     }
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });

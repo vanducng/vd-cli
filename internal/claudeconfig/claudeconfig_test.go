@@ -345,7 +345,7 @@ func TestCKConfigPreservesCustomKeys(t *testing.T) {
   "hooks": {"privacy-block": false},
   "kits": {"SomeKit": {"installedSettings": {}}}
 }`
-	path := filepath.Join(t.TempDir(), ".ck.json")
+	path := filepath.Join(t.TempDir(), ".vd.json")
 	writeFixture(t, path, fixture)
 
 	cfg, err := readCKConfigAt(path)
@@ -380,7 +380,7 @@ func TestCKConfigPreservesCustomKeys(t *testing.T) {
 
 func TestCKConfigNoDollarHOMEInOutput(t *testing.T) {
 	fixture := `{"plan":{"namingFormat":"{date}-{slug}"}}`
-	path := filepath.Join(t.TempDir(), ".ck.json")
+	path := filepath.Join(t.TempDir(), ".vd.json")
 	writeFixture(t, path, fixture)
 
 	cfg, err := readCKConfigAt(path)
@@ -394,12 +394,12 @@ func TestCKConfigNoDollarHOMEInOutput(t *testing.T) {
 
 	data := mustReadFile(t, path)
 	if containsPersonalPath(data) {
-		t.Error(".ck.json contains a resolved absolute home path")
+		t.Error(".vd.json contains a resolved absolute home path")
 	}
 }
 
 func TestCKConfigMissingFile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "nonexistent.json")
+	path := filepath.Join(t.TempDir(), "nonexistent.vd.json")
 	cfg, err := readCKConfigAt(path)
 	if err != nil {
 		t.Fatalf("expected nil error for missing file, got: %v", err)

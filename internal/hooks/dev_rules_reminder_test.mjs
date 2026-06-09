@@ -35,7 +35,7 @@ function fail(name, detail) {
   if (detail) console.error(`        ${detail.split('\n').join('\n        ')}`);
 }
 
-function mkTempRepo(label, ckJson = null) {
+function mkTempRepo(label, vdJson = null) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `vd-drr-${label}-`));
   const real = fs.realpathSync(tmp);
   execSync('git init', { cwd: real, stdio: 'ignore' });
@@ -44,17 +44,17 @@ function mkTempRepo(label, ckJson = null) {
   execSync('git config user.name "Test"', { cwd: real, stdio: 'ignore' });
   fs.writeFileSync(path.join(real, 'README.md'), '# test\n');
   execSync('git add README.md && git commit -m "init"', { cwd: real, stdio: 'ignore', shell: true });
-  if (ckJson) {
-    fs.writeFileSync(path.join(real, '.ck.json'), JSON.stringify(ckJson, null, 2));
+  if (vdJson) {
+    fs.writeFileSync(path.join(real, '.vd.json'), JSON.stringify(vdJson, null, 2));
   }
   return real;
 }
 
-function mkFakeHome(ckJson = null) {
+function mkFakeHome(vdJson = null) {
   const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-drr-home-'));
   fs.mkdirSync(path.join(fakeHome, '.claude'), { recursive: true });
-  if (ckJson) {
-    fs.writeFileSync(path.join(fakeHome, '.claude', '.ck.json'), JSON.stringify(ckJson, null, 2));
+  if (vdJson) {
+    fs.writeFileSync(path.join(fakeHome, '.claude', '.vd.json'), JSON.stringify(vdJson, null, 2));
   }
   return fakeHome;
 }
@@ -136,7 +136,7 @@ async function testNonUmbrellaStructure() {
 // ── Test 2: umbrella repo paths ───────────────────────────────────────────
 
 async function testUmbrellaStructure() {
-  const repoDir = mkTempRepo('umbrella', { paths: { umbrella: '.work' } });
+  const repoDir = mkTempRepo('umbrella', { paths: { umbrella: '.work' } }); // .vd.json
   const fakeHome = mkFakeHome();
   try {
     const stdout = runHook(repoDir, fakeHome);

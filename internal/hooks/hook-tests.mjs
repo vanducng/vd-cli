@@ -253,7 +253,7 @@ async function testTeamHooks() {
       fs.writeFileSync(path.join(tasksDir, '2.json'), JSON.stringify({ id: 2, status: 'pending', subject: 'Task two' }));
 
       const inp = makeInput({ task_id: 1, task_subject: 'Task one', teammate_name: 'dev', team_name: 'proj' });
-      const r = await run(TASK_COMPLETED, inp, { HOME: fakeHome, CK_REPORTS_PATH: reportsDir });
+      const r = await run(TASK_COMPLETED, inp, { HOME: fakeHome, VD_REPORTS_PATH: reportsDir });
       assert('emits progress summary (exit 0)', r.code === 0, `code=${r.code} stderr=${r.stderr}`);
       const outObj = JSON.parse(r.stdout.trim());
       assert('progress additionalContext present', outObj.hookSpecificOutput?.additionalContext?.includes('Task'));

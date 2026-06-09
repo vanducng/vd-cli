@@ -2,19 +2,15 @@
 /**
  * capture.mjs - Regenerates golden fixtures for vd-cli clean-room tests.
  *
- * Creates two controlled git-repo fixtures (defaults + custom global .ck.json),
- * drives ck's session-init.cjs and subagent-init.cjs against them,
+ * Creates two controlled git-repo fixtures (defaults + custom global .vd.json),
+ * drives vd's session-init.cjs and subagent-init.cjs against them,
  * and writes output into this directory as:
- *   session-init.env             (defaults = global ~/.ck.json only)
- *   session-init.custom.env      (custom global .ck.json: issuePrefix='GH-', reportsDir='my-reports')
+ *   session-init.env             (defaults = global ~/.vd.json only)
+ *   session-init.custom.env      (custom global .vd.json: issuePrefix='GH-', reportsDir='my-reports')
  *   subagent-init.context.txt    (defaults variant injection block)
  *
- * NOTE on LOCAL_CONFIG_PATH bug (ck issue): ck-config-utils.cjs defines
- *   LOCAL_CONFIG_PATH = '$HOME/.claude/.ck.json'   ← literal string, never expanded
- * so fs.existsSync() on it always returns false.  Only GLOBAL_CONFIG_PATH
- * (os.homedir()+"/.claude/.ck.json") is actually loaded.  This capture harness
- * redirects HOME to a temp dir so we can inject a known global config without
- * touching the user's real ~/.claude/.ck.json.
+ * This capture harness redirects HOME to a temp dir so we can inject a known
+ * global config without touching the user's real ~/.claude/.vd.json.
  *
  * Volatile positions masked with sentinel tokens:
  *   {{DATE}}      YYMMDD  (changes every day)
@@ -59,7 +55,7 @@ function escapeRe(s) {
  * Returns the real absolute path (resolves /private symlink on macOS).
  */
 function mkTempRepo(label) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `ck-golden-${label}-`));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `vd-golden-${label}-`));
   // Resolve macOS /private symlink so paths match what git rev-parse returns
   const realDir = fs.realpathSync(dir);
   execSync('git init', { cwd: realDir, stdio: 'ignore' });
@@ -74,14 +70,14 @@ function mkTempRepo(label) {
 }
 
 /**
- * Create a fake HOME dir containing .claude/.ck.json with given config.
+ * Create a fake HOME dir containing .claude/.vd.json with given config.
  * Also copies the real hooks dir so require() inside hooks still resolves.
  */
-function mkFakeHome(ckJsonContent) {
-  const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'ck-fake-home-'));
+function mkFakeHome(vdJsonContent) {
+  const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vd-fake-home-'));
   const claudeDir = path.join(fakeHome, '.claude');
   fs.mkdirSync(claudeDir, { recursive: true });
-  fs.writeFileSync(path.join(claudeDir, '.ck.json'), JSON.stringify(ckJsonContent, null, 2));
+  fs.writeFileSync(path.join(claudeDir, '.vd.json'), JSON.stringify(vdJsonContent, null, 2));
   // Symlink the real hooks dir so the hook scripts can require() their libs
   fs.symlinkSync(path.join(REAL_HOME, '.claude', 'hooks'), path.join(claudeDir, 'hooks'));
   // Symlink skills/.venv so resolveSkillsVenv() still finds it
@@ -95,7 +91,7 @@ function mkFakeHome(ckJsonContent) {
 }
 
 function runSessionInitHook(repoDir, fakeHome) {
-  const envFile = path.join(os.tmpdir(), `ck-env-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`);
+  const envFile = path.join(os.tmpdir(), `vd-env-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`);
   fs.writeFileSync(envFile, '');
 
   const env = {
@@ -103,7 +99,7 @@ function runSessionInitHook(repoDir, fakeHome) {
     HOME: fakeHome,
     CLAUDE_ENV_FILE: envFile,
     CLAUDE_SESSION_ID: FIXED_SESSION_ID,
-    CK_SESSION_ID: FIXED_SESSION_ID,
+    VD_SESSION_ID: FIXED_SESSION_ID,
     // Ensure no stale session file from real HOME interferes
     TMPDIR: process.env.TMPDIR || '/tmp'
   };
@@ -137,7 +133,7 @@ function runSubagentInitHook(repoDir, fakeHome) {
     ...process.env,
     HOME: fakeHome,
     CLAUDE_SESSION_ID: FIXED_SESSION_ID,
-    CK_SESSION_ID: FIXED_SESSION_ID,
+    VD_SESSION_ID: FIXED_SESSION_ID,
     TMPDIR: process.env.TMPDIR || '/tmp'
   };
 
@@ -202,7 +198,7 @@ function mask(content, repoDir, fakeHome) {
 // Configs
 // ─────────────────────────────────────────────────────────────────────────────
 
-const DEFAULT_CK_CONFIG = {
+const DEFAULT_VD_CONFIG = {
   plan: {
     namingFormat: '{date}-{issue}-{slug}',
     dateFormat: 'YYMMDD-HHmm',
@@ -214,7 +210,7 @@ const DEFAULT_CK_CONFIG = {
   paths: { docs: 'docs', plans: 'plans' }
 };
 
-const CUSTOM_CK_CONFIG = {
+const CUSTOM_VD_CONFIG = {
   plan: {
     namingFormat: '{date}-{issue}-{slug}',
     dateFormat: 'YYMMDD-HHmm',
@@ -235,7 +231,7 @@ async function main() {
 
   // ── Fixture A: defaults ───────────────────────────────────────────────────
   const repoA    = mkTempRepo('defaults');
-  const fakeHomeA = mkFakeHome(DEFAULT_CK_CONFIG);
+  const fakeHomeA = mkFakeHome(DEFAULT_VD_CONFIG);
   console.log(`[capture] fixture-A (defaults): ${repoA}`);
 
   const rawEnvA = runSessionInitHook(repoA, fakeHomeA);
@@ -251,7 +247,7 @@ async function main() {
 
   // ── Fixture B: custom (issuePrefix='GH-', reportsDir='my-reports') ────────
   const repoB     = mkTempRepo('custom');
-  const fakeHomeB = mkFakeHome(CUSTOM_CK_CONFIG);
+  const fakeHomeB = mkFakeHome(CUSTOM_VD_CONFIG);
   console.log(`[capture] fixture-B (custom): ${repoB}`);
 
   const rawEnvB = runSessionInitHook(repoB, fakeHomeB);
@@ -269,13 +265,13 @@ async function main() {
   if (verify) {
     console.log(`[capture] --verify: running second pass...`);
     const repoA2     = mkTempRepo('defaults-v2');
-    const fakeHomeA2 = mkFakeHome(DEFAULT_CK_CONFIG);
+    const fakeHomeA2 = mkFakeHome(DEFAULT_VD_CONFIG);
     const rawEnvA2   = runSessionInitHook(repoA2, fakeHomeA2);
     const maskedEnvA2 = mask(rawEnvA2, repoA2, fakeHomeA2);
 
     // Strip lines that are inherently machine-specific even after masking
     const normalize = s => s.split('\n')
-      .filter(l => !l.includes('CK_USER=') && !l.includes('CK_LOCALE=') && !l.includes('CK_TIMEZONE='))
+      .filter(l => !l.includes('VD_USER=') && !l.includes('VD_LOCALE=') && !l.includes('VD_TIMEZONE='))
       .join('\n');
 
     if (normalize(maskedEnvA) === normalize(maskedEnvA2)) {

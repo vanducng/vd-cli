@@ -74,7 +74,7 @@ try {
   function readActivePlan(sessionId) {
     if (!sessionId) return null;
     try {
-      const tmpFile = path.join(os.tmpdir(), `ck-session-${sessionId}.json`);
+      const tmpFile = path.join(os.tmpdir(), `vd-session-${sessionId}.json`);
       if (!fs.existsSync(tmpFile)) return null;
       const state = JSON.parse(fs.readFileSync(tmpFile, 'utf8'));
       return state.activePlan || null;

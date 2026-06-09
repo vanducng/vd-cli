@@ -3,7 +3,7 @@
 /**
  * session-init.cjs - VD-CLI clean-room SessionStart hook.
  *
- * Emits all CK_* env vars to CLAUDE_ENV_FILE, writes per-session temp state,
+ * Emits all VD_* env vars to CLAUDE_ENV_FILE, writes per-session temp state,
  * and prints a context summary. Never throws (fail-open).
  */
 
@@ -165,67 +165,67 @@ try {
       || (() => { try { return os.userInfo().username; } catch { return ''; } })();
     const locale = process.env.LANG || '';
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    // CK_CLAUDE_SETTINGS_DIR must point to the real ~/.claude, not a test-injected fake HOME.
+    // VD_CLAUDE_SETTINGS_DIR must point to the real ~/.claude, not a test-injected fake HOME.
     // ck uses path.resolve(__dirname, '..') which is immune to HOME env changes.
     // We replicate that immunity via os.userInfo().homedir (not process.env.HOME).
     const claudeSettingsDir = path.join(realHomedir, '.claude');
 
     if (envFile) {
-      writeEnv(envFile, 'CK_SESSION_ID', sessionId || '');
-      writeEnv(envFile, 'CK_PLAN_NAMING_FORMAT', config.plan.namingFormat);
-      writeEnv(envFile, 'CK_PLAN_DATE_FORMAT', config.plan.dateFormat);
-      writeEnv(envFile, 'CK_PLAN_ISSUE_PREFIX', config.plan.issuePrefix || '');
-      writeEnv(envFile, 'CK_PLAN_REPORTS_DIR', config.plan.reportsDir);
-      writeEnv(envFile, 'CK_NAME_PATTERN', namePattern);
-      writeEnv(envFile, 'CK_ACTIVE_PLAN', resolved.resolvedBy === 'session' ? resolved.path : '');
-      writeEnv(envFile, 'CK_SUGGESTED_PLAN', resolved.resolvedBy === 'branch' ? resolved.path : '');
+      writeEnv(envFile, 'VD_SESSION_ID', sessionId || '');
+      writeEnv(envFile, 'VD_PLAN_NAMING_FORMAT', config.plan.namingFormat);
+      writeEnv(envFile, 'VD_PLAN_DATE_FORMAT', config.plan.dateFormat);
+      writeEnv(envFile, 'VD_PLAN_ISSUE_PREFIX', config.plan.issuePrefix || '');
+      writeEnv(envFile, 'VD_PLAN_REPORTS_DIR', config.plan.reportsDir);
+      writeEnv(envFile, 'VD_NAME_PATTERN', namePattern);
+      writeEnv(envFile, 'VD_ACTIVE_PLAN', resolved.resolvedBy === 'session' ? resolved.path : '');
+      writeEnv(envFile, 'VD_SUGGESTED_PLAN', resolved.resolvedBy === 'branch' ? resolved.path : '');
 
       if (taskListId) {
         writeEnv(envFile, 'CLAUDE_CODE_TASK_LIST_ID', taskListId);
       }
 
-      writeEnv(envFile, 'CK_GIT_ROOT', gitRoot || '');
-      writeEnv(envFile, 'CK_REPORTS_PATH', reportsPathAbs);
-      writeEnv(envFile, 'CK_DOCS_PATH', docsPathAbs);
-      writeEnv(envFile, 'CK_PLANS_PATH', plansPathAbs);
-      writeEnv(envFile, 'CK_PROJECT_ROOT', baseDir);
+      writeEnv(envFile, 'VD_GIT_ROOT', gitRoot || '');
+      writeEnv(envFile, 'VD_REPORTS_PATH', reportsPathAbs);
+      writeEnv(envFile, 'VD_DOCS_PATH', docsPathAbs);
+      writeEnv(envFile, 'VD_PLANS_PATH', plansPathAbs);
+      writeEnv(envFile, 'VD_PROJECT_ROOT', baseDir);
       // Umbrella vars — emitted only when opt-in is active (purely additive)
       if (umbrellaVal) {
-        writeEnv(envFile, 'CK_UMBRELLA', umbrellaVal);
-        writeEnv(envFile, 'CK_VISUALS_PATH',  visualsPathAbs);
-        writeEnv(envFile, 'CK_JOURNALS_PATH', journalsPathAbs);
-        writeEnv(envFile, 'CK_STATE_PATH',    statePathAbs);
+        writeEnv(envFile, 'VD_UMBRELLA', umbrellaVal);
+        writeEnv(envFile, 'VD_VISUALS_PATH',  visualsPathAbs);
+        writeEnv(envFile, 'VD_JOURNALS_PATH', journalsPathAbs);
+        writeEnv(envFile, 'VD_STATE_PATH',    statePathAbs);
       }
-      writeEnv(envFile, 'CK_PROJECT_TYPE', projectType);
-      writeEnv(envFile, 'CK_PACKAGE_MANAGER', packageManager);
-      writeEnv(envFile, 'CK_FRAMEWORK', framework);
-      writeEnv(envFile, 'CK_NODE_VERSION', process.version);
-      writeEnv(envFile, 'CK_OS_PLATFORM', process.platform);
-      writeEnv(envFile, 'CK_GIT_BRANCH', gitBranch || '');
-      writeEnv(envFile, 'CK_USER', user);
-      writeEnv(envFile, 'CK_LOCALE', locale);
-      writeEnv(envFile, 'CK_TIMEZONE', timezone);
-      writeEnv(envFile, 'CK_CLAUDE_SETTINGS_DIR', claudeSettingsDir);
+      writeEnv(envFile, 'VD_PROJECT_TYPE', projectType);
+      writeEnv(envFile, 'VD_PACKAGE_MANAGER', packageManager);
+      writeEnv(envFile, 'VD_FRAMEWORK', framework);
+      writeEnv(envFile, 'VD_NODE_VERSION', process.version);
+      writeEnv(envFile, 'VD_OS_PLATFORM', process.platform);
+      writeEnv(envFile, 'VD_GIT_BRANCH', gitBranch || '');
+      writeEnv(envFile, 'VD_USER', user);
+      writeEnv(envFile, 'VD_LOCALE', locale);
+      writeEnv(envFile, 'VD_TIMEZONE', timezone);
+      writeEnv(envFile, 'VD_CLAUDE_SETTINGS_DIR', claudeSettingsDir);
 
       if (config.locale?.thinkingLanguage) {
-        writeEnv(envFile, 'CK_THINKING_LANGUAGE', config.locale.thinkingLanguage);
+        writeEnv(envFile, 'VD_THINKING_LANGUAGE', config.locale.thinkingLanguage);
       }
       if (config.locale?.responseLanguage) {
-        writeEnv(envFile, 'CK_RESPONSE_LANGUAGE', config.locale.responseLanguage);
+        writeEnv(envFile, 'VD_RESPONSE_LANGUAGE', config.locale.responseLanguage);
       }
 
       const val = config.plan?.validation || {};
-      writeEnv(envFile, 'CK_VALIDATION_MODE', val.mode || 'prompt');
-      writeEnv(envFile, 'CK_VALIDATION_MIN_QUESTIONS', val.minQuestions ?? 3);
-      writeEnv(envFile, 'CK_VALIDATION_MAX_QUESTIONS', val.maxQuestions ?? 8);
-      writeEnv(envFile, 'CK_VALIDATION_FOCUS_AREAS', (val.focusAreas || ['assumptions', 'risks', 'tradeoffs', 'architecture']).join(','));
-      writeEnv(envFile, 'CK_CODING_LEVEL', codingLevel);
-      writeEnv(envFile, 'CK_CODING_LEVEL_STYLE', getCodingLevelStyleName(codingLevel));
+      writeEnv(envFile, 'VD_VALIDATION_MODE', val.mode || 'prompt');
+      writeEnv(envFile, 'VD_VALIDATION_MIN_QUESTIONS', val.minQuestions ?? 3);
+      writeEnv(envFile, 'VD_VALIDATION_MAX_QUESTIONS', val.maxQuestions ?? 8);
+      writeEnv(envFile, 'VD_VALIDATION_FOCUS_AREAS', (val.focusAreas || ['assumptions', 'risks', 'tradeoffs', 'architecture']).join(','));
+      writeEnv(envFile, 'VD_CODING_LEVEL', codingLevel);
+      writeEnv(envFile, 'VD_CODING_LEVEL_STYLE', getCodingLevelStyleName(codingLevel));
 
       const teamInfo = detectAgentTeam();
       if (teamInfo) {
-        writeEnv(envFile, 'CK_AGENT_TEAM', teamInfo.teamName);
-        writeEnv(envFile, 'CK_AGENT_TEAM_MEMBERS', teamInfo.memberCount);
+        writeEnv(envFile, 'VD_AGENT_TEAM', teamInfo.teamName);
+        writeEnv(envFile, 'VD_AGENT_TEAM_MEMBERS', teamInfo.memberCount);
       }
     }
 
