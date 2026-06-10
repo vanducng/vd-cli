@@ -26,6 +26,7 @@ import (
 const (
 	upgradeRepo   = "vanducng/vd-cli"
 	upgradeBinary = "vd"
+	brewTap       = "vanducng/tap"
 )
 
 func newUpgradeCmd() *cobra.Command {
@@ -40,7 +41,9 @@ func newUpgradeCmd() *cobra.Command {
 		Long: `Download the latest vd release from GitHub and replace the running binary
 in place (verified against the published checksums).
 
-Homebrew installs are not self-replaced; upgrade those with 'brew upgrade vd'.`,
+Homebrew installs are not self-replaced; upgrade those with
+'brew upgrade vanducng/tap/vd' (run 'brew trust vanducng/tap' first if the
+tap is untrusted).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Minute)
@@ -76,6 +79,9 @@ func runUpgrade(ctx context.Context, w io.Writer, checkOnly bool, target string)
 		_, _ = fmt.Fprintf(w, "vd is already up to date (%s)\n", current)
 		return nil
 	}
+	if exe, _ := os.Executable(); isHomebrewPath(resolveSymlinks(exe)) {
+		return errHomebrewManaged()
+	}
 
 	asset := upgradeAssetName(runtime.GOOS, runtime.GOARCH)
 	if asset == "" {
@@ -90,12 +96,16 @@ func runUpgrade(ctx context.Context, w io.Writer, checkOnly bool, target string)
 	if err != nil {
 		return fmt.Errorf("download %s: %w (check that release %s exists)", asset, err, latest)
 	}
-	if sums, err := httpDownload(ctx, client, base+"/checksums.txt"); err == nil {
-		if want := checksumFor(string(sums), asset); want != "" {
-			if got := fmt.Sprintf("%x", sha256.Sum256(archive)); got != want {
-				return fmt.Errorf("checksum mismatch for %s (got %s, want %s)", asset, got, want)
-			}
-		}
+	sums, err := httpDownload(ctx, client, base+"/checksums.txt")
+	if err != nil {
+		return fmt.Errorf("download checksums.txt: %w", err)
+	}
+	want := checksumFor(string(sums), asset)
+	if want == "" {
+		return fmt.Errorf("no checksum entry for %s in checksums.txt", asset)
+	}
+	if got := fmt.Sprintf("%x", sha256.Sum256(archive)); got != want {
+		return fmt.Errorf("checksum mismatch for %s (got %s, want %s)", asset, got, want)
 	}
 
 	bin, err := extractUpgradeBinary(archive, runtime.GOOS)
@@ -252,11 +262,9 @@ func replaceRunningExecutable(newBin []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
-		exe = resolved
-	}
-	if strings.Contains(exe, "/Cellar/") || strings.Contains(exe, "/homebrew/") {
-		return exe, fmt.Errorf("vd was installed via Homebrew; upgrade with: brew upgrade vd")
+	exe = resolveSymlinks(exe)
+	if isHomebrewPath(exe) {
+		return exe, errHomebrewManaged()
 	}
 
 	dir := filepath.Dir(exe)
@@ -294,6 +302,23 @@ func replaceRunningExecutable(newBin []byte) (string, error) {
 		return exe, upgradePermHint(err, dir)
 	}
 	return exe, nil
+}
+
+func resolveSymlinks(p string) string {
+	if resolved, err := filepath.EvalSymlinks(p); err == nil {
+		return resolved
+	}
+	return p
+}
+
+func isHomebrewPath(p string) bool {
+	return strings.Contains(p, "/Cellar/") || strings.Contains(p, "/homebrew/")
+}
+
+// errHomebrewManaged includes the trust step: Homebrew >=5.x refuses
+// formulae from untrusted third-party taps.
+func errHomebrewManaged() error {
+	return fmt.Errorf("vd was installed via Homebrew; upgrade with: brew upgrade %s/%s (if brew refuses the untrusted tap, first run: brew trust %s)", brewTap, upgradeBinary, brewTap)
 }
 
 func upgradePermHint(err error, dir string) error {

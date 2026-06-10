@@ -131,7 +131,7 @@ func printUpdateNudge(pc *pendingCheck, w io.Writer, quiet bool) {
 		return
 	}
 
-	_, _ = fmt.Fprintf(w, "vd %s (latest: %s). Upgrade: brew upgrade vd\n",
+	_, _ = fmt.Fprintf(w, "vd %s (latest: %s). Upgrade: vd upgrade\n",
 		pc.result.Current, pc.result.Latest)
 }
 
