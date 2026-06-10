@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"strings"
 	"testing"
 )
 
@@ -86,6 +87,33 @@ func TestExtractUpgradeBinary_NotFound(t *testing.T) {
 
 	if _, err := extractUpgradeBinary(buf.Bytes(), "linux"); err == nil {
 		t.Fatal("expected error when binary missing from archive")
+	}
+}
+
+func TestIsHomebrewPath(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"/opt/homebrew/bin/vd", true},
+		{"/opt/homebrew/Cellar/vd/2.5.0/bin/vd", true},
+		{"/usr/local/Cellar/vd/2.5.0/bin/vd", true},
+		{"/usr/local/bin/vd", false},
+		{"/Users/x/.local/bin/vd", false},
+	}
+	for _, tt := range tests {
+		if got := isHomebrewPath(tt.path); got != tt.want {
+			t.Errorf("isHomebrewPath(%q) = %t, want %t", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestErrHomebrewManaged_IncludesTapAndTrustHint(t *testing.T) {
+	msg := errHomebrewManaged().Error()
+	for _, want := range []string{"brew upgrade vanducng/tap/vd", "brew trust vanducng/tap"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("message %q missing %q", msg, want)
+		}
 	}
 }
 

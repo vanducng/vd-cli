@@ -57,7 +57,7 @@ func TestPrintUpdateNudge_PrintsExpectedLine(t *testing.T) {
 	printUpdateNudge(pc, &buf, false)
 
 	got := buf.String()
-	want := "vd 1.0.0 (latest: 1.1.0). Upgrade: brew upgrade vd\n"
+	want := "vd 1.0.0 (latest: 1.1.0). Upgrade: vd upgrade\n"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
