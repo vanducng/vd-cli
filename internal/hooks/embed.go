@@ -3,5 +3,7 @@ package hooks
 
 import "embed"
 
+// FS holds the embedded hook assets.
+//
 //go:embed assets
 var FS embed.FS
