@@ -43,10 +43,17 @@ vd-cli flips this:
 
 ## Install
 
-**Homebrew (recommended):**
+**Install script (macOS/Linux):**
+```sh
+curl -fsSL https://raw.githubusercontent.com/vanducng/vd-cli/main/install.sh | sh
+```
+Installs to `~/.local/bin` (override with `VD_INSTALL_DIR`, pin with `VD_VERSION`). Later upgrades: `vd upgrade`.
+
+**Homebrew:**
 ```sh
 brew install vanducng/tap/vd
 ```
+Homebrew 5.x requires trusting third-party taps first: `brew trust vanducng/tap`.
 
 **go install:**
 ```sh
