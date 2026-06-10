@@ -169,7 +169,7 @@ func removeHookCommand(entries []HookEntry, hookFile string) []HookEntry {
 	return out
 }
 
-// WriteOptions controls the write behaviour.
+// WriteOptions controls the write behavior.
 type WriteOptions struct {
 	// Path overrides the default ~/.claude/settings.json (used in tests).
 	Path string
