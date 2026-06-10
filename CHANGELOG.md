@@ -4,6 +4,18 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.6.0](https://github.com/vanducng/vd-cli/compare/v2.5.0...v2.6.0) (2026-06-10)
+
+
+### Features
+
+* **install:** add install.sh for macOS/Linux ([afeed5d](https://github.com/vanducng/vd-cli/commit/afeed5d42521fd7b5165852c0a86ea9e8b4af436))
+
+
+### Bug Fixes
+
+* **upgrade:** detect Homebrew install before download and add brew trust hint ([fcfa2fc](https://github.com/vanducng/vd-cli/commit/fcfa2fc568b359d7de6b3dfe328e102073bcbdec))
+
 ## [2.5.0](https://github.com/vanducng/vd-cli/compare/v2.4.0...v2.5.0) (2026-06-08)
 
 
