@@ -17,6 +17,5 @@ ID: aaaaaaaa-test-0001 | CWD: {{GIT_ROOT}}
 - Report: {{REPORTS_ABS}}/fullstack-developer-{{DATE}}-{{TIME}}-{slug}.md
 - Plan dir: {{PLANS_ABS}}/{{DATE}}-{{TIME}}-{slug}/
 
-## Plan CLI (deterministic updates)
-`ck plan check <id>` = completed | `ck plan check <id> --start` = in-progress | `ck plan uncheck <id>` = revert
-Fallback: if `ck` unavailable, edit plan.md Status column directly.
+## Plan Status Updates
+Edit the plan.md Status column directly: `Pending` → `In Progress` → `Completed`.
