@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.7.0](https://github.com/vanducng/vd-cli/compare/v2.6.0...v2.7.0) (2026-06-12)
+
+
+### Features
+
+* **hooks:** worktree-aware artifact paths; drop .ck.json fallback ([#16](https://github.com/vanducng/vd-cli/issues/16)) ([4c06505](https://github.com/vanducng/vd-cli/commit/4c065050d1eb71a242055f94c27b385d49b4142a))
+
 ## [2.6.0](https://github.com/vanducng/vd-cli/compare/v2.5.0...v2.6.0) (2026-06-10)
 
 
