@@ -12,12 +12,13 @@ Capture date: 2026-06-09. No ck code is copied here — behavior described in ow
 | Layer | Path | Notes |
 |-------|------|-------|
 | 1. Defaults | hardcoded `DEFAULT_CONFIG` | always applied |
-| 2. Global | `os.homedir()+"/.claude/.vd.json"` | user-level prefs; falls back to `.ck.json` if absent |
-| 3. Local | `path.join(gitRoot, ".vd.json")` | project-local; falls back to `.ck.json` if absent |
+| 2. Global | `os.homedir()+"/.claude/.vd.json"` | user-level prefs |
+| 3. Local | `path.join(gitRoot, ".vd.json")` | project-local |
 
 Both layers use `path.join(os.homedir(), ".claude", ".vd.json")` for global and
-`path.join(gitRoot, ".vd.json")` for project-local. Legacy `.ck.json` read fallback
-keeps existing setups working until migrated. Write always goes to `.vd.json`.
+`path.join(gitRoot, ".vd.json")` for project-local. There is no `.ck.json` read
+fallback: a lingering legacy `.ck.json` (without its `.vd.json`) raises a migration
+error pointing at the cktovd skill. Write always goes to `.vd.json`.
 
 ### Merge semantics (`deepMerge`)
 - Arrays: replaced entirely (not concatenated).
@@ -286,9 +287,8 @@ ID: <agent_id> | CWD: <effectiveCwd>
 - Report: <reportsPath>/<agentType>-<namePattern>.md
 - Plan dir: <plansPath>/<namePattern>/
 
-[## Plan CLI (deterministic updates)     ← ONLY for plan-aware agents]
-[`ck plan check <id>` = completed | `ck plan check <id> --start` = in-progress | `ck plan uncheck <id>` = revert]
-[Fallback: if `ck` unavailable, edit plan.md Status column directly.]
+[## Plan Status Updates     ← ONLY for plan-aware agents]
+[Edit the plan.md Status column directly: `Pending` → `In Progress` → `Completed`.]
 
 [## Trust Verification         ← ONLY if config.trust.enabled && config.trust.passphrase]
 [Passphrase: "<passphrase>"]
@@ -414,18 +414,18 @@ spread-merge handles this). Never drop `devRulesReminder` or `statusline` keys o
 
 ---
 
-## 9. Config File Migration: `.ck.json` → `.vd.json`
+## 9. Config File: `.vd.json` (legacy `.ck.json` errors)
 
-Our clean-room implementation uses `.vd.json` as the config file name. Both the
-Node hooks (`config.cjs`) and the Go CLI (`claudeconfig/config.go`) implement a
-**legacy read fallback**: if `.vd.json` is absent, they silently read `.ck.json`
-instead. This keeps existing setups working until users rename their config.
+The config file is `.vd.json`. There is **no** silent `.ck.json` read fallback.
+If `.vd.json` is absent but a legacy `.ck.json` lingers, both the Node hooks
+(`config.cjs`) and the Go CLI (`claudeconfig/config.go`) **raise a migration
+error** pointing at the cktovd skill — vd no longer reads `.ck.json`.
 
-**Write always targets `.vd.json`** — the fallback is read-only.
+**Write always targets `.vd.json`.**
 
-Legacy fallback locations:
-- `internal/hooks/assets/lib/config.cjs` — `readJsonWithLegacyFallback()`
-- `internal/claudeconfig/config.go` — `ReadCKConfig()` two-phase read
+Legacy detection (error, not fallback):
+- `internal/hooks/assets/lib/config.cjs` — `assertMigrated()` (throws; hooks fail-open)
+- `internal/claudeconfig/config.go` — `ReadCKConfig()` errors on legacy-only
 
 ---
 

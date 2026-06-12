@@ -2,9 +2,10 @@
 /**
  * config.cjs - Three-layer config loader: defaults ← global ← project-local.
  *
- * Fix vs ck: local config resolves via git-root, not a literal unexpanded HOME string.
- * P3 addition: paths.umbrella (default null) opts a repo into the .work/ layout.
- * Config file: .vd.json (legacy fallback: .ck.json if .vd.json absent).
+ * Local config resolves via git-root (not a literal unexpanded HOME string).
+ * paths.umbrella (default null) opts a repo into the .work/ layout.
+ * Config file: .vd.json only. A lingering legacy .ck.json raises a migration
+ * error (run the cktovd skill) — vd no longer reads .ck.json.
  */
 
 const fs = require('fs');
@@ -131,31 +132,35 @@ function sanitizeUmbrella(raw, gitRoot) {
 }
 
 /**
- * Read config file at path, with legacy fallback: try .vd.json first, then .ck.json if absent.
- * Legacy .ck.json fallback keeps existing setups working until migrated.
+ * Raise if a legacy .ck.json lingers without its .vd.json. vd no longer reads
+ * .ck.json — run the cktovd skill (or rename .ck.json → .vd.json) to migrate.
  */
-function readJsonWithLegacyFallback(newPath, legacyPath) {
-  const result = readJson(newPath);
-  if (result !== null) return result;
-  return readJson(legacyPath); // legacy fallback: .ck.json
+function assertMigrated(vdPath, ckPath) {
+  if (!ckPath) return;
+  if (!fs.existsSync(vdPath) && fs.existsSync(ckPath)) {
+    throw new Error(
+      `Legacy ${path.basename(ckPath)} found at ${ckPath} but no ${path.basename(vdPath)}. ` +
+      `vd no longer reads .ck.json — run the cktovd skill, or rename it to ${path.basename(vdPath)}.`
+    );
+  }
 }
 
 /**
  * Load config: DEFAULT ← global (~/.claude/.vd.json) ← project (<git-root>/.vd.json).
- * Legacy fallback: reads .ck.json if .vd.json is absent (both global and project-local).
+ * No .ck.json fallback — a lingering legacy file raises a migration error.
  * Falls back to defaults on any error.
  */
 function loadConfig() {
   const globalPath = path.join(os.homedir(), '.claude', '.vd.json');
-  const globalLegacyPath = path.join(os.homedir(), '.claude', '.ck.json');
   const gitRoot = getGitRoot(process.cwd());
   const localPath = gitRoot ? path.join(gitRoot, '.vd.json') : null;
-  const localLegacyPath = gitRoot ? path.join(gitRoot, '.ck.json') : null;
 
-  const globalCfg = readJsonWithLegacyFallback(globalPath, globalLegacyPath);
-  const localCfg = (localPath && localLegacyPath)
-    ? readJsonWithLegacyFallback(localPath, localLegacyPath)
-    : null;
+  // No silent .ck.json fallback — raise a migration error if a legacy file lingers.
+  assertMigrated(globalPath, path.join(os.homedir(), '.claude', '.ck.json'));
+  if (gitRoot) assertMigrated(localPath, path.join(gitRoot, '.ck.json'));
+
+  const globalCfg = readJson(globalPath);
+  const localCfg = localPath ? readJson(localPath) : null;
 
   if (!globalCfg && !localCfg) return buildResult(layerConfigs({}, DEFAULT_CONFIG), gitRoot);
 
@@ -196,4 +201,4 @@ function buildResult(merged, gitRoot) {
   };
 }
 
-module.exports = { DEFAULT_CONFIG, layerConfigs, loadConfig, getGitRoot, sanitizeUmbrella, readJsonWithLegacyFallback };
+module.exports = { DEFAULT_CONFIG, layerConfigs, loadConfig, getGitRoot, sanitizeUmbrella, assertMigrated };

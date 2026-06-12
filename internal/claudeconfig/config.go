@@ -13,7 +13,11 @@ import (
 )
 
 const ckConfigFile = ".vd.json"
-const ckConfigFileLegacy = ".ck.json" // legacy fallback: read-only, never written
+
+// Legacy file vd no longer reads. Detected only to raise a migration error
+// (run the cktovd skill). Identifier rename CKConfig/ReadCKConfig → VD* is a
+// separate gradual step.
+const ckConfigFileLegacy = ".ck.json"
 
 // CKConfig is a partial view of ~/.claude/.vd.json sufficient for vd's needs.
 // rawOrig holds the complete original file bytes; writes patch only the keys
@@ -58,7 +62,7 @@ func ckConfigPath() (string, error) {
 	return filepath.Join(home, ".claude", ckConfigFile), nil
 }
 
-// ckConfigLegacyPath returns the absolute path to ~/.claude/.ck.json (legacy read fallback).
+// ckConfigLegacyPath returns the absolute path to ~/.claude/.ck.json (legacy).
 func ckConfigLegacyPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -68,7 +72,8 @@ func ckConfigLegacyPath() (string, error) {
 }
 
 // ReadCKConfig reads ~/.claude/.vd.json.
-// If .vd.json is absent, falls back to reading ~/.claude/.ck.json (legacy migration support).
+// vd no longer reads .ck.json: if .vd.json is absent but a legacy .ck.json
+// lingers, an error is returned pointing at the cktovd migration skill.
 // If neither exists, an empty config is returned (not an error).
 func ReadCKConfig() (*CKConfig, error) {
 	newPath, err := ckConfigPath()
@@ -82,12 +87,16 @@ func ReadCKConfig() (*CKConfig, error) {
 	if cfg.rawOrig != nil {
 		return cfg, nil
 	}
-	// .vd.json absent — try legacy .ck.json fallback
+	// .vd.json absent — refuse to silently fall back to legacy .ck.json.
 	legacyPath, err := ckConfigLegacyPath()
-	if err != nil {
-		return cfg, nil
+	if err == nil {
+		if _, statErr := os.Stat(legacyPath); statErr == nil {
+			return nil, fmt.Errorf(
+				"legacy %s found at %s but no %s — run the cktovd skill (or rename it to %s); vd no longer reads %s",
+				ckConfigFileLegacy, legacyPath, ckConfigFile, ckConfigFile, ckConfigFileLegacy)
+		}
 	}
-	return readCKConfigAt(legacyPath)
+	return cfg, nil
 }
 
 func readCKConfigAt(path string) (*CKConfig, error) {

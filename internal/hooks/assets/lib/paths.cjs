@@ -40,6 +40,32 @@ function getGitRoot(cwd) {
   return result;
 }
 
+// The MAIN worktree root — always the first entry of `git worktree list`.
+// In a normal checkout this equals getGitRoot (byte-identical behavior); inside
+// a LINKED worktree it points back to the main checkout, so agent artifacts
+// (the .work umbrella) survive `git worktree remove` instead of dying with the tree.
+const _mainRootCache = new Map();
+function getMainWorktreeRoot(cwd) {
+  const key = cwd || process.cwd();
+  if (_mainRootCache.has(key)) return _mainRootCache.get(key);
+  let result = null;
+  const out = runGit(['worktree', 'list', '--porcelain'], cwd);
+  if (out) {
+    // Porcelain blocks are blank-line separated; each starts with "worktree <path>".
+    // Pick the first NON-bare entry — a bare repo's first block is its .git dir
+    // (has a "bare" line) and must not become the artifact anchor.
+    for (const block of out.split('\n\n')) {
+      const lines = block.split('\n');
+      const wl = lines.find(l => l.startsWith('worktree '));
+      if (!wl || lines.some(l => l.trim() === 'bare')) continue;
+      result = wl.slice('worktree '.length).trim() || null;
+      break;
+    }
+  }
+  _mainRootCache.set(key, result);
+  return result;
+}
+
 // ── path helpers ──────────────────────────────────────────────────────────
 
 /** Strip trailing slashes; return null if blank after trim. */
@@ -54,14 +80,17 @@ const normalizePath = stripTrailing;
 
 /**
  * Resolve the umbrella root directory when umbrella is active.
- * anchor = config._gitRoot (pre-resolved by loadConfig) or derived here as fallback.
- * Returns absolute path to <gitRoot>/<umbrella>, or null when umbrella is not set.
+ * Anchored to the MAIN worktree so artifacts written from inside a linked
+ * worktree land in the main repo's umbrella (and survive `git worktree remove`).
+ * Returns absolute path to <mainRoot>/<umbrella>, or null when umbrella is not set.
  */
 function resolveUmbrellaRoot(config, baseDir) {
   const umbrella = config?.paths?.umbrella;
   if (!umbrella) return null;
-  // Use the git-root the config loader already resolved; fall back to git-root of baseDir.
-  const gitRoot = config._gitRoot || getGitRoot(baseDir);
+  // Main worktree == local git-root in a normal checkout (byte-identical), and the
+  // main checkout when inside a linked worktree. config._gitRoot (the LOCAL root,
+  // used for docs which stay branch-local) is only a last-resort fallback.
+  const gitRoot = getMainWorktreeRoot(baseDir) || config._gitRoot || getGitRoot(baseDir);
   if (!gitRoot) return null;
   return path.join(gitRoot, umbrella);
 }
@@ -117,10 +146,9 @@ function getStatePath(baseDir, config) {
  * Compute the reports directory path.
  *
  * Two modes controlled by `anchor`:
- *   anchor = undefined/null → return a relative string ending with '/' (ck compat).
+ *   anchor = undefined/null → return a relative string ending with '/'.
  *   anchor = string (absolute dir) → return absolute path, NO trailing slash.
- *     When planPath is already absolute the isAbsolute guard prevents double-anchoring
- *     (fixes ck's double-anchor bug — intentional divergence).
+ *     When planPath is already absolute the isAbsolute guard prevents double-anchoring.
  *
  * Umbrella-on: default reports root = <umbrellaRoot>/reports (ignores pathsConfig.plans).
  * Umbrella-off: default = <plansDir>/reports (legacy, byte-identical to P2).
@@ -150,7 +178,7 @@ function getReportsPath(planPath, resolvedBy, planConfig, pathsConfig, anchor, c
   }
 
   if (!anchor) {
-    // Relative mode: trailing slash for ck compat
+    // Relative mode: trailing slash
     return `${reportsBase}/${subdir}/`;
   }
 
@@ -329,6 +357,7 @@ module.exports = {
   resolveSkillsVenv,
   getGitBranch,
   getGitRoot,
+  getMainWorktreeRoot,
   slugFromBranch,
   extractIssueFromBranch,
   resolveUmbrellaRoot

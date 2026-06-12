@@ -28,7 +28,7 @@ try {
   } = require('./lib/paths.cjs');
   const { readSessionState, updateSessionState } = require('./lib/state.cjs');
 
-  // ── shell escaping (matches ck: \ " $ `) ─────────────────────────────────
+  // ── shell escaping (\ " $ `) ─────────────────────────────────────────────
   function escapeShell(v) {
     return String(v)
       .replace(/\\/g, '\\\\')
@@ -137,8 +137,8 @@ try {
     const gitRoot = getGitRoot();
     const namePattern = resolveNamingPattern(config.plan, gitBranch);
 
-    // Fixes ck's absolute-plan double-anchor bug: pass baseDir so getReportsPath's
-    // isAbsolute guard handles absolute activePlan paths correctly — intentional divergence.
+    // Pass baseDir so getReportsPath's isAbsolute guard handles absolute
+    // activePlan paths correctly (avoids double-anchoring).
     // Append trailing '/' explicitly to match golden (contract §3.5).
     // Pass full config so getReportsPath can resolve umbrella root when active.
     const reportsPathAbs = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config) + '/';
@@ -166,8 +166,7 @@ try {
     const locale = process.env.LANG || '';
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     // VD_CLAUDE_SETTINGS_DIR must point to the real ~/.claude, not a test-injected fake HOME.
-    // ck uses path.resolve(__dirname, '..') which is immune to HOME env changes.
-    // We replicate that immunity via os.userInfo().homedir (not process.env.HOME).
+    // Use os.userInfo().homedir (not process.env.HOME) so it's immune to HOME env changes.
     const claudeSettingsDir = path.join(realHomedir, '.claude');
 
     if (envFile) {

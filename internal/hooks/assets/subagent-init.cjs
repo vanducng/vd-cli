@@ -130,9 +130,8 @@ try {
 
     if (PLAN_AWARE_AGENTS.has(agentType)) {
       lines.push('');
-      lines.push('## Plan CLI (deterministic updates)');
-      lines.push('`ck plan check <id>` = completed | `ck plan check <id> --start` = in-progress | `ck plan uncheck <id>` = revert');
-      lines.push('Fallback: if `ck` unavailable, edit plan.md Status column directly.');
+      lines.push('## Plan Status Updates');
+      lines.push('Edit the plan.md Status column directly: `Pending` → `In Progress` → `Completed`.');
     }
 
     if (config.trust?.enabled && config.trust?.passphrase) {
