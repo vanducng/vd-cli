@@ -4,6 +4,14 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.10.0](https://github.com/vanducng/vd-cli/compare/v2.9.0...v2.10.0) (2026-06-14)
+
+
+### Features
+
+* **desktop:** add Wails desktop frontend over the inventory backend ([4732050](https://github.com/vanducng/vd-cli/commit/4732050060d01fd38370d7ed9df751a443823ec4))
+* **desktop:** add Wails desktop frontend over the inventory backend ([d4e8402](https://github.com/vanducng/vd-cli/commit/d4e8402deec934eda5f55197cdaa5ceb3d576c49))
+
 ## [2.9.0](https://github.com/vanducng/vd-cli/compare/v2.8.0...v2.9.0) (2026-06-14)
 
 
