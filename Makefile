@@ -7,10 +7,19 @@ VERSION ?= dev
 BINARY  := vd
 LDFLAGS := -ldflags "-X github.com/vanducng/vd-cli/v2/internal/version.Version=$(VERSION)"
 
-.PHONY: build test vet lint run clean
+.PHONY: build test vet lint run clean web web-dev
 
 build:
 	$(GO) build $(LDFLAGS) -o $(BINARY) ./cmd/vd
+
+# Rebuild the embedded `vd web` SPA into internal/ui/web/static (committed output).
+# Requires Node; the Go build itself never needs Node.
+web:
+	cd web && npm ci && npm run build
+
+# Live-reload web dev server (proxies /api to a running `vd web`).
+web-dev:
+	cd web && npm install && npm run dev
 
 test:
 	$(GO) test ./...

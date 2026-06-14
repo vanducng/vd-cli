@@ -42,8 +42,8 @@ func newUpgradeCmd() *cobra.Command {
 in place (verified against the published checksums).
 
 Homebrew installs are not self-replaced; upgrade those with
-'brew upgrade vanducng/tap/vd' (run 'brew trust vanducng/tap' first if the
-tap is untrusted).`,
+'brew update && brew upgrade vanducng/tap/vd' (run 'brew trust vanducng/tap'
+first if the tap is untrusted).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Minute)
@@ -315,10 +315,29 @@ func isHomebrewPath(p string) bool {
 	return strings.Contains(p, "/Cellar/") || strings.Contains(p, "/homebrew/")
 }
 
+func homebrewUpgradeCommand() string {
+	return fmt.Sprintf("brew update && brew upgrade %s/%s", brewTap, upgradeBinary)
+}
+
+func upgradeCommandForExecutable(exe string) string {
+	if isHomebrewPath(resolveSymlinks(exe)) {
+		return homebrewUpgradeCommand()
+	}
+	return "vd upgrade"
+}
+
+func currentUpgradeCommand() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "vd upgrade"
+	}
+	return upgradeCommandForExecutable(exe)
+}
+
 // errHomebrewManaged includes the trust step: Homebrew >=5.x refuses
 // formulae from untrusted third-party taps.
 func errHomebrewManaged() error {
-	return fmt.Errorf("vd was installed via Homebrew; upgrade with: brew upgrade %s/%s (if brew refuses the untrusted tap, first run: brew trust %s)", brewTap, upgradeBinary, brewTap)
+	return fmt.Errorf("vd was installed via Homebrew; upgrade with: %s (if brew refuses the untrusted tap, first run: brew trust %s). If you installed a standalone vd, put it earlier on PATH and refresh your shell command cache", homebrewUpgradeCommand(), brewTap)
 }
 
 func upgradePermHint(err error, dir string) error {

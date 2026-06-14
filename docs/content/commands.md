@@ -6,7 +6,7 @@ One section per verb. All commands accept the global flags `--quiet` / `-q`, `--
 
 **Repo root resolution.** Order: `--root` flag → `VD_ROOT` env var → walk up from CWD to the first `.git/` → the bootstrapped home `~/.vd/skills` (when populated by [`vd bootstrap`](#vd-bootstrap)). Set `VD_ROOT` in your shell to pin a default repo when invoking `vd` from arbitrary directories. Both `--root` and `VD_ROOT` are validated (must exist, must be a directory).
 
-**Upstream version check.** Each command runs a background lookup against the GitHub releases API, cached for 24 hours under `$XDG_CACHE_HOME/vd/version-check.json` (or `~/.cache/vd/version-check.json`). When a newer release exists, vd prints a single line to stderr: `vd 1.0.0 (latest: 1.1.0). Upgrade: brew upgrade vd`. Apply it with [`vd upgrade`](#vd-upgrade) (standalone binaries) or `brew upgrade vd` (Homebrew). The check is best-effort and silent on any failure. Auto-disabled when `CI` is set, when the binary is a `dev` build, and when stderr is not a terminal.
+**Upstream version check.** Each command runs a background lookup against the GitHub releases API, cached for 24 hours under `$XDG_CACHE_HOME/vd/version-check.json` (or `~/.cache/vd/version-check.json`). When a newer release exists, vd prints a single line to stderr: `vd 1.0.0 (latest: 1.1.0). Upgrade: vd upgrade`. Apply it with [`vd upgrade`](#vd-upgrade) for standalone binaries or `brew update && brew upgrade vanducng/tap/vd` for Homebrew. The check is best-effort and silent on any failure. Auto-disabled when `CI` is set, when the binary is a `dev` build, and when stderr is not a terminal.
 
 :::tip
 Disable the version check globally with `VD_NO_UPDATE_CHECK=1`, or suppress it per-call with `--quiet`.
@@ -442,12 +442,51 @@ vd cache clean            # remove .vd-cache/
 
 ---
 
+## vd web
+
+Launch a localhost-only web UI to review the assets vd manages. It serves a read-only inventory of the skills tracked in `skills.toml` (with drift status), the assets discovered under `~/.claude` (skills, agents, commands, rules), and the registered Claude hooks — plus a `vd doctor` view. Nothing is written; mutating actions stay in the CLI.
+
+The SPA is embedded in the binary, so no Node or network access is needed at runtime.
+
+`web` is one frontend over a shared, transport-agnostic inventory backend (`internal/inventory`); `tui` and `desktop` (Wails) frontends are planned siblings that reuse the same backend.
+
+**Signature:**
+```
+vd web [--port <n>] [--host <addr>] [--no-browser]
+```
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--port <n>` | Port to listen on (default `7777`). |
+| `--host <addr>` | Host to bind. Loopback only; non-loopback addresses are refused (default `127.0.0.1`). |
+| `--no-browser` | Do not open a browser automatically. |
+
+**Examples:**
+```sh
+vd web                      # serve http://127.0.0.1:7777 and open a browser
+vd web --port 8080 --no-browser
+```
+
+**API (read-only JSON):** `GET /api/inventory`, `/api/skills/{name}`, `/api/hooks`, `/api/doctor`, `/api/health`.
+
+**Side effects:** none — reads `skills.toml`, `skills.lock`, `~/.claude`, and `~/.claude/settings.json`. Press Ctrl-C to stop.
+
+:::note
+The embedded SPA is rebuilt with `make web` (requires Node); the committed build output lives in `internal/ui/web/static/`. The plain `go build` never needs Node.
+:::
+
+**Exit codes:** `0` on clean shutdown; non-zero if the port is in use or a non-loopback host is requested.
+
+---
+
 ## vd upgrade
 
 Upgrade the `vd` binary itself to the latest GitHub release. Downloads the platform archive, verifies it against the published `checksums.txt`, extracts the binary, and atomically replaces the running executable in place.
 
 :::note
-Homebrew installs are **not** self-replaced — `vd upgrade` detects them and tells you to run `brew upgrade vd` instead. This only applies when an upgrade is actually available; if you are already on the latest version it reports so and exits.
+Homebrew installs are **not** self-replaced — `vd upgrade` detects them and tells you to run `brew update && brew upgrade vanducng/tap/vd` instead. This only applies when an upgrade is actually available; if you are already on the latest version it reports so and exits.
 :::
 
 **Signature:**
@@ -471,4 +510,4 @@ vd upgrade --version v2.3.0 # install a specific release
 
 **Side effects:** replaces the running binary on disk. No repo, manifest, or skill data is touched.
 
-**Exit codes:** `0` success or already up to date, `1` Homebrew-managed install (use `brew upgrade vd`), unsupported platform, download/checksum failure, or no write permission to the binary's directory.
+**Exit codes:** `0` success or already up to date, `1` Homebrew-managed install (use `brew update && brew upgrade vanducng/tap/vd`), unsupported platform, download/checksum failure, or no write permission to the binary's directory.

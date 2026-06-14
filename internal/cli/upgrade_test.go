@@ -108,9 +108,35 @@ func TestIsHomebrewPath(t *testing.T) {
 	}
 }
 
+func TestUpgradeCommandForExecutable(t *testing.T) {
+	tests := []struct {
+		name string
+		exe  string
+		want string
+	}{
+		{
+			name: "homebrew arm path",
+			exe:  "/opt/homebrew/Cellar/vd/2.5.0/bin/vd",
+			want: "brew update && brew upgrade vanducng/tap/vd",
+		},
+		{
+			name: "standalone path",
+			exe:  "/Users/x/.local/bin/vd",
+			want: "vd upgrade",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := upgradeCommandForExecutable(tt.exe); got != tt.want {
+				t.Errorf("upgradeCommandForExecutable(%q) = %q, want %q", tt.exe, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestErrHomebrewManaged_IncludesTapAndTrustHint(t *testing.T) {
 	msg := errHomebrewManaged().Error()
-	for _, want := range []string{"brew upgrade vanducng/tap/vd", "brew trust vanducng/tap"} {
+	for _, want := range []string{"brew update && brew upgrade vanducng/tap/vd", "brew trust vanducng/tap", "command cache"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("message %q missing %q", msg, want)
 		}
