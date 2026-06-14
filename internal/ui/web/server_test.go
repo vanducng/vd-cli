@@ -34,7 +34,9 @@ func fixtureServer(t *testing.T) http.Handler {
 	write(t, filepath.Join(claude, "settings.json"),
 		`{"hooks":{"SessionStart":[{"matcher":"startup","hooks":[{"type":"command","command":"echo hi"}]}]}}`)
 
-	srv, err := NewServer(inventory.NewService(root, claude))
+	svc := inventory.NewService(root, claude)
+	svc.CodexHome, svc.CursorHome = t.TempDir(), t.TempDir() // hermetic
+	srv, err := NewServer(svc)
 	if err != nil {
 		t.Fatal(err)
 	}

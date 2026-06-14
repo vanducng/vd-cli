@@ -16,9 +16,16 @@ const (
 	Rule    AssetType = "rule"
 )
 
-// platformClaude is the only platform today; kept as a field so Cursor can be
-// added later without a breaking struct change.
-const platformClaude = "claude_code"
+// Supported agent platforms. Each tags discovered assets so the UI can filter
+// by agent (Claude Code, Codex, Cursor).
+const (
+	PlatformClaude = "claude_code"
+	PlatformCodex  = "codex"
+	PlatformCursor = "cursor"
+)
+
+// platformClaude is retained for internal callers that predate the exported set.
+const platformClaude = PlatformClaude
 
 // Asset is a single discovered asset on disk (or a hook from settings.json).
 type Asset struct {
