@@ -4,6 +4,14 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.12.0](https://github.com/vanducng/vd-cli/compare/v2.11.0...v2.12.0) (2026-06-14)
+
+
+### Features
+
+* **tui:** add agent filter (Claude/Codex/Cursor) to the inventory ([bfbe7b9](https://github.com/vanducng/vd-cli/commit/bfbe7b97225896726407ebe582cd1aa68cebeaea))
+* **tui:** add agent filter to the inventory ([73edde0](https://github.com/vanducng/vd-cli/commit/73edde0c42411240e6924320623463c265955b09))
+
 ## [2.11.0](https://github.com/vanducng/vd-cli/compare/v2.10.0...v2.11.0) (2026-06-14)
 
 
