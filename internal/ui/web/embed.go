@@ -16,3 +16,9 @@ var staticAssets embed.FS
 func staticFS() (fs.FS, error) {
 	return fs.Sub(staticAssets, "static")
 }
+
+// StaticFS exposes the embedded SPA for non-HTTP frontends (e.g. the Wails
+// desktop), which serve the static assets directly and route /api/* to Handler.
+func StaticFS() (fs.FS, error) {
+	return staticFS()
+}

@@ -129,6 +129,8 @@ After these five commands:
 
 Run `vd <command> --help` on any verb for flags, examples, and exit codes.
 
+A native **[desktop app](desktop/README.md)** (Wails) is available as a third frontend over the same inventory backend — build it with `make desktop`. It lives in a separate module so the `vd` CLI stays pure-Go.
+
 ## Global flags
 
 | Flag | Short | Description |

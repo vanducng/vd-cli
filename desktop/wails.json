@@ -1,0 +1,14 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "vd-desktop",
+  "outputfilename": "vd-desktop",
+  "frontend:install": "",
+  "frontend:build": "",
+  "author": {
+    "name": "Duc Nguyen"
+  },
+  "info": {
+    "productName": "vd desktop",
+    "comments": "Review skills, discovered ~/.claude assets, and hooks — native window over the vd inventory backend."
+  }
+}
