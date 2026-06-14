@@ -84,6 +84,32 @@ func TestScan_ReadOnly(t *testing.T) {
 	}
 }
 
+func TestScan_SymlinkedSkillDir(t *testing.T) {
+	home := t.TempDir()
+	real := t.TempDir()
+	writeFile(t, filepath.Join(real, "SKILL.md"), "---\nname: linked\ndescription: d\n---\nx\n")
+	skillsDir := filepath.Join(home, "skills")
+	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, filepath.Join(skillsDir, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	assets, err := NewAdapter(PlatformCodex, home).Scan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, a := range assets {
+		if a.Name == "linked" && a.Platform == PlatformCodex {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("symlinked skill dir not discovered (Codex installs are symlinks)")
+	}
+}
+
 func TestReadHooks(t *testing.T) {
 	dir := t.TempDir()
 	settings := filepath.Join(dir, "settings.json")

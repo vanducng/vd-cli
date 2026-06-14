@@ -14,11 +14,14 @@ import (
 // ErrNotFound is returned when a requested asset does not exist.
 var ErrNotFound = errors.New("not found")
 
-// Service produces inventory views from the repo manifest and a read-only
-// ~/.claude scan. Transport-agnostic — safe to bind directly from Wails.
+// Service produces inventory views from the repo manifest and read-only scans of
+// each agent home (Claude Code, Codex, Cursor). Transport-agnostic — safe to
+// bind directly from Wails.
 type Service struct {
 	RepoRoot   string
 	ClaudeHome string // the .claude directory
+	CodexHome  string // optional; default ~/.agents (or $VD_CODEX_HOME)
+	CursorHome string // optional; default ~/.cursor (or $VD_CURSOR_HOME)
 }
 
 // NewService constructs a Service.
@@ -31,7 +34,33 @@ func (s *Service) lockPath() string     { return filepath.Join(s.RepoRoot, "skil
 func (s *Service) skillsDir() string    { return filepath.Join(s.RepoRoot, "skills") }
 func (s *Service) settingsPath() string { return filepath.Join(s.ClaudeHome, "settings.json") }
 
-// Inventory merges manifest-tracked skills (with drift) and discovered ~/.claude assets.
+// platformRoot pairs a platform name with the agent home dir to scan.
+type platformRoot struct{ Name, Home string }
+
+// platformRoots returns the discovery roots for every supported agent. Codex and
+// Cursor default to ~/.agents and ~/.cursor (env-overridable); missing dirs are
+// skipped during the scan.
+func (s *Service) platformRoots() []platformRoot {
+	home, _ := os.UserHomeDir()
+	codex := s.CodexHome
+	if codex == "" {
+		codex = envOr("VD_CODEX_HOME", filepath.Join(home, ".agents"))
+	}
+	cursor := s.CursorHome
+	if cursor == "" {
+		cursor = envOr("VD_CURSOR_HOME", filepath.Join(home, ".cursor"))
+	}
+	return []platformRoot{
+		{PlatformClaude, s.ClaudeHome},
+		{PlatformCodex, codex},
+		{PlatformCursor, cursor},
+	}
+}
+
+// Inventory merges manifest-tracked skills (with drift) and the assets
+// discovered across every agent home (Claude Code, Codex, Cursor), tagged by
+// platform. No dedup: a managed skill installed into an agent is a real,
+// separately-listed discovered asset.
 func (s *Service) Inventory() (*Inventory, error) {
 	inv := &Inventory{Managed: []AssetSummary{}, Discovered: []AssetSummary{}}
 
@@ -44,43 +73,42 @@ func (s *Service) Inventory() (*Inventory, error) {
 		return nil, fmt.Errorf("load skills.lock: %w", err)
 	}
 
-	names := sortedKeys(manifest.Skills)
-	managed := map[string]bool{}
-	for _, name := range names {
+	for _, name := range sortedKeys(manifest.Skills) {
 		sc := manifest.Skills[name]
 		drift, sha := s.skillDrift(name, lock)
 		inv.Managed = append(inv.Managed, AssetSummary{
 			Type: Skill, Name: name, Description: s.repoSkillDescription(name),
 			Source: sc.Source, Mode: defMode(sc.Mode), SHA: sha,
-			Drift: drift.String(), Enabled: true, Platform: platformClaude,
+			Drift: drift.String(), Enabled: true, Platform: "",
 		})
-		managed[name] = true
 	}
 
-	scanned, err := NewClaudeAdapter(s.ClaudeHome).Scan()
-	if err != nil {
-		return nil, fmt.Errorf("scan ~/.claude: %w", err)
-	}
-	for _, a := range scanned {
-		if a.Type == Skill && managed[a.Name] {
-			continue // already shown as managed
+	for _, p := range s.platformRoots() {
+		scanned, err := NewAdapter(p.Name, p.Home).Scan()
+		if err != nil {
+			return nil, fmt.Errorf("scan %s (%s): %w", p.Name, p.Home, err)
 		}
-		inv.Discovered = append(inv.Discovered, AssetSummary{
-			Type: a.Type, Name: a.Name, Description: a.Description,
-			Enabled: a.Enabled, Platform: a.Platform,
-		})
+		for _, a := range scanned {
+			inv.Discovered = append(inv.Discovered, AssetSummary{
+				Type: a.Type, Name: a.Name, Description: a.Description,
+				Enabled: a.Enabled, Platform: a.Platform,
+			})
+		}
 	}
+	sortSummaries(inv.Discovered)
 	return inv, nil
 }
 
 // SkillDetail returns the full view of a skill: repo-managed copy preferred,
-// else a discovered ~/.claude skill.
+// else the first discovered copy across the agent homes.
 func (s *Service) SkillDetail(name string) (*SkillDetail, error) {
 	if repoPath := filepath.Join(s.skillsDir(), name, "SKILL.md"); fileExists(repoPath) {
 		return s.detail(name, repoPath, true, true)
 	}
-	if claudePath, enabled := skillMarker(filepath.Join(s.ClaudeHome, "skills", name)); claudePath != "" {
-		return s.detail(name, claudePath, false, enabled)
+	for _, p := range s.platformRoots() {
+		if path, enabled := skillMarker(filepath.Join(p.Home, "skills", name)); path != "" {
+			return s.detail(name, path, false, enabled)
+		}
 	}
 	return nil, fmt.Errorf("skill %q: %w", name, ErrNotFound)
 }
@@ -196,6 +224,26 @@ func defMode(m string) string {
 		return "tracked"
 	}
 	return m
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
+
+// sortSummaries orders discovered assets deterministically: platform, type, name.
+func sortSummaries(s []AssetSummary) {
+	sort.Slice(s, func(i, j int) bool {
+		if s[i].Platform != s[j].Platform {
+			return s[i].Platform < s[j].Platform
+		}
+		if s[i].Type != s[j].Type {
+			return s[i].Type < s[j].Type
+		}
+		return s[i].Name < s[j].Name
+	})
 }
 
 func short(sha string) string {

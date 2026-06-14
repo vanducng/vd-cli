@@ -444,11 +444,13 @@ vd cache clean            # remove .vd-cache/
 
 ## vd web
 
-Launch a localhost-only web UI to review the assets vd manages. It serves a read-only inventory of the skills tracked in `skills.toml` (with drift status), the assets discovered under `~/.claude` (skills, agents, commands, rules), and the registered Claude hooks — plus a `vd doctor` view. Nothing is written; mutating actions stay in the CLI.
+Launch a localhost-only web UI to review the assets vd manages. It serves a read-only inventory of the skills tracked in `skills.toml` (with drift status) and the assets discovered across every coding agent — **Claude Code** (`~/.claude`), **Codex** (`~/.agents`), and **Cursor** (`~/.cursor`) — each tagged by agent. The inventory is a filterable browser: stat bar, type / agent / scope chips, search, sort, and a Cards/Table toggle. Plus the registered Claude hooks and a `vd doctor` view. Nothing is written; mutating actions stay in the CLI.
+
+Codex and Cursor discovery roots can be overridden with `VD_CODEX_HOME` / `VD_CURSOR_HOME`; missing directories are skipped.
 
 The SPA is embedded in the binary, so no Node or network access is needed at runtime.
 
-`web` is one frontend over a shared, transport-agnostic inventory backend (`internal/inventory`); `tui` and `desktop` (Wails) frontends are planned siblings that reuse the same backend.
+`web` is one frontend over a shared, transport-agnostic inventory backend (`internal/inventory`); `tui` and `desktop` (Wails) are sibling frontends that reuse the same backend.
 
 **Signature:**
 ```

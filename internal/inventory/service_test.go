@@ -28,11 +28,21 @@ func fixtureRepo(t *testing.T) string {
 	return root
 }
 
+// newSvc builds a Service with empty Codex/Cursor homes so tests stay hermetic
+// (no scanning of the real ~/.agents or ~/.cursor).
+func newSvc(t *testing.T, root, claude string) *Service {
+	t.Helper()
+	s := NewService(root, claude)
+	s.CodexHome = t.TempDir()
+	s.CursorHome = t.TempDir()
+	return s
+}
+
 func TestInventory_ManagedCleanAndDiscovered(t *testing.T) {
 	root := fixtureRepo(t)
 	claude := fixtureClaude(t) // has skills alpha?no -> beta + agents/commands
 
-	inv, err := NewService(root, claude).Inventory()
+	inv, err := newSvc(t, root, claude).Inventory()
 	if err != nil {
 		t.Fatalf("inventory: %v", err)
 	}
@@ -69,7 +79,7 @@ func TestInventory_LocalDrift(t *testing.T) {
 	writeFile(t, filepath.Join(root, "skills", "alpha", "SKILL.md"),
 		"---\nname: alpha\ndescription: alpha skill\n---\nEDITED\n")
 
-	inv, err := NewService(root, t.TempDir()).Inventory()
+	inv, err := newSvc(t, root, t.TempDir()).Inventory()
 	if err != nil {
 		t.Fatalf("inventory: %v", err)
 	}
@@ -80,7 +90,7 @@ func TestInventory_LocalDrift(t *testing.T) {
 
 func TestDoctor_ParityWithDrift(t *testing.T) {
 	root := fixtureRepo(t)
-	rep, err := NewService(root, t.TempDir()).Doctor()
+	rep, err := newSvc(t, root, t.TempDir()).Doctor()
 	if err != nil {
 		t.Fatalf("doctor: %v", err)
 	}
@@ -90,7 +100,7 @@ func TestDoctor_ParityWithDrift(t *testing.T) {
 
 	// Add an untracked dir → reported as untracked.
 	writeFile(t, filepath.Join(root, "skills", "ghost", "SKILL.md"), "x\n")
-	rep, _ = NewService(root, t.TempDir()).Doctor()
+	rep, _ = newSvc(t, root, t.TempDir()).Doctor()
 	var sawGhost bool
 	for _, e := range rep.Entries {
 		if e.Skill == "ghost" && e.Status == "untracked" {
@@ -104,7 +114,7 @@ func TestDoctor_ParityWithDrift(t *testing.T) {
 
 func TestSkillDetail(t *testing.T) {
 	root := fixtureRepo(t)
-	svc := NewService(root, t.TempDir())
+	svc := newSvc(t, root, t.TempDir())
 
 	d, err := svc.SkillDetail("alpha")
 	if err != nil {
@@ -119,6 +129,32 @@ func TestSkillDetail(t *testing.T) {
 
 	if _, err := svc.SkillDetail("nope"); err == nil {
 		t.Error("expected ErrNotFound for unknown skill")
+	}
+}
+
+func TestInventory_MultiPlatform(t *testing.T) {
+	root := fixtureRepo(t)
+	claude, codex, cursor := t.TempDir(), t.TempDir(), t.TempDir()
+	writeFile(t, filepath.Join(codex, "skills", "cdx", "SKILL.md"),
+		"---\nname: cdx\ndescription: codex skill\n---\nx\n")
+	writeFile(t, filepath.Join(cursor, "rules", "style.mdc"),
+		"---\ndescription: cursor rule\n---\nbe nice\n")
+
+	svc := NewService(root, claude)
+	svc.CodexHome, svc.CursorHome = codex, cursor
+	inv, err := svc.Inventory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	plat := map[string]string{}
+	for _, d := range inv.Discovered {
+		plat[string(d.Type)+"/"+d.Name] = d.Platform
+	}
+	if plat["skill/cdx"] != PlatformCodex {
+		t.Errorf("codex skill platform = %q, want %q", plat["skill/cdx"], PlatformCodex)
+	}
+	if plat["rule/style"] != PlatformCursor {
+		t.Errorf("cursor rule platform = %q, want %q", plat["rule/style"], PlatformCursor)
 	}
 }
 

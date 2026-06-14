@@ -33,7 +33,9 @@ func fixtureService(t *testing.T) *inventory.Service {
 		"---\nname: discovered\ndescription: a local skill\n---\nx\n")
 	writeFile(t, filepath.Join(claude, "settings.json"),
 		`{"hooks":{"SessionStart":[{"matcher":"startup","hooks":[{"type":"command","command":"echo hi"}]}]}}`)
-	return inventory.NewService(root, claude)
+	svc := inventory.NewService(root, claude)
+	svc.CodexHome, svc.CursorHome = t.TempDir(), t.TempDir() // hermetic
+	return svc
 }
 
 func TestNewModel(t *testing.T) {

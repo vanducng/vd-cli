@@ -1,6 +1,10 @@
-import { useState } from "react";
-import type { Inventory, AssetSummary } from "../types";
-import { DriftBadge } from "./DriftBadge";
+import { useMemo, useState } from "react";
+import type { Inventory } from "../types";
+import type { Row } from "./labels";
+import { hasDrift } from "./labels";
+import { StatBar } from "./StatBar";
+import { FilterBar } from "./FilterBar";
+import { AssetGrid } from "./AssetGrid";
 
 interface Props {
   inv: Inventory | null;
@@ -8,86 +12,74 @@ interface Props {
 }
 
 export function InventoryView({ inv, onOpen }: Props) {
-  const [q, setQ] = useState("");
-  if (!inv) return <p>Loading…</p>;
+  const [type, setType] = useState("all");
+  const [platform, setPlatform] = useState("all");
+  const [scope, setScope] = useState("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("name");
+  const [view, setView] = useState<"cards" | "table">("cards");
 
-  const match = (a: AssetSummary) =>
-    !q || `${a.name} ${a.description} ${a.source ?? ""} ${a.type}`.toLowerCase().includes(q.toLowerCase());
+  const all: Row[] = useMemo(
+    () =>
+      inv
+        ? [
+            ...inv.managed.map((a) => ({ ...a, scope: "managed" as const })),
+            ...inv.discovered.map((a) => ({ ...a, scope: "discovered" as const })),
+          ]
+        : [],
+    [inv],
+  );
+
+  const rows = useMemo(() => {
+    let r = all;
+    if (type !== "all") r = r.filter((x) => x.type === type);
+    if (platform !== "all") r = r.filter((x) => x.platform === platform);
+    if (scope !== "all") r = r.filter((x) => x.scope === scope);
+    if (query) {
+      const q = query.toLowerCase();
+      r = r.filter((x) => `${x.name} ${x.description} ${x.source ?? ""}`.toLowerCase().includes(q));
+    }
+    return sortRows(r, sort);
+  }, [all, type, platform, scope, query, sort]);
+
+  if (!inv) return <p>Loading…</p>;
 
   return (
     <div>
-      <input
-        className="search"
-        placeholder="Search name, description, source…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
+      <StatBar rows={all} />
+      <FilterBar
+        type={type}
+        setType={setType}
+        platform={platform}
+        setPlatform={setPlatform}
+        scope={scope}
+        setScope={setScope}
+        query={query}
+        setQuery={setQuery}
+        sort={sort}
+        setSort={setSort}
+        view={view}
+        setView={setView}
       />
-      <Section title="Managed" rows={inv.managed.filter(match)} total={inv.managed.length} onOpen={onOpen} />
-      <Section title="Discovered" rows={inv.discovered.filter(match)} total={inv.discovered.length} onOpen={onOpen} />
+      <p className="muted result-count">
+        {rows.length} of {all.length}
+      </p>
+      <AssetGrid rows={rows} view={view} onOpen={onOpen} />
     </div>
   );
 }
 
-function Section({
-  title,
-  rows,
-  total,
-  onOpen,
-}: {
-  title: string;
-  rows: AssetSummary[];
-  total: number;
-  onOpen: (n: string) => void;
-}) {
-  return (
-    <section>
-      <h2>
-        {title} <span className="muted">({rows.length}/{total})</span>
-      </h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Source</th>
-            <th>Mode</th>
-            <th>SHA</th>
-            <th>Drift</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((a) => (
-            <tr key={`${a.type}/${a.name}`}>
-              <td>{a.type}</td>
-              <td>
-                {a.type === "skill" ? (
-                  <button className="link" onClick={() => onOpen(a.name)}>
-                    {a.name}
-                  </button>
-                ) : (
-                  a.name
-                )}
-                {!a.enabled && <span className="muted"> (disabled)</span>}
-              </td>
-              <td className="desc">{a.description}</td>
-              <td>{a.source}</td>
-              <td>{a.mode}</td>
-              <td className="mono">{a.sha}</td>
-              <td>
-                <DriftBadge drift={a.drift} />
-              </td>
-            </tr>
-          ))}
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan={7} className="muted">
-                none
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </section>
-  );
+function sortRows(r: Row[], sort: string): Row[] {
+  const s = [...r];
+  s.sort((a, b) => {
+    if (sort === "type" && a.type !== b.type) return a.type < b.type ? -1 : 1;
+    if (sort === "platform" && a.platform !== b.platform) return a.platform < b.platform ? -1 : 1;
+    if (sort === "drift") {
+      const da = hasDrift(a.drift) ? 0 : 1;
+      const db = hasDrift(b.drift) ? 0 : 1;
+      if (da !== db) return da - db;
+    }
+    return a.name.localeCompare(b.name);
+  });
+  return s;
 }
