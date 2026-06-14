@@ -136,19 +136,19 @@ async function testNonUmbrellaStructure() {
 // ── Test 2: umbrella repo paths ───────────────────────────────────────────
 
 async function testUmbrellaStructure() {
-  const repoDir = mkTempRepo('umbrella', { paths: { umbrella: '.work' } }); // .vd.json
+  const repoDir = mkTempRepo('umbrella', { paths: { umbrella: '.workbench' } }); // .vd.json
   const fakeHome = mkFakeHome();
   try {
     const stdout = runHook(repoDir, fakeHome);
     const ctx = extractContext(stdout);
 
-    const workRoot = path.join(repoDir, '.work');
+    const workRoot = path.join(repoDir, '.workbench');
     const checks = [
       ['contains Visuals',  ctx.includes('Visuals:')],
       ['contains Journals', ctx.includes('Journals:')],
       ['contains State',    ctx.includes('State:')],
-      ['Plans under .work', ctx.includes(path.join(workRoot, 'plans'))],
-      ['Reports under .work', ctx.includes(path.join(workRoot, 'reports'))],
+      ['Plans under .workbench', ctx.includes(path.join(workRoot, 'plans'))],
+      ['Reports under .workbench', ctx.includes(path.join(workRoot, 'reports'))],
       ['Docs stays at repo root', ctx.includes(path.join(repoDir, 'docs'))],
     ];
 
@@ -159,7 +159,7 @@ async function testUmbrellaStructure() {
         allOk = false;
       }
     }
-    if (allOk) pass('umbrella: Paths section contains Visuals/Journals/State under .work');
+    if (allOk) pass('umbrella: Paths section contains Visuals/Journals/State under .workbench');
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
     fs.rmSync(fakeHome, { recursive: true, force: true });

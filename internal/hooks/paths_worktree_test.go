@@ -40,7 +40,7 @@ func TestResolveUmbrellaRoot_WorktreeAnchorsToMain(t *testing.T) {
 	git(dir, "init", "-b", "main")
 	git(dir, "config", "user.email", "t@t.t")
 	git(dir, "config", "user.name", "t")
-	if err := os.WriteFile(filepath.Join(dir, ".vd.json"), []byte(`{"paths":{"umbrella":".work"}}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".vd.json"), []byte(`{"paths":{"umbrella":".workbench"}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("x\n"), 0o644); err != nil {
@@ -57,7 +57,7 @@ func TestResolveUmbrellaRoot_WorktreeAnchorsToMain(t *testing.T) {
 	resolve := func(baseDir string) string {
 		t.Helper()
 		script := `const p=require(process.env.PCJS);` +
-			`process.stdout.write(p.resolveUmbrellaRoot({paths:{umbrella:'.work'}}, process.env.BASE) || 'NULL');`
+			`process.stdout.write(p.resolveUmbrellaRoot({paths:{umbrella:'.workbench'}}, process.env.BASE) || 'NULL');`
 		cmd := exec.Command("node", "-e", script)
 		cmd.Env = append(os.Environ(), "PCJS="+pathsCJS, "BASE="+baseDir)
 		out, err := cmd.CombinedOutput()
@@ -67,7 +67,7 @@ func TestResolveUmbrellaRoot_WorktreeAnchorsToMain(t *testing.T) {
 		return strings.TrimSpace(string(out))
 	}
 
-	want := filepath.Join(mainRoot, ".work")
+	want := filepath.Join(mainRoot, ".workbench")
 
 	if got := resolve(mainRoot); got != want {
 		t.Errorf("main checkout: umbrella = %q, want %q", got, want)

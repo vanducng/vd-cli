@@ -43,7 +43,7 @@ function getGitRoot(cwd) {
 // The MAIN worktree root — always the first entry of `git worktree list`.
 // In a normal checkout this equals getGitRoot (byte-identical behavior); inside
 // a LINKED worktree it points back to the main checkout, so agent artifacts
-// (the .work umbrella) survive `git worktree remove` instead of dying with the tree.
+// (the .workbench umbrella) survive `git worktree remove` instead of dying with the tree.
 const _mainRootCache = new Map();
 function getMainWorktreeRoot(cwd) {
   const key = cwd || process.cwd();
@@ -97,7 +97,7 @@ function resolveUmbrellaRoot(config, baseDir) {
 
 /**
  * Compute plans path.
- * Umbrella-on: <gitRoot>/.work/plans
+ * Umbrella-on: <gitRoot>/.workbench/plans
  * Umbrella-off: <baseDir>/plans  (legacy, byte-identical)
  */
 function getPlansPath(baseDir, config) {
