@@ -154,6 +154,35 @@ func TestRunAdd_idempotent(t *testing.T) {
 	}
 }
 
+func TestSkillPathForArg(t *testing.T) {
+	cases := []struct {
+		name     string
+		arg      string
+		declared bool
+		want     string
+		wantErr  bool
+	}{
+		{"declared source keeps full path", "browserbase/skills/browser", true, "skills/browser", false},
+		{"declared two-part", "upstream/foo", true, "foo", false},
+		{"auto-register strips repo (the bug)", "alibaba/open-code-review/skills/open-code-review", false, "skills/open-code-review", false},
+		{"auto-register three-part", "owner/repo/myskill", false, "myskill", false},
+		{"auto-register deep path", "owner/repo/a/b/c", false, "a/b/c", false},
+		{"no slash", "bogus", false, "", true},
+		{"empty path", "src/", true, "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := skillPathForArg(tc.arg, tc.declared)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr = %v", err, tc.wantErr)
+			}
+			if err == nil && got != tc.want {
+				t.Errorf("skillPathForArg(%q, %v) = %q, want %q", tc.arg, tc.declared, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRunAdd_missingSlash(t *testing.T) {
 	cmd := NewRootCmd()
 	var errOut bytes.Buffer

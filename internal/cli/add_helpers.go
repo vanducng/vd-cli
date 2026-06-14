@@ -8,6 +8,33 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/source"
 )
 
+// skillPathForArg returns the skill path portion of a "<source>/<path>" argument.
+//
+// For a DECLARED source the source is a single key, so the path is everything
+// after the first slash (browserbase/skills/browser → skills/browser).
+//
+// For an UNDECLARED owner/repo/path argument (GitHub auto-register), the source
+// spans TWO segments (owner/repo), so the repo must be stripped from the path
+// (alibaba/open-code-review/skills/open-code-review → skills/open-code-review).
+// Splitting on only the first slash there left the repo in the path, which made
+// `vd add` look for "open-code-review/skills/open-code-review" and fail.
+func skillPathForArg(arg string, declared bool) (string, error) {
+	slashIdx := strings.Index(arg, "/")
+	if slashIdx < 1 {
+		return "", fmt.Errorf("argument must be <source>/<path> (e.g. browserbase/skills/stagehand); got %q", arg)
+	}
+	skillPath := arg[slashIdx+1:]
+	if !declared {
+		if parts := strings.SplitN(arg, "/", 3); len(parts) == 3 {
+			skillPath = parts[2] // drop owner/repo; keep the remainder as the path
+		}
+	}
+	if skillPath == "" {
+		return "", fmt.Errorf("argument must be <source>/<path>; path part is empty in %q", arg)
+	}
+	return skillPath, nil
+}
+
 // resolveSource looks up srcName in the manifest. If absent and the full
 // argument looks like owner/repo/path (≥3 slash-separated parts), it
 // auto-registers a GitHub git source. Returns ErrUnknownSource otherwise.

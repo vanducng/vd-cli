@@ -50,10 +50,6 @@ func runAdd(cmd *cobra.Command, arg, asFlag, modeFlag, refFlag string, refresh b
 		return fmt.Errorf("argument must be <source>/<path> (e.g. browserbase/skills/stagehand); got %q", arg)
 	}
 	srcName := arg[:slashIdx]
-	skillPath := arg[slashIdx+1:]
-	if skillPath == "" {
-		return fmt.Errorf("argument must be <source>/<path>; path part is empty in %q", arg)
-	}
 
 	ctx := context.Background()
 
@@ -66,6 +62,14 @@ func runAdd(cmd *cobra.Command, arg, asFlag, modeFlag, refFlag string, refresh b
 	manifest, err := config.Load(manifestPath)
 	if err != nil {
 		return fmt.Errorf("load skills.toml: %w", err)
+	}
+
+	// Path depends on whether the source is declared: an undeclared owner/repo/path
+	// arg auto-registers a GitHub source spanning owner/repo, so strip the repo.
+	_, declared := manifest.Sources[srcName]
+	skillPath, err := skillPathForArg(arg, declared)
+	if err != nil {
+		return err
 	}
 
 	src, err := resolveSource(manifest, srcName, arg, refFlag)
