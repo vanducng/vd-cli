@@ -651,11 +651,11 @@ async function testStandaloneRun() {
 
 // ── umbrella helpers ──────────────────────────────────────────────────────
 
-/** Create a repo with <git-root>/.vd.json opting in umbrella=".work". */
+/** Create a repo with <git-root>/.vd.json opting in umbrella=".workbench". */
 function mkUmbrellaRepo(label) {
   const repoDir = mkTempRepo(label);
   fs.writeFileSync(path.join(repoDir, '.vd.json'),
-    JSON.stringify({ paths: { umbrella: '.work' } }, null, 2));
+    JSON.stringify({ paths: { umbrella: '.workbench' } }, null, 2));
   execSync('git add .vd.json && git commit -m "opt-in umbrella"',
     { cwd: repoDir, stdio: 'ignore', shell: true });
   return repoDir;
@@ -666,7 +666,7 @@ function mkUmbrellaRepo(label) {
  * Handles the distinct WORK_ROOT / WORK_* tokens plus docs staying at GIT_ROOT.
  */
 function maskUmbrella(content, repoDir, fakeHome) {
-  const workRoot     = path.join(repoDir, '.work');
+  const workRoot     = path.join(repoDir, '.workbench');
   const reportsPath  = path.join(workRoot, 'reports');
   const plansPath    = path.join(workRoot, 'plans');
   const docsPath     = path.join(repoDir, 'docs');
@@ -724,15 +724,15 @@ async function testUmbrellaPaths() {
     const raw    = runSessionInit(repoDir, fakeHome);
     const envMap = parseEnvMap(raw);
 
-    const workRoot = path.join(repoDir, '.work');
+    const workRoot = path.join(repoDir, '.workbench');
     const checks = [
       ['VD_PLANS_PATH',    path.join(workRoot, 'plans')],
       ['VD_REPORTS_PATH',  path.join(workRoot, 'reports') + '/'],
       ['VD_VISUALS_PATH',  path.join(workRoot, 'visuals')],
       ['VD_JOURNALS_PATH', path.join(workRoot, 'journals')],
       ['VD_STATE_PATH',    path.join(workRoot, 'state')],
-      ['VD_UMBRELLA',      '.work'],
-      // Docs must NOT be under .work — stays at repo root
+      ['VD_UMBRELLA',      '.workbench'],
+      // Docs must NOT be under .workbench — stays at repo root
       ['VD_DOCS_PATH',     path.join(repoDir, 'docs')]
     ];
 
@@ -744,7 +744,7 @@ async function testUmbrellaPaths() {
         allOk = false;
       }
     }
-    if (allOk) pass('umbrella paths: all 7 VD_* path vars correct (reports/plans/visuals/journals/state under .work; docs at repo-root)');
+    if (allOk) pass('umbrella paths: all 7 VD_* path vars correct (reports/plans/visuals/journals/state under .workbench; docs at repo-root)');
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
     fs.rmSync(fakeHome, { recursive: true, force: true });
@@ -777,12 +777,12 @@ async function testUmbrellaSubdirAnchor() {
     try { fs.unlinkSync(envFile); } catch { /* ignore */ }
 
     const plansPath = envMap.get('VD_PLANS_PATH') || '';
-    const workRoot  = path.join(repoDir, '.work');  // expected anchor = git-root
+    const workRoot  = path.join(repoDir, '.workbench');  // expected anchor = git-root
 
     if (plansPath.startsWith(workRoot)) {
-      pass(`umbrella subdir anchor: VD_PLANS_PATH anchored to git-root (${path.basename(repoDir)}/.work)`);
+      pass(`umbrella subdir anchor: VD_PLANS_PATH anchored to git-root (${path.basename(repoDir)}/.workbench)`);
     } else {
-      fail('umbrella subdir anchor: VD_PLANS_PATH not under git-root/.work', `VD_PLANS_PATH=${plansPath}`);
+      fail('umbrella subdir anchor: VD_PLANS_PATH not under git-root/.workbench', `VD_PLANS_PATH=${plansPath}`);
     }
   } finally {
     fs.rmSync(repoDir,  { recursive: true, force: true });
@@ -899,7 +899,7 @@ async function main() {
   await testPersonalPathClean();
   await testStandaloneRun();
 
-  console.log('\nUmbrella (.work opt-in):');
+  console.log('\nUmbrella (.workbench opt-in):');
   await testUmbrellaGolden();
   await testUmbrellaPaths();
   await testUmbrellaSubdirAnchor();

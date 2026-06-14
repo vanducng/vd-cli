@@ -3,7 +3,7 @@
  * config.cjs - Three-layer config loader: defaults ← global ← project-local.
  *
  * Local config resolves via git-root (not a literal unexpanded HOME string).
- * paths.umbrella (default null) opts a repo into the .work/ layout.
+ * paths.umbrella (default null) opts a repo into the .workbench/ layout.
  * Config file: .vd.json only. A lingering legacy .ck.json raises a migration
  * error (run the cktovd skill) — vd no longer reads .ck.json.
  */
@@ -34,7 +34,7 @@ const DEFAULT_CONFIG = {
     docs: 'docs',
     plans: 'plans',
     // Umbrella: null = legacy CWD-anchored layout.
-    // Set to a relative name (e.g. ".work") in <git-root>/.vd.json to opt in.
+    // Set to a relative name (e.g. ".workbench") in <git-root>/.vd.json to opt in.
     umbrella: null,
     visuals: 'visuals',
     journals: 'journals',
