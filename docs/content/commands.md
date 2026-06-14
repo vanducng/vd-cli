@@ -481,6 +481,25 @@ The embedded SPA is rebuilt with `make web` (requires Node); the committed build
 
 ---
 
+## vd tui
+
+Browse the same inventory as [`vd web`](#vd-web) in an interactive terminal UI — no browser, no server. Tabs for the managed/discovered asset inventory (with drift), the registered hooks, and a `vd doctor` view. Read-only.
+
+`tui` and `web` are sibling frontends over the shared `internal/inventory` backend.
+
+**Signature:**
+```
+vd tui
+```
+
+**Keys:** `tab` / `←` `→` switch tabs · `↑` `↓` move · `enter` open a skill's detail · `esc` back · `q` quit.
+
+**Side effects:** none — reads `skills.toml`, `skills.lock`, `~/.claude`, and `~/.claude/settings.json`.
+
+**Exit codes:** `0` on quit.
+
+---
+
 ## vd upgrade
 
 Upgrade the `vd` binary itself to the latest GitHub release. Downloads the platform archive, verifies it against the published `checksums.txt`, extracts the binary, and atomically replaces the running executable in place.

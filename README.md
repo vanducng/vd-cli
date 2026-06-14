@@ -125,6 +125,7 @@ After these five commands:
 | `vd install [agent] [skill...]` | Install local skills into Codex or Claude Code user scope |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |
 | `vd web` | Launch a local web UI to review skills, discovered `~/.claude` assets, and hooks |
+| `vd tui` | Browse the same inventory in an interactive terminal UI |
 
 Run `vd <command> --help` on any verb for flags, examples, and exit codes.
 
