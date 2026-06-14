@@ -31,7 +31,7 @@ vd build
 | Target builds | `vd build claude`, `vd build agents` | Generate `.claude-plugin/` files and `.agents/skills/` symlinks. |
 | Agent install | `vd install codex`, `vd install claude` | Install local skills into Codex or Claude Code. |
 | Cache control | `vd cache clean` | Remove `.vd-cache/` and force future fetches to repopulate it. |
-| Self-update | `vd upgrade` | Replace the running binary with the latest release (`brew upgrade vd` for Homebrew). |
+| Self-update | `vd upgrade` | Replace the running binary with the latest release (`brew update && brew upgrade vanducng/tap/vd` for Homebrew). |
 
 ## Common Commands
 

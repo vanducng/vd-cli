@@ -131,8 +131,8 @@ func printUpdateNudge(pc *pendingCheck, w io.Writer, quiet bool) {
 		return
 	}
 
-	_, _ = fmt.Fprintf(w, "vd %s (latest: %s). Upgrade: vd upgrade\n",
-		pc.result.Current, pc.result.Latest)
+	_, _ = fmt.Fprintf(w, "vd %s (latest: %s). Upgrade: %s\n",
+		pc.result.Current, pc.result.Latest, currentUpgradeCommand())
 }
 
 // stderrIsTerminal returns true when os.Stderr is a character device,
