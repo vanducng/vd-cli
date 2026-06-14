@@ -40,13 +40,34 @@ type assetRef struct {
 
 type model struct {
 	svc           *inventory.Service
+	inv           *inventory.Inventory
 	tab           tab
 	tables        [numTabs]table.Model
 	invRefs       []assetRef // parallel to the inventory table rows
+	plat          string     // active agent filter: filterAll | a platform
 	detail        *inventory.SkillDetail
 	vp            viewport.Model
 	width, height int
 	err           error
+}
+
+const filterAll = "all"
+
+var platCycle = []string{filterAll, inventory.PlatformClaude, inventory.PlatformCodex, inventory.PlatformCursor}
+
+func platShort(p string) string {
+	switch p {
+	case inventory.PlatformClaude:
+		return "Claude"
+	case inventory.PlatformCodex:
+		return "Codex"
+	case inventory.PlatformCursor:
+		return "Cursor"
+	case "":
+		return "managed"
+	default:
+		return p
+	}
 }
 
 // Run loads the inventory and starts the interactive program.
@@ -73,8 +94,8 @@ func newModel(svc *inventory.Service) (*model, error) {
 		return nil, err
 	}
 
-	m := &model{svc: svc}
-	m.tables[tabInventory], m.invRefs = inventoryTable(inv)
+	m := &model{svc: svc, inv: inv, plat: filterAll}
+	m.tables[tabInventory], m.invRefs = inventoryTable(inv, m.plat)
 	m.tables[tabHooks] = hooksTable(hooks)
 	m.tables[tabDoctor] = doctorTable(doc)
 	m.tables[tabInventory].Focus()
@@ -83,22 +104,30 @@ func newModel(svc *inventory.Service) (*model, error) {
 
 func (m *model) Init() tea.Cmd { return nil }
 
-func inventoryTable(inv *inventory.Inventory) (table.Model, []assetRef) {
+// inventoryTable builds the inventory rows, filtered to plat (filterAll shows
+// managed + every agent; a specific platform shows only that agent's discovered
+// assets — managed entries are repo-source and excluded).
+func inventoryTable(inv *inventory.Inventory, plat string) (table.Model, []assetRef) {
 	cols := []table.Column{
 		{Title: "TYPE", Width: 7},
 		{Title: "NAME", Width: 26},
-		{Title: "SCOPE", Width: 9},
+		{Title: "AGENT", Width: 9},
 		{Title: "DRIFT", Width: 9},
-		{Title: "DESCRIPTION", Width: 60},
+		{Title: "DESCRIPTION", Width: 56},
 	}
 	var rows []table.Row
 	var refs []assetRef
-	for _, a := range inv.Managed {
-		rows = append(rows, table.Row{string(a.Type), a.Name, "managed", a.Drift, oneLine(a.Description)})
-		refs = append(refs, assetRef{a.Type, a.Name})
+	if plat == filterAll {
+		for _, a := range inv.Managed {
+			rows = append(rows, table.Row{string(a.Type), a.Name, "managed", a.Drift, oneLine(a.Description)})
+			refs = append(refs, assetRef{a.Type, a.Name})
+		}
 	}
 	for _, a := range inv.Discovered {
-		rows = append(rows, table.Row{string(a.Type), a.Name, "local", "", oneLine(a.Description)})
+		if plat != filterAll && a.Platform != plat {
+			continue
+		}
+		rows = append(rows, table.Row{string(a.Type), a.Name, platShort(a.Platform), "", oneLine(a.Description)})
 		refs = append(refs, assetRef{a.Type, a.Name})
 	}
 	return newTable(cols, rows), refs
@@ -138,6 +167,24 @@ func newTable(cols []table.Column, rows []table.Row) table.Model {
 	t := table.New(table.WithColumns(cols), table.WithRows(rows), table.WithHeight(20))
 	t.SetStyles(tableStyles())
 	return t
+}
+
+// cyclePlat advances the agent filter and rebuilds the inventory table.
+func (m *model) cyclePlat() {
+	i := 0
+	for j, p := range platCycle {
+		if p == m.plat {
+			i = j
+			break
+		}
+	}
+	m.plat = platCycle[(i+1)%len(platCycle)]
+	focused := m.tables[tabInventory].Focused()
+	m.tables[tabInventory], m.invRefs = inventoryTable(m.inv, m.plat)
+	if focused {
+		m.tables[tabInventory].Focus()
+	}
+	m.resize()
 }
 
 func (m *model) resize() {

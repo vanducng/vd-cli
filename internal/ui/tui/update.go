@@ -46,6 +46,11 @@ func (m *model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "shift+tab", "left", "h":
 		m.switchTab(-1)
 		return m, nil
+	case "a":
+		if m.tab == tabInventory {
+			m.cyclePlat()
+			return m, nil
+		}
 	case "enter":
 		if m.tab == tabInventory {
 			m.openSelected()
