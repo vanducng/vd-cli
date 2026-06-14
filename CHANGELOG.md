@@ -4,6 +4,15 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.8.0](https://github.com/vanducng/vd-cli/compare/v2.7.0...v2.8.0) (2026-06-14)
+
+
+### Features
+
+* **install:** post-install PATH notice and Homebrew-aware upgrade hints ([7879591](https://github.com/vanducng/vd-cli/commit/7879591e9e36db77bb7dc57a0323878905416cbe))
+* **web:** add `vd web` local review UI for skills, assets, and hooks ([f6ee9ea](https://github.com/vanducng/vd-cli/commit/f6ee9ea1415daab4a2e2771235de70ec6ab27fc9))
+* **web:** add vd web local review UI for skills, assets, and hooks ([c193de6](https://github.com/vanducng/vd-cli/commit/c193de66d5c28b23db2196d43c77e4d48652c128))
+
 ## [2.7.0](https://github.com/vanducng/vd-cli/compare/v2.6.0...v2.7.0) (2026-06-12)
 
 
