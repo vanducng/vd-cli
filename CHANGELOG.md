@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.12.1](https://github.com/vanducng/vd-cli/compare/v2.12.0...v2.12.1) (2026-06-14)
+
+
+### Bug Fixes
+
+* **add:** strip repo from path for owner/repo/path auto-register ([#30](https://github.com/vanducng/vd-cli/issues/30)) ([effe0a4](https://github.com/vanducng/vd-cli/commit/effe0a456e052a7a98fa9450f1379df25fa767d7))
+
 ## [2.12.0](https://github.com/vanducng/vd-cli/compare/v2.11.0...v2.12.0) (2026-06-14)
 
 
