@@ -1,0 +1,13 @@
+{
+  "rules": [
+    {
+      "path": "**/*.go",
+      "rule": "Go: wrap errors with %w and handle every returned error, propagate context.Context, avoid panics in library code and nil dereferences, validate CLI flags/args before use, and never hardcode secrets. Keep comments terse (why, not what)."
+    },
+    {
+      "path": "**/*.{yml,yaml}",
+      "rule": "CI/release config: flag unpinned actions, plaintext secrets, and :latest base images."
+    }
+  ],
+  "exclude": ["**/vendor/**", "**/*.pb.go", "go.sum", "dist/**"]
+}
