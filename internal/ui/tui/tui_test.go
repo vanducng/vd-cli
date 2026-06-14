@@ -107,6 +107,36 @@ func TestUpdateQuitAndResize(t *testing.T) {
 	}
 }
 
+func TestCyclePlatFilter(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "skills", "alpha", "SKILL.md"),
+		"---\nname: alpha\ndescription: a\n---\nx\n")
+	writeFile(t, filepath.Join(root, "skills.toml"),
+		"[meta]\nversion = 1\n\n[skills.alpha]\nsource = \"up\"\nmode = \"tracked\"\n")
+	claude := t.TempDir()
+	codex := t.TempDir()
+	writeFile(t, filepath.Join(codex, "skills", "cdx", "SKILL.md"),
+		"---\nname: cdx\ndescription: c\n---\nx\n")
+
+	svc := inventory.NewService(root, claude)
+	svc.CodexHome, svc.CursorHome = codex, t.TempDir()
+	m, err := newModel(svc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.invRefs) != 2 { // managed alpha + codex cdx
+		t.Fatalf("all: refs = %d, want 2", len(m.invRefs))
+	}
+	m.cyclePlat() // -> claude (no claude assets)
+	if m.plat != inventory.PlatformClaude || len(m.invRefs) != 0 {
+		t.Errorf("claude: plat=%s refs=%d", m.plat, len(m.invRefs))
+	}
+	m.cyclePlat() // -> codex (cdx only)
+	if m.plat != inventory.PlatformCodex || len(m.invRefs) != 1 || m.invRefs[0].name != "cdx" {
+		t.Errorf("codex: plat=%s refs=%+v", m.plat, m.invRefs)
+	}
+}
+
 func TestOneLine(t *testing.T) {
 	if got := oneLine("a\n  b\tc\n"); got != "a b c" {
 		t.Errorf("oneLine = %q", got)

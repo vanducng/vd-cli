@@ -67,9 +67,11 @@ func (m *model) renderTabs() string {
 }
 
 func (m *model) renderFooter() string {
-	hint := "tab: switch · ↑/↓: move · enter: open skill · q: quit"
+	hint := "tab: switch · ↑/↓: move · enter: open skill · a: agent · q: quit"
 	if m.detail != nil {
 		hint = "↑/↓: scroll · esc: back · q: back · ctrl+c: quit"
+	} else if m.tab == tabInventory && m.plat != filterAll {
+		hint = "agent: " + platShort(m.plat) + " (a to cycle) · " + hint
 	}
 	return footerStyle.Render(hint)
 }
