@@ -1,0 +1,3 @@
+# Wails regenerates these on `wails build` / `wails dev`.
+/build/
+/frontend/

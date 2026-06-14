@@ -7,7 +7,7 @@ VERSION ?= dev
 BINARY  := vd
 LDFLAGS := -ldflags "-X github.com/vanducng/vd-cli/v2/internal/version.Version=$(VERSION)"
 
-.PHONY: build test vet lint run clean web web-dev
+.PHONY: build test vet lint run clean web web-dev desktop desktop-dev
 
 build:
 	$(GO) build $(LDFLAGS) -o $(BINARY) ./cmd/vd
@@ -20,6 +20,14 @@ web:
 # Live-reload web dev server (proxies /api to a running `vd web`).
 web-dev:
 	cd web && npm install && npm run dev
+
+# Build the Wails desktop app (separate module; needs the wails CLI + a C toolchain).
+# Kept out of the main module so the pure-Go `vd` CLI stays CGO-free.
+desktop:
+	cd desktop && wails build -s
+
+desktop-dev:
+	cd desktop && wails dev
 
 test:
 	$(GO) test ./...
