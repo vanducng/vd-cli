@@ -407,6 +407,16 @@ func UnregisterHooks(s *Settings) {
 	}
 }
 
+// IsManagedCommand reports whether cmd references one of vd's managed hook files.
+func IsManagedCommand(cmd string) bool {
+	for _, mh := range managedHooks {
+		if strings.Contains(cmd, mh.file) {
+			return true
+		}
+	}
+	return false
+}
+
 // IsRegistered reports whether all managed hooks are present in s.
 func IsRegistered(s *Settings) bool {
 	for _, mh := range managedHooks {

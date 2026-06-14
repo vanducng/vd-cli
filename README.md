@@ -124,6 +124,7 @@ After these five commands:
 | `vd build [target...]` | Emit manifests + symlinks for each agent target |
 | `vd install [agent] [skill...]` | Install local skills into Codex or Claude Code user scope |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |
+| `vd web` | Launch a local web UI to review skills, discovered `~/.claude` assets, and hooks |
 
 Run `vd <command> --help` on any verb for flags, examples, and exit codes.
 
@@ -152,8 +153,10 @@ Run `vd <command> --help` on any verb for flags, examples, and exit codes.
 vd-cli checks GitHub for new releases at most once per 24 hours and prints a one-line nudge to stderr when a newer version exists:
 
 ```
-vd 2.0.0 (latest: 2.0.1). Upgrade: brew upgrade vd
+vd 2.0.0 (latest: 2.0.1). Upgrade: vd upgrade
 ```
+
+Homebrew-managed installs use `brew update && brew upgrade vanducng/tap/vd` instead.
 
 The check runs in the background and is silent on any failure. Disabled automatically for `dev` builds, when `CI` is set, and when stderr is not a terminal. Set `VD_NO_UPDATE_CHECK=1` to opt out explicitly.
 
