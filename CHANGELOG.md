@@ -4,6 +4,14 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.11.0](https://github.com/vanducng/vd-cli/compare/v2.10.0...v2.11.0) (2026-06-14)
+
+
+### Features
+
+* **web:** multi-agent discovery + filterable inventory browser ([b0d29e1](https://github.com/vanducng/vd-cli/commit/b0d29e1d7dd11430bc2a8316f36c19505e64d83b))
+* **web:** multi-agent discovery + filterable inventory browser ([9cc4373](https://github.com/vanducng/vd-cli/commit/9cc43739c6cb466e74833d04c194dafca4c67fd2))
+
 ## [2.10.0](https://github.com/vanducng/vd-cli/compare/v2.9.0...v2.10.0) (2026-06-14)
 
 
