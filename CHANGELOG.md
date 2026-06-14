@@ -4,6 +4,14 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [2.9.0](https://github.com/vanducng/vd-cli/compare/v2.8.0...v2.9.0) (2026-06-14)
+
+
+### Features
+
+* **tui:** add `vd tui` terminal frontend over the inventory backend ([4822bc0](https://github.com/vanducng/vd-cli/commit/4822bc02df9f4e67305429473d8e3fdf02b0c5ef))
+* **tui:** add vd tui terminal frontend over the inventory backend ([fce88bf](https://github.com/vanducng/vd-cli/commit/fce88bf49c5ddf2b7052c18da39e3eb45850c2a8))
+
 ## [2.8.0](https://github.com/vanducng/vd-cli/compare/v2.7.0...v2.8.0) (2026-06-14)
 
 
