@@ -18,6 +18,16 @@ const settingsFile = "settings.json"
 // key instead of the hooks{} map.
 const statusLineEvent = "statusLine"
 
+// codexNotifyEvent is the sentinel Event value for a Hook that targets Codex's
+// ~/.codex/config.toml notify key — it never goes into settings.json.
+const codexNotifyEvent = "codex.notify"
+
+// skipsSettingsJSON reports whether a hook event is registered somewhere other
+// than settings.json's hooks{} map (statusLine key, or Codex config).
+func skipsSettingsJSON(event string) bool {
+	return event == statusLineEvent || event == codexNotifyEvent
+}
+
 // HookEntry is one entry in a hooks event array in settings.json.
 type HookEntry struct {
 	Matcher string     `json:"matcher,omitempty"`
@@ -107,6 +117,9 @@ func RegisterHooks(s *Settings, hooks []Hook) {
 	for _, h := range hooks {
 		if h.Lib || h.Event == "" {
 			continue // lib files are copied only; empty event has nothing to register
+		}
+		if h.Event == codexNotifyEvent {
+			continue // wired into ~/.codex/config.toml, not settings.json
 		}
 		if h.Event == statusLineEvent {
 			SetStatusLine(s, HookCommand(h))
@@ -385,6 +398,9 @@ func UnregisterHooks(s *Settings, hooks []Hook) {
 		if h.Lib {
 			continue
 		}
+		if h.Event == codexNotifyEvent {
+			continue // unwired from ~/.codex/config.toml, not settings.json
+		}
 		if h.Event == statusLineEvent {
 			UnsetStatusLine(s)
 			continue
@@ -412,7 +428,7 @@ func IsManagedCommand(cmd string) bool {
 // IsRegistered reports whether all non-lib, non-statusLine hooks are present in s.
 func IsRegistered(s *Settings, hooks []Hook) bool {
 	for _, h := range hooks {
-		if h.Lib || h.Event == statusLineEvent {
+		if h.Lib || skipsSettingsJSON(h.Event) {
 			continue
 		}
 		cmd := HookCommand(h)

@@ -464,7 +464,8 @@ lib  = true                                # copied only, never registered (supp
 ```
 
 - **Runtimes:** `node`, `python3`, or empty (run the file directly via its shebang).
-- **Events:** the standard Claude events (`SessionStart`, `Stop`, `Notification`, `PreToolUse`, `PostToolUse`, `SubagentStart`, `SubagentStop`, `UserPromptSubmit`, `PreCompact`, …) plus the `statusLine` pseudo-event. Unknown events **and** unknown TOML fields are rejected.
+- **Events:** the standard Claude events (`SessionStart`, `Stop`, `Notification`, `PreToolUse`, `PostToolUse`, `SubagentStart`, `SubagentStop`, `UserPromptSubmit`, `PreCompact`, …) plus two pseudo-events: `statusLine` (Claude status line) and **`codex.notify`** (wires the hook into Codex's `notify` program). Unknown events **and** unknown TOML fields are rejected.
+- **Codex (`codex.notify`):** an entry with `event = "codex.notify"` installs the file like any other hook (into `~/.claude/hooks/`) but registers it in `~/.codex/config.toml` as the `notify` program (absolute path — Codex execs directly, no `$HOME` expansion). One file serves both agents. Any prior `notify` is replaced and reported, so you can chain it via your notifier's env (e.g. `CODEX_NOTIFY_FORWARD`). Example: `file = "agent-notify.py"`, `runtime = "python3"`, `event = "codex.notify"`, `args = ["codex"]`.
 - **Registered command:** `<runtime> "$HOME/.claude/hooks/<file>" <args…>` — `$HOME` stays literal; args with shell metacharacters are quoted.
 - The manifest is the only hook source: `[hooks].source` in `skills.toml` accepts only `local`.
 

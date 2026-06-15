@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -103,6 +104,12 @@ func runHooksUninstall(cmd *cobra.Command, hooksDir string, manifestHooks []clau
 			_, _ = fmt.Fprintf(out, "dry-run: would remove %s\n", f.full)
 		}
 		_, _ = fmt.Fprintln(out, "dry-run: would unregister managed hooks from settings.json")
+		for _, h := range manifestHooks {
+			if h.Event == "codex.notify" {
+				_, _ = fmt.Fprintln(out, "dry-run: would unwire managed Codex notify from ~/.codex/config.toml")
+				break
+			}
+		}
 		return nil
 	}
 
@@ -112,6 +119,10 @@ func runHooksUninstall(cmd *cobra.Command, hooksDir string, manifestHooks []clau
 	}
 	if !flagQuiet {
 		_, _ = fmt.Fprintln(out, "unregistered managed hooks from settings.json")
+	}
+
+	if err := unwireCodexNotify(out, hooksDir, manifestHooks); err != nil {
+		return fmt.Errorf("unwire Codex notify: %w", err)
 	}
 
 	// Delete managed hook files.
@@ -134,6 +145,33 @@ func runHooksUninstall(cmd *cobra.Command, hooksDir string, manifestHooks []clau
 
 	if !flagQuiet {
 		_, _ = fmt.Fprintln(out, "hooks uninstalled")
+	}
+	return nil
+}
+
+// unwireCodexNotify removes managed codex.notify lines from ~/.codex/config.toml.
+// The hook's absolute script path identifies our line; foreign notify lines are
+// left untouched by UnwireCodexNotify.
+func unwireCodexNotify(out io.Writer, hooksDir string, manifestHooks []claudeconfig.Hook) error {
+	var codexPath string
+	for _, h := range manifestHooks {
+		if h.Event != "codex.notify" {
+			continue
+		}
+		if codexPath == "" {
+			var err error
+			codexPath, err = claudeconfig.CodexConfigPath()
+			if err != nil {
+				return err
+			}
+		}
+		abs := filepath.Join(hooksDir, filepath.FromSlash(h.File))
+		if err := claudeconfig.UnwireCodexNotify(codexPath, abs); err != nil {
+			return err
+		}
+		if !flagQuiet {
+			_, _ = fmt.Fprintf(out, "unwired managed Codex notify from %s\n", codexPath)
+		}
 	}
 	return nil
 }
