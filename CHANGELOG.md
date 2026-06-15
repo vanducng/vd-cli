@@ -4,6 +4,19 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.1.0](https://github.com/vanducng/vd-cli/compare/v3.0.1...v3.1.0) (2026-06-15)
+
+
+### Features
+
+* **hooks:** wire Codex notify from the manifest (codex.notify event) ([6c0276e](https://github.com/vanducng/vd-cli/commit/6c0276e75b9075075c153c273f4b0a34de05b38d))
+* **hooks:** wire Codex notify from the manifest (codex.notify event) ([3b2b990](https://github.com/vanducng/vd-cli/commit/3b2b990b97d31c637145ff273436e2970b6b538f))
+
+
+### Bug Fixes
+
+* **hooks:** address review on codex.notify wiring ([9b3cffb](https://github.com/vanducng/vd-cli/commit/9b3cffb3b3a88b6034e2881a2e200aa46d5af742))
+
 ## [3.0.1](https://github.com/vanducng/vd-cli/compare/v3.0.0...v3.0.1) (2026-06-15)
 
 
