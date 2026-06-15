@@ -4,6 +4,14 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.0.1](https://github.com/vanducng/vd-cli/compare/v3.0.0...v3.0.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* **hooks:** harden manifest installer and hook-command builder ([15a9e4d](https://github.com/vanducng/vd-cli/commit/15a9e4d5727ad24dacfa964224ad2d21eed3a923))
+* **hooks:** harden manifest installer and hook-command builder ([d2d2331](https://github.com/vanducng/vd-cli/commit/d2d2331fefea86f024727c60a6f6c9a273f37748))
+
 ## [3.0.0](https://github.com/vanducng/vd-cli/compare/v2.12.1...v3.0.0) (2026-06-15)
 
 
