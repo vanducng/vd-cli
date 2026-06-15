@@ -123,6 +123,8 @@ After these five commands:
 | `vd remove <skill>` | Remove from manifest, lock, and (default) disk |
 | `vd build [target...]` | Emit manifests + symlinks for each agent target |
 | `vd install [agent] [skill...]` | Install local skills into Codex or Claude Code user scope |
+| `vd install hooks` | Install Claude hooks from a local `hooks/hooks.toml` manifest |
+| `vd hooks uninstall\|rollback` | Manage installed hooks |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |
 | `vd web` | Launch a local web UI to review skills, discovered `~/.claude` assets, and hooks |
 | `vd tui` | Browse the same inventory in an interactive terminal UI |

@@ -385,6 +385,7 @@ If no skills are found locally (no `--root`/`VD_ROOT`/`.git` repo and no `~/.vd/
 - `codex` — installs local `skills/<name>/` directories into Codex discovery paths. Default scope is user, which writes symlinks to `$HOME/.agents/skills`. Use `--scope repo` to write `.agents/skills/<name>` in the current repo.
 - `claude` — runs `vd build claude`, registers this repo as a Claude Code marketplace, and installs the configured plugin bundle.
 - `claude --dev` — per-skill symlinks into `$HOME/.claude/skills` (mirrors the codex symlink flow) instead of the marketplace plugin install. Accepts skill-name arguments.
+- `hooks` — install Claude Code hooks from a local manifest (`<root>/hooks/hooks.toml`). See [vd hooks](#vd-hooks).
 
 **Signature:**
 ```
@@ -414,11 +415,82 @@ vd install all                           # picker: install every target
 vd install claude                        # install configured Claude Code plugin bundle
 vd install claude --dev research         # symlink selected skills into ~/.claude/skills
 vd install claude --dry-run              # print Claude plugin commands
+vd install hooks --root ~/skills         # install Claude hooks from a local manifest
 ```
 
-**Side effects:** `codex` writes symlinks or copies under the destination skill directory. `claude` may mutate Claude Code marketplace and plugin installation state.
+**Side effects:** `codex` writes symlinks or copies under the destination skill directory. `claude` may mutate Claude Code marketplace and plugin installation state. `hooks` writes to `~/.claude/hooks/` and `~/.claude/settings.json` (see [vd hooks](#vd-hooks)).
 
 **Exit codes:** `0` success, `1` invalid agent/scope, missing skill, existing destination without `--force`, or external Claude command failure.
+
+---
+
+## vd hooks
+
+Install and manage Claude Code hooks from a **local manifest** — `<repo-root>/hooks/hooks.toml`. Since v3.0.0 vd ships **no** built-in hooks; it installs whatever your manifest declares, so you keep your hooks in your own repo (e.g. `~/skills`) and `vd` is just the installer.
+
+### Install
+
+```
+vd install hooks [--root <repo>] [--dry-run]
+```
+
+Reads `<root>/hooks/hooks.toml`, copies each listed file into `~/.claude/hooks/` (backing up a differing existing file first), and registers the non-`lib` entries in `~/.claude/settings.json`. Run it from the repo holding your manifest, or point at it with `--root`:
+
+```sh
+vd install hooks --root ~/skills            # install the hooks defined in ~/skills/hooks/
+vd install hooks --root ~/skills --dry-run  # preview the settings.json diff, change nothing
+```
+
+### The manifest — `hooks/hooks.toml`
+
+One `[[hook]]` table per hook:
+
+```toml
+[[hook]]
+file    = "session-init.cjs"               # path under hooks/ (no ".." or absolute paths)
+runtime = "node"                           # node | python3 | "" (direct exec via shebang)
+event   = "SessionStart"                   # a Claude event, or "statusLine"
+matcher = "startup|resume|clear|compact"   # optional
+
+[[hook]]
+file    = "agent-notify.py"
+runtime = "python3"
+event   = "Stop"
+args    = ["claude", "stop"]               # extra argv appended after the file
+
+[[hook]]
+file = "lib/config.cjs"
+lib  = true                                # copied only, never registered (support file)
+```
+
+- **Runtimes:** `node`, `python3`, or empty (run the file directly via its shebang).
+- **Events:** the standard Claude events (`SessionStart`, `Stop`, `Notification`, `PreToolUse`, `PostToolUse`, `SubagentStart`, `SubagentStop`, `UserPromptSubmit`, `PreCompact`, …) plus the `statusLine` pseudo-event. Unknown events **and** unknown TOML fields are rejected.
+- **Registered command:** `<runtime> "$HOME/.claude/hooks/<file>" <args…>` — `$HOME` stays literal; args with shell metacharacters are quoted.
+- The manifest is the only hook source: `[hooks].source` in `skills.toml` accepts only `local`.
+
+### Uninstall / rollback
+
+```
+vd hooks uninstall [--dry-run]    # remove manifest files from ~/.claude/hooks and unregister from settings.json
+vd hooks rollback  [--dry-run]    # restore the most recent backup made by 'vd install hooks'
+```
+
+Only files in your manifest are removed; any other hooks in `settings.json` are left untouched. `settings.json` is backed up before the first change.
+
+### Updating a hook
+
+Edit the source in your hooks repo (e.g. `~/skills/hooks/agent-notify.py`), then re-run `vd install hooks --root ~/skills` to sync the copy under `~/.claude/hooks/`.
+
+### Fresh machine
+
+```sh
+git clone https://github.com/<you>/skills ~/skills
+# export any secrets your hooks read — e.g. in ~/.envrc (direnv):
+#   export TELEGRAM_BOT_TOKEN=...   export TELEGRAM_CHAT_ID=...
+vd install hooks --root ~/skills
+```
+
+Secrets stay in the environment, never in the repo or the manifest.
 
 ---
 
