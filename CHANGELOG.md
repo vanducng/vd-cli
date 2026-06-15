@@ -4,6 +4,17 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.0.0](https://github.com/vanducng/vd-cli/compare/v2.12.1...v3.0.0) (2026-06-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **hooks:** 'vd install hooks' now requires a hooks/hooks.toml manifest at the repo root and no longer ships built-in hooks. Run it from a repo that defines the manifest (e.g. ~/skills).
+
+### Features
+
+* **hooks:** source Claude hooks from a local manifest; drop embedded assets ([350e664](https://github.com/vanducng/vd-cli/commit/350e66432b182fc12cdfaaae32d7b77f4aa29747))
+
 ## [2.12.1](https://github.com/vanducng/vd-cli/compare/v2.12.0...v2.12.1) (2026-06-14)
 
 
