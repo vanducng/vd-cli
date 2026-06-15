@@ -55,13 +55,14 @@ jobs:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # Immediate squash: main is unprotected, so --auto has no checks to gate
-      # on; --repo avoids needing a checkout.
+      # main is branch-protected (required checks + conversation resolution), so
+      # --auto queues the squash-merge until the gate passes (an immediate merge
+      # would race the checks and be rejected). Requires repo "Allow auto-merge".
       - name: Auto-merge release PR
         if: ${{ steps.release.outputs.pr }}
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
-        run: gh pr merge --squash --repo "${{ github.repository }}" "${{ fromJson(steps.release.outputs.pr).number }}"
+        run: gh pr merge --squash --auto --repo "${{ github.repository }}" "${{ fromJson(steps.release.outputs.pr).number }}"
 
   goreleaser:
     needs: release-please
