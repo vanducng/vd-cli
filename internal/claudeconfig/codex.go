@@ -1,6 +1,7 @@
 package claudeconfig
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,10 +12,10 @@ import (
 
 const codexConfigFile = "config.toml"
 
-// notifyLineRe matches the single-line top-level `notify = [...]` assignment.
-// The value lives on one line; we replace it surgically and leave every other
-// byte untouched.
-var notifyLineRe = regexp.MustCompile(`(?m)^\s*notify\s*=.*$`)
+// notifyLineRe matches the top-level `notify = ...` assignment, including a
+// multi-line array value (`notify = [\n "a",\n "b"\n]`). We replace the whole
+// match surgically and leave every other byte untouched.
+var notifyLineRe = regexp.MustCompile(`(?m)^[ \t]*notify[ \t]*=[ \t]*(?:\[[^\]]*\]|[^\n]*)`)
 
 // CodexConfigPath returns the absolute path to ~/.codex/config.toml.
 func CodexConfigPath() (string, error) {
@@ -33,12 +34,37 @@ func codexBackupName(path string) string {
 	return base + ".bak." + time.Now().UTC().Format("20060102T150405") + ext
 }
 
-// tomlQuote returns a TOML basic string for s (double-quoted, backslash and
-// double-quote escaped).
+// tomlQuote returns a TOML basic string for s: double-quoted, with backslash,
+// double-quote, and control characters (U+0000–U+001F) escaped per the spec.
 func tomlQuote(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	return `"` + s + `"`
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '\\':
+			b.WriteString(`\\`)
+		case '"':
+			b.WriteString(`\"`)
+		case '\b':
+			b.WriteString(`\b`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\f':
+			b.WriteString(`\f`)
+		case '\r':
+			b.WriteString(`\r`)
+		default:
+			if r < 0x20 {
+				fmt.Fprintf(&b, `\u%04X`, r)
+			} else {
+				b.WriteRune(r)
+			}
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
 }
 
 // notifyArray renders command as a TOML array literal: ["a", "b", ...].
@@ -69,7 +95,7 @@ func WireCodexNotify(path string, command []string) (replacedPrev string, err er
 
 	existing, readErr := os.ReadFile(path)
 	if readErr != nil {
-		if !os.IsNotExist(readErr) {
+		if !errors.Is(readErr, os.ErrNotExist) {
 			return "", fmt.Errorf("read %s: %w", path, readErr)
 		}
 		// Missing file: create with just the notify line.

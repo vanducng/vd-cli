@@ -7,6 +7,48 @@ import (
 	"testing"
 )
 
+func TestWireCodexNotifyMultiLineArray(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(p, []byte("model = \"x\"\nnotify = [\n  \"/old\",\n  \"turn-ended\"\n]\nfoo = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	prev, err := WireCodexNotify(p, []string{"python3", "/abs/n.py", "codex"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := readFile(t, p)
+	if !strings.Contains(s, `notify = ["python3", "/abs/n.py", "codex"]`) {
+		t.Errorf("notify not replaced:\n%s", s)
+	}
+	if strings.Contains(s, "/old") || strings.Contains(s, "turn-ended") {
+		t.Errorf("old multi-line array not fully replaced:\n%s", s)
+	}
+	if !strings.Contains(s, `model = "x"`) || !strings.Contains(s, "foo = 1") {
+		t.Errorf("surrounding keys not preserved:\n%s", s)
+	}
+	if !strings.Contains(prev, "/old") {
+		t.Errorf("replacedPrev = %q, want the old multi-line notify", prev)
+	}
+}
+
+func TestTomlQuoteControlChars(t *testing.T) {
+	if got := tomlQuote("a\tb\nc"); got != `"a\tb\nc"` {
+		t.Errorf("tab/newline = %q", got)
+	}
+	if got := tomlQuote("x\x00y"); got != `"x\u0000y"` {
+		t.Errorf("NUL = %q", got)
+	}
+}
+
+func readFile(t *testing.T, p string) string {
+	t.Helper()
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
 func codexBackupCount(t *testing.T, path string) int {
 	t.Helper()
 	dir := filepath.Dir(path)
