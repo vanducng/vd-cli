@@ -10,12 +10,34 @@ import (
 
 // ── settings.go tests ──────────────────────────────────────────────────────
 
+// testHooks is the manifest fixture used across settings tests. It mirrors the
+// real hooks.toml shape: node + python + statusLine + lib entries.
+func testHooks() []Hook {
+	return []Hook{
+		{File: "session-init.cjs", Runtime: "node", Event: "SessionStart", Matcher: "startup|resume|clear|compact"},
+		{File: "subagent-init.cjs", Runtime: "node", Event: "SubagentStart", Matcher: "*"},
+		{File: "team-context-inject.cjs", Runtime: "node", Event: "SubagentStart", Matcher: "*"},
+		{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "UserPromptSubmit"},
+		{File: "scout-block.cjs", Runtime: "node", Event: "PreToolUse", Matcher: "Bash|Glob|Grep|Read|Edit|Write"},
+		{File: "agent-notify.py", Runtime: "python3", Event: "Stop", Args: []string{"claude", "stop"}},
+		{File: "statusline.cjs", Runtime: "node", Event: "statusLine"},
+		{File: "task-completed-handler.cjs", Lib: true},
+		{File: "lib/config.cjs", Lib: true},
+	}
+}
+
+// statusLineCmd is the command a statusLine hook registers — used by the
+// SetStatusLine tests that call the function directly.
+func statusLineCmd() string {
+	return HookCommand(Hook{File: "statusline.cjs", Runtime: "node", Event: "statusLine"})
+}
+
 func TestRegisterHooksIdempotent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	writeFixture(t, path, `{"env":{"FOO":"bar"}}`)
 
 	s1 := mustReadSettings(t, path)
-	RegisterHooks(s1)
+	RegisterHooks(s1, testHooks())
 	if err := writeSettingsAt(path, s1, false); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
@@ -23,7 +45,7 @@ func TestRegisterHooksIdempotent(t *testing.T) {
 	data1 := mustReadFile(t, path)
 
 	s2 := mustReadSettings(t, path)
-	RegisterHooks(s2)
+	RegisterHooks(s2, testHooks())
 	if err := writeSettingsAt(path, s2, false); err != nil {
 		t.Fatalf("second write: %v", err)
 	}
@@ -35,7 +57,7 @@ func TestRegisterHooksIdempotent(t *testing.T) {
 	}
 
 	// Both managed hooks must be present.
-	if !IsRegistered(s2) {
+	if !IsRegistered(s2, testHooks()) {
 		t.Error("IsRegistered returned false after two registrations")
 	}
 }
@@ -67,7 +89,7 @@ func TestRegisterHooksReplaceExisting(t *testing.T) {
 	writeFixture(t, path, existing)
 
 	s := mustReadSettings(t, path)
-	RegisterHooks(s)
+	RegisterHooks(s, testHooks())
 
 	// Verify no duplication: session-init.cjs must appear exactly once.
 	count := 0
@@ -101,7 +123,7 @@ func TestRegisterHooksLiteralDollarHOME(t *testing.T) {
 	writeFixture(t, path, `{}`)
 
 	s := mustReadSettings(t, path)
-	RegisterHooks(s)
+	RegisterHooks(s, testHooks())
 	if err := writeSettingsAt(path, s, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -123,7 +145,7 @@ func TestWriteSettingsBackupOnce(t *testing.T) {
 	writeFixture(t, path, `{"env":{}}`)
 
 	s1 := mustReadSettings(t, path)
-	RegisterHooks(s1)
+	RegisterHooks(s1, testHooks())
 	if err := writeSettingsAt(path, s1, false); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
@@ -136,7 +158,7 @@ func TestWriteSettingsBackupOnce(t *testing.T) {
 
 	// Second write must not overwrite the backup.
 	s2 := mustReadSettings(t, path)
-	RegisterHooks(s2)
+	RegisterHooks(s2, testHooks())
 	if err := writeSettingsAt(path, s2, false); err != nil {
 		t.Fatalf("second write: %v", err)
 	}
@@ -168,7 +190,7 @@ func TestWriteSettingsDryRun(t *testing.T) {
 	originalContent := mustReadFile(t, path)
 
 	s := mustReadSettings(t, path)
-	RegisterHooks(s)
+	RegisterHooks(s, testHooks())
 	if err := writeSettingsAt(path, s, true /* dryRun */); err != nil {
 		t.Fatalf("dry-run write: %v", err)
 	}
@@ -197,7 +219,7 @@ func TestWriteSettingsAtomicNoPartial(t *testing.T) {
 	defer func() { _ = os.Chmod(dir, 0o755) }()
 
 	s := mustReadSettings(t, path)
-	RegisterHooks(s)
+	RegisterHooks(s, testHooks())
 	err := writeSettingsAt(path, s, false)
 	if err == nil {
 		t.Fatal("expected error writing to read-only dir, got nil")
@@ -215,7 +237,7 @@ func TestWriteSettingsPreservesUnknownKeys(t *testing.T) {
 	writeFixture(t, path, fixture)
 
 	s := mustReadSettings(t, path)
-	RegisterHooks(s)
+	RegisterHooks(s, testHooks())
 	if err := writeSettingsAt(path, s, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -279,7 +301,7 @@ func TestWriteSettingsKeyOrderPreserved(t *testing.T) {
 	writeFixture(t, path, fixture)
 
 	s := mustReadSettings(t, path)
-	RegisterHooks(s)
+	RegisterHooks(s, testHooks())
 	if err := writeSettingsAt(path, s, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -328,7 +350,7 @@ func TestWriteSettingsKeyOrderPreserved(t *testing.T) {
 	}
 
 	// Our hooks must be registered (idempotent re-registration of already-present hooks).
-	if !IsRegistered(s) {
+	if !IsRegistered(s, testHooks()) {
 		t.Error("IsRegistered returned false after write")
 	}
 }
@@ -414,7 +436,7 @@ func TestRegisterHooksDevRulesReminder(t *testing.T) {
 	writeFixture(t, path, `{}`)
 
 	s := mustReadSettings(t, path)
-	RegisterHooks(s)
+	RegisterHooks(s, testHooks())
 	if err := writeSettingsAt(path, s, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -431,7 +453,7 @@ func TestRegisterHooksDevRulesReminder(t *testing.T) {
 
 	// Idempotency: register again — count must stay at 1.
 	s2 := mustReadSettings(t, path)
-	RegisterHooks(s2)
+	RegisterHooks(s2, testHooks())
 	count := 0
 	for _, entry := range s2.Hooks["UserPromptSubmit"] {
 		for _, item := range entry.Hooks {
@@ -450,7 +472,7 @@ func TestSetStatusLineWritesSurgically(t *testing.T) {
 	writeFixture(t, settingsPath, `{"env":{"FOO":"bar"}}`)
 
 	s := mustReadSettings(t, settingsPath)
-	SetStatusLine(s)
+	SetStatusLine(s, statusLineCmd())
 	if err := writeSettingsAt(settingsPath, s, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -483,14 +505,14 @@ func TestSetStatusLineIdempotent(t *testing.T) {
 	writeFixture(t, settingsPath, `{}`)
 
 	s1 := mustReadSettings(t, settingsPath)
-	SetStatusLine(s1)
+	SetStatusLine(s1, statusLineCmd())
 	if err := writeSettingsAt(settingsPath, s1, false); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
 	data1 := mustReadFile(t, settingsPath)
 
 	s2 := mustReadSettings(t, settingsPath)
-	SetStatusLine(s2)
+	SetStatusLine(s2, statusLineCmd())
 	if err := writeSettingsAt(settingsPath, s2, false); err != nil {
 		t.Fatalf("second write: %v", err)
 	}
@@ -506,7 +528,7 @@ func TestUnsetStatusLineRemovesKey(t *testing.T) {
 	writeFixture(t, settingsPath, `{"env":{"FOO":"bar"}}`)
 
 	s := mustReadSettings(t, settingsPath)
-	SetStatusLine(s)
+	SetStatusLine(s, statusLineCmd())
 	if err := writeSettingsAt(settingsPath, s, false); err != nil {
 		t.Fatalf("set write: %v", err)
 	}
@@ -539,7 +561,7 @@ func TestNewManagedHooksRegistered(t *testing.T) {
 	writeFixture(t, settingsPath, `{}`)
 
 	s := mustReadSettings(t, settingsPath)
-	RegisterHooks(s)
+	RegisterHooks(s, testHooks())
 	if err := writeSettingsAt(settingsPath, s, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -565,7 +587,7 @@ func TestNewManagedHooksRegistered(t *testing.T) {
 		}
 	}
 
-	if !IsRegistered(s) {
+	if !IsRegistered(s, testHooks()) {
 		t.Error("IsRegistered returned false after RegisterHooks with new hooks")
 	}
 }
@@ -575,14 +597,14 @@ func TestNewManagedHooksIdempotent(t *testing.T) {
 	writeFixture(t, settingsPath, `{}`)
 
 	s1 := mustReadSettings(t, settingsPath)
-	RegisterHooks(s1)
+	RegisterHooks(s1, testHooks())
 	if err := writeSettingsAt(settingsPath, s1, false); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
 	data1 := mustReadFile(t, settingsPath)
 
 	s2 := mustReadSettings(t, settingsPath)
-	RegisterHooks(s2)
+	RegisterHooks(s2, testHooks())
 	if err := writeSettingsAt(settingsPath, s2, false); err != nil {
 		t.Fatalf("second write: %v", err)
 	}

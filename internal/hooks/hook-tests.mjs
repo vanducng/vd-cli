@@ -39,7 +39,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
-const ASSETS_DIR = path.join(__dirname, 'assets');
+const ASSETS_DIR = path.join(__dirname, '..', '..', 'hooks');
 
 const STATUSLINE        = path.join(ASSETS_DIR, 'statusline.cjs');
 const SCOUT_BLOCK       = path.join(ASSETS_DIR, 'scout-block.cjs');

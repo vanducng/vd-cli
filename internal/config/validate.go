@@ -15,7 +15,7 @@ import (
 //   - "detached" → source and pin must both be empty
 //
 // Hooks rules:
-//   - source must be "" (default "embed") or "local"
+//   - source must be "" (default) or "local"
 func Validate(m *Manifest) error {
 	if m == nil {
 		return errors.New("manifest is nil")
@@ -40,10 +40,10 @@ func Validate(m *Manifest) error {
 
 func validateHooks(h HooksConfig) []error {
 	switch h.Source {
-	case "", "embed", "local":
+	case "", "local":
 		return nil
 	default:
-		return []error{fmt.Errorf("[hooks].source %q is invalid (valid: embed, local)", h.Source)}
+		return []error{fmt.Errorf("[hooks].source %q is invalid (valid: local)", h.Source)}
 	}
 }
 

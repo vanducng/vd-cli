@@ -15,6 +15,43 @@ import (
 
 // ── helpers ───────────────────────────────────────────────────────────────
 
+// testManifestHooks mirrors the real hooks.toml for CLI uninstall/rollback tests.
+func testManifestHooks() []claudeconfig.Hook {
+	return []claudeconfig.Hook{
+		{File: "session-init.cjs", Runtime: "node", Event: "SessionStart", Matcher: "startup|resume|clear|compact"},
+		{File: "subagent-init.cjs", Runtime: "node", Event: "SubagentStart", Matcher: "*"},
+		{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "UserPromptSubmit"},
+		{File: "lib/config.cjs", Lib: true},
+		{File: "lib/paths.cjs", Lib: true},
+		{File: "lib/state.cjs", Lib: true},
+	}
+}
+
+func testManifestFiles() []string { return hooks.Files(testManifestHooks()) }
+
+// withStatusLine appends a statusLine hook for the statusLine install/uninstall tests.
+func withStatusLine() []claudeconfig.Hook {
+	return append(testManifestHooks(), claudeconfig.Hook{File: "statusline.cjs", Runtime: "node", Event: "statusLine"})
+}
+
+// installTestHooks copies stub hook files for every manifest entry into hooksDir.
+func installTestHooks(t *testing.T, hooksDir string) {
+	t.Helper()
+	src := t.TempDir()
+	for _, rel := range testManifestFiles() {
+		full := filepath.Join(src, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", rel, err)
+		}
+		if err := os.WriteFile(full, []byte("// "+rel+"\n"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", rel, err)
+		}
+	}
+	if _, err := hooks.InstallFrom(src, hooksDir, testManifestFiles()); err != nil {
+		t.Fatalf("InstallFrom: %v", err)
+	}
+}
+
 func buildHookFixture(t *testing.T) (hooksDir string, settingsPath string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -22,9 +59,7 @@ func buildHookFixture(t *testing.T) (hooksDir string, settingsPath string) {
 	settingsPath = filepath.Join(dir, "settings.json")
 
 	// Install all managed hook files to a temp hooks dir.
-	if _, err := hooks.Install(hooksDir); err != nil {
-		t.Fatalf("Install: %v", err)
-	}
+	installTestHooks(t, hooksDir)
 
 	// Write a settings.json with our hooks registered + an unmanaged hook.
 	fixture := `{
@@ -70,7 +105,7 @@ func runUninstall(t *testing.T, hooksDir string, settingsPath string, dryRun boo
 	if err != nil {
 		return "", err
 	}
-	claudeconfig.UnregisterHooks(s)
+	claudeconfig.UnregisterHooks(s, testManifestHooks())
 	if !dryRun {
 		if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
 			return "", err
@@ -78,7 +113,7 @@ func runUninstall(t *testing.T, hooksDir string, settingsPath string, dryRun boo
 	}
 	// Simulate file deletion.
 	var out bytes.Buffer
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		if _, err := os.Stat(full); err != nil {
 			continue
@@ -106,7 +141,7 @@ func TestHooksUninstallRemovesManagedFiles(t *testing.T) {
 	}
 
 	// All managed files must be gone.
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		if _, err := os.Stat(full); err == nil {
 			t.Errorf("managed file still present after uninstall: %s", full)
@@ -124,7 +159,7 @@ func TestHooksUninstallPreservesUnmanagedHooks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read settings: %v", err)
 	}
-	claudeconfig.UnregisterHooks(s)
+	claudeconfig.UnregisterHooks(s, testManifestHooks())
 	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
 		t.Fatalf("write settings: %v", err)
 	}
@@ -168,7 +203,7 @@ func TestHooksUninstallDryRunWritesNothing(t *testing.T) {
 	}
 
 	// Files must still exist.
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		if _, err := os.Stat(full); err != nil {
 			t.Errorf("dry-run removed file: %s", full)
@@ -201,12 +236,12 @@ func TestHooksRollbackRestoresFromBak(t *testing.T) {
 	hooksDir := t.TempDir()
 
 	// Create backup files for our managed hooks.
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		makeBackup(t, hooksDir, rel, "// backup content for "+rel+"\n")
 	}
 
 	// Run rollback logic directly (mirrors runHooksRollback without hitting real ~/.claude).
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		bak := newestBackup(full)
 		if bak == "" {
@@ -226,7 +261,7 @@ func TestHooksRollbackRestoresFromBak(t *testing.T) {
 	}
 
 	// Each restored file must contain the backup content.
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		content, err := os.ReadFile(full)
 		if err != nil {
@@ -242,7 +277,7 @@ func TestHooksRollbackRestoresFromBak(t *testing.T) {
 func TestHooksRollbackNoBackups(t *testing.T) {
 	hooksDir := t.TempDir()
 	// No backups exist — newestBackup must return empty for all files.
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		if bak := newestBackup(full); bak != "" {
 			t.Errorf("expected no backup for %s, got %s", rel, bak)
@@ -254,23 +289,21 @@ func TestHooksRollbackDryRunWritesNothing(t *testing.T) {
 	hooksDir := t.TempDir()
 
 	// Create backup + install real files.
-	if _, err := hooks.Install(hooksDir); err != nil {
-		t.Fatalf("Install: %v", err)
-	}
-	for _, rel := range managedHookFiles {
+	installTestHooks(t, hooksDir)
+	for _, rel := range testManifestFiles() {
 		makeBackup(t, hooksDir, rel, "// old backup\n")
 	}
 
 	// Capture original content of installed files.
 	origContent := make(map[string][]byte)
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		data, _ := os.ReadFile(full)
 		origContent[rel] = data
 	}
 
 	// Dry-run: should not write anything.
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		bak := newestBackup(full)
 		if bak == "" {
@@ -281,7 +314,7 @@ func TestHooksRollbackDryRunWritesNothing(t *testing.T) {
 	}
 
 	// Files must be unchanged.
-	for _, rel := range managedHookFiles {
+	for _, rel := range testManifestFiles() {
 		full := filepath.Join(hooksDir, rel)
 		data, _ := os.ReadFile(full)
 		if string(data) != string(origContent[rel]) {
@@ -322,8 +355,7 @@ func TestInstallSetsStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read settings: %v", err)
 	}
-	claudeconfig.RegisterHooks(s)
-	claudeconfig.SetStatusLine(s)
+	claudeconfig.RegisterHooks(s, withStatusLine())
 	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
 		t.Fatalf("write settings: %v", err)
 	}
@@ -361,8 +393,7 @@ func TestUninstallRemovesStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	claudeconfig.RegisterHooks(s)
-	claudeconfig.SetStatusLine(s)
+	claudeconfig.RegisterHooks(s, withStatusLine())
 	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
 		t.Fatalf("install write: %v", err)
 	}
@@ -378,8 +409,7 @@ func TestUninstallRemovesStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read for uninstall: %v", err)
 	}
-	claudeconfig.UnregisterHooks(s2)
-	claudeconfig.UnsetStatusLine(s2)
+	claudeconfig.UnregisterHooks(s2, withStatusLine())
 	if err := claudeconfig.WriteSettings(s2, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
 		t.Fatalf("uninstall write: %v", err)
 	}
@@ -407,8 +437,7 @@ func TestInstallStatusLineIdempotent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read: %v", err)
 		}
-		claudeconfig.RegisterHooks(s)
-		claudeconfig.SetStatusLine(s)
+		claudeconfig.RegisterHooks(s, withStatusLine())
 		if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
 			t.Fatalf("write: %v", err)
 		}
@@ -430,14 +459,14 @@ func TestUnregisterHooksIdempotent(t *testing.T) {
 	_, settingsPath := buildHookFixture(t)
 
 	s, _ := claudeconfig.ReadSettingsAt(settingsPath)
-	claudeconfig.UnregisterHooks(s)
+	claudeconfig.UnregisterHooks(s, testManifestHooks())
 	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
 		t.Fatalf("first write: %v", err)
 	}
 	data1, _ := os.ReadFile(settingsPath)
 
 	s2, _ := claudeconfig.ReadSettingsAt(settingsPath)
-	claudeconfig.UnregisterHooks(s2)
+	claudeconfig.UnregisterHooks(s2, testManifestHooks())
 	if err := claudeconfig.WriteSettings(s2, claudeconfig.WriteOptions{Path: settingsPath}); err != nil {
 		t.Fatalf("second write: %v", err)
 	}

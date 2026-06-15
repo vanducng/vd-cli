@@ -14,15 +14,25 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/hooks"
 )
 
-// managedHookFiles lists the flat files (relative to the hooks dir) that vd
-// installs. Keep in sync with hooks/assets and claudeconfig.managedHooks.
-var managedHookFiles = []string{
-	"session-init.cjs",
-	"subagent-init.cjs",
-	"dev-rules-reminder.cjs",
-	filepath.Join("lib", "config.cjs"),
-	filepath.Join("lib", "paths.cjs"),
-	filepath.Join("lib", "state.cjs"),
+// manifestPath returns <repoRoot>/hooks/hooks.toml for the resolved repo root.
+func manifestPath(flagRoot string) (string, error) {
+	root, err := resolveRepoRoot(flagRoot)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "hooks", "hooks.toml"), nil
+}
+
+// loadManifestHooks resolves and loads the local hooks manifest.
+func loadManifestHooks(flagRoot string) ([]claudeconfig.Hook, error) {
+	path, err := manifestPath(flagRoot)
+	if err != nil {
+		return nil, err
+	}
+	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
+		return nil, fmt.Errorf("no hooks/hooks.toml found at %s — vd installs hooks from a local manifest", filepath.Dir(filepath.Dir(path)))
+	}
+	return hooks.LoadManifest(path)
 }
 
 func newHooksCmd() *cobra.Command {
@@ -63,14 +73,18 @@ A backup of settings.json is created before the first modification.`,
 			if err != nil {
 				return err
 			}
-			return runHooksUninstall(cmd, dest, dryRun)
+			manifestHooks, err := loadManifestHooks(flagRoot)
+			if err != nil {
+				return err
+			}
+			return runHooksUninstall(cmd, dest, manifestHooks, dryRun)
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print actions without changing files")
 	return cmd
 }
 
-func runHooksUninstall(cmd *cobra.Command, hooksDir string, dryRun bool) error {
+func runHooksUninstall(cmd *cobra.Command, hooksDir string, manifestHooks []claudeconfig.Hook, dryRun bool) error {
 	out := cmd.OutOrStdout()
 
 	// Collect managed files that exist.
@@ -79,8 +93,8 @@ func runHooksUninstall(cmd *cobra.Command, hooksDir string, dryRun bool) error {
 		full string
 	}
 	var toDelete []fileOp
-	for _, rel := range managedHookFiles {
-		full := filepath.Join(hooksDir, rel)
+	for _, rel := range hooks.Files(manifestHooks) {
+		full := filepath.Join(hooksDir, filepath.FromSlash(rel))
 		if _, err := os.Stat(full); err == nil {
 			toDelete = append(toDelete, fileOp{rel: rel, full: full})
 		}
@@ -98,7 +112,7 @@ func runHooksUninstall(cmd *cobra.Command, hooksDir string, dryRun bool) error {
 	}
 
 	// Backup + unregister from settings.json first (surgical sjson removal).
-	if err := unregisterHooksFromSettings(); err != nil {
+	if err := unregisterHooksFromSettings(manifestHooks); err != nil {
 		return fmt.Errorf("unregister hooks: %w", err)
 	}
 	if !flagQuiet {
@@ -130,13 +144,12 @@ func runHooksUninstall(cmd *cobra.Command, hooksDir string, dryRun bool) error {
 }
 
 // unregisterHooksFromSettings removes only our managed commands from settings.json.
-func unregisterHooksFromSettings() error {
+func unregisterHooksFromSettings(manifestHooks []claudeconfig.Hook) error {
 	s, err := claudeconfig.ReadSettings()
 	if err != nil {
 		return err
 	}
-	claudeconfig.UnregisterHooks(s)
-	claudeconfig.UnsetStatusLine(s)
+	claudeconfig.UnregisterHooks(s, manifestHooks)
 	return claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{})
 }
 
@@ -158,14 +171,18 @@ This undoes the last 'vd install hooks' run.`,
 			if err != nil {
 				return err
 			}
-			return runHooksRollback(cmd, dest, dryRun)
+			manifestHooks, err := loadManifestHooks(flagRoot)
+			if err != nil {
+				return err
+			}
+			return runHooksRollback(cmd, dest, manifestHooks, dryRun)
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print actions without changing files")
 	return cmd
 }
 
-func runHooksRollback(cmd *cobra.Command, hooksDir string, dryRun bool) error {
+func runHooksRollback(cmd *cobra.Command, hooksDir string, manifestHooks []claudeconfig.Hook, dryRun bool) error {
 	out := cmd.OutOrStdout()
 
 	type rollbackOp struct {
@@ -175,8 +192,8 @@ func runHooksRollback(cmd *cobra.Command, hooksDir string, dryRun bool) error {
 	var ops []rollbackOp
 
 	// For each managed hook file, find newest .bak.<ts> backup.
-	for _, rel := range managedHookFiles {
-		full := filepath.Join(hooksDir, rel)
+	for _, rel := range hooks.Files(manifestHooks) {
+		full := filepath.Join(hooksDir, filepath.FromSlash(rel))
 		bak := newestBackup(full)
 		if bak == "" {
 			continue

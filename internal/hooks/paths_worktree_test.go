@@ -20,7 +20,7 @@ func TestResolveUmbrellaRoot_WorktreeAnchorsToMain(t *testing.T) {
 		t.Skip("git not in PATH")
 	}
 
-	pathsCJS, err := filepath.Abs(filepath.Join("assets", "lib", "paths.cjs"))
+	pathsCJS, err := filepath.Abs(filepath.Join("..", "..", "hooks", "lib", "paths.cjs"))
 	if err != nil {
 		t.Fatal(err)
 	}

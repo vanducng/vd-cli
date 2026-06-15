@@ -34,7 +34,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
-const ASSETS_DIR = path.join(__dirname, 'assets');
+const ASSETS_DIR = path.join(__dirname, '..', '..', 'hooks');
 const GOLDEN_DIR = path.join(__dirname, 'testdata', 'golden');
 const SESSION_INIT  = path.join(ASSETS_DIR, 'session-init.cjs');
 const SUBAGENT_INIT = path.join(ASSETS_DIR, 'subagent-init.cjs');

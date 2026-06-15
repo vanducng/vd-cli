@@ -17,7 +17,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ASSETS_DIR = path.join(__dirname, 'assets');
+const ASSETS_DIR = path.join(__dirname, '..', '..', 'hooks');
 const HOOK = path.join(ASSETS_DIR, 'dev-rules-reminder.cjs');
 const REAL_HOME = os.userInfo().homedir;
 
