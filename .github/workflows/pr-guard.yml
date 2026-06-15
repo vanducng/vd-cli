@@ -1,0 +1,43 @@
+name: PR guard
+
+# Block merges while a PR has unresolved review threads — including the
+# non-blocking inline comments left by the code-review bot. A green 'review'
+# check does not mean the comments were addressed; this check stays red until
+# every thread is resolved, and re-runs the moment a thread is resolved.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted, dismissed]
+  pull_request_review_thread:
+    types: [resolved, unresolved]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  unresolved-comments:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail on unresolved review threads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          NUM: ${{ github.event.pull_request.number }}
+        run: |
+          unresolved=$(gh api graphql -F owner="$OWNER" -F repo="$REPO" -F num="$NUM" -f query='
+            query($owner:String!,$repo:String!,$num:Int!){
+              repository(owner:$owner, name:$repo){
+                pullRequest(number:$num){
+                  reviewThreads(first:100){ nodes { isResolved isOutdated } }
+                }
+              }
+            }' --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false and .isOutdated==false)] | length')
+          echo "Unresolved review threads: ${unresolved:-0}"
+          if [ "${unresolved:-0}" -gt 0 ]; then
+            echo "::error::${unresolved} unresolved review comment thread(s). Resolve every thread (incl. the code-review bot's) before merging."
+            exit 1
+          fi
+          echo "All review threads resolved ✅"
