@@ -105,8 +105,8 @@ func RegisterHooks(s *Settings, hooks []Hook) {
 	}
 
 	for _, h := range hooks {
-		if h.Lib {
-			continue
+		if h.Lib || h.Event == "" {
+			continue // lib files are copied only; empty event has nothing to register
 		}
 		if h.Event == statusLineEvent {
 			SetStatusLine(s, HookCommand(h))
@@ -401,9 +401,10 @@ func UnregisterHooks(s *Settings, hooks []Hook) {
 	}
 }
 
-// IsManagedCommand reports whether cmd targets a file under ~/.claude/hooks —
-// i.e. a hook vd manages. Recognition is path-based, not list-based, so it
-// needs no manifest.
+// IsManagedCommand reports whether cmd targets a file under ~/.claude/hooks.
+// Best-effort, path-based heuristic (needs no manifest): a hook a user hand-
+// placed in that directory would also match. Used only for an advisory "vd"
+// badge in the inventory UI, so a false positive is cosmetic.
 func IsManagedCommand(cmd string) bool {
 	return strings.Contains(cmd, hooksPathMarker)
 }

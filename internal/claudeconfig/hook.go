@@ -1,5 +1,7 @@
 package claudeconfig
 
+import "strings"
+
 // Hook describes one entry from the hooks manifest. A non-lib hook is registered
 // in settings.json under its Event; a lib hook is copied only (support file).
 type Hook struct {
@@ -28,7 +30,19 @@ func HookCommand(h Hook) string {
 		cmd = h.Runtime + " " + cmd
 	}
 	for _, a := range h.Args {
-		cmd += " " + a
+		cmd += " " + shellQuote(a)
 	}
 	return cmd
+}
+
+// shellMeta are characters that, unquoted, the shell would interpret.
+const shellMeta = " \t\n\"'`$\\&|;<>()*?[]{}~#!="
+
+// shellQuote returns a safe to bare token unchanged, else POSIX single-quotes it
+// (escaping embedded single quotes) so args with metacharacters cannot inject.
+func shellQuote(s string) string {
+	if s != "" && !strings.ContainsAny(s, shellMeta) {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

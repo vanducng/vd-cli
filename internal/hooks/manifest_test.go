@@ -106,6 +106,60 @@ event = "Stop"
 	}
 }
 
+func TestLoadManifestRejectsPathTraversal(t *testing.T) {
+	for _, bad := range []string{"../../etc/evil", "/etc/evil", "a/../../b"} {
+		path := writeManifest(t, "[[hook]]\nfile = \""+bad+"\"\nruntime = \"node\"\nevent = \"Stop\"\n")
+		if _, err := LoadManifest(path); err == nil {
+			t.Errorf("expected error for unsafe path %q, got nil", bad)
+		}
+	}
+}
+
+func TestLoadManifestRejectsUnknownField(t *testing.T) {
+	path := writeManifest(t, `
+[[hook]]
+file = "x.cjs"
+runtimes = "node"
+event = "Stop"
+`)
+	if _, err := LoadManifest(path); err == nil {
+		t.Fatal("expected error for unknown field (typo), got nil")
+	}
+}
+
+func TestLoadManifestRejectsUnknownEvent(t *testing.T) {
+	path := writeManifest(t, `
+[[hook]]
+file = "x.cjs"
+runtime = "node"
+event = "Stahp"
+`)
+	if _, err := LoadManifest(path); err == nil {
+		t.Fatal("expected error for unknown event, got nil")
+	}
+}
+
+func TestFilesDeduplicates(t *testing.T) {
+	path := writeManifest(t, `
+[[hook]]
+file = "notify.py"
+runtime = "python3"
+event = "Stop"
+
+[[hook]]
+file = "notify.py"
+runtime = "python3"
+event = "Notification"
+`)
+	hooks, err := LoadManifest(path)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+	if files := Files(hooks); len(files) != 1 || files[0] != "notify.py" {
+		t.Errorf("Files = %v, want [notify.py] (deduplicated)", files)
+	}
+}
+
 func TestFilesReturnsAll(t *testing.T) {
 	path := writeManifest(t, `
 [[hook]]

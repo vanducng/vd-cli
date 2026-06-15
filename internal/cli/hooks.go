@@ -14,23 +14,18 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/hooks"
 )
 
-// manifestPath returns <repoRoot>/hooks/hooks.toml for the resolved repo root.
-func manifestPath(flagRoot string) (string, error) {
-	root, err := resolveRepoRoot(flagRoot)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, "hooks", "hooks.toml"), nil
-}
-
 // loadManifestHooks resolves and loads the local hooks manifest.
 func loadManifestHooks(flagRoot string) ([]claudeconfig.Hook, error) {
-	path, err := manifestPath(flagRoot)
+	root, err := resolveRepoRoot(flagRoot)
 	if err != nil {
 		return nil, err
 	}
-	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
-		return nil, fmt.Errorf("no hooks/hooks.toml found at %s — vd installs hooks from a local manifest", filepath.Dir(filepath.Dir(path)))
+	path := filepath.Join(root, "hooks", "hooks.toml")
+	if _, statErr := os.Stat(path); statErr != nil {
+		if os.IsNotExist(statErr) {
+			return nil, fmt.Errorf("no hooks/hooks.toml found at %s — vd installs hooks from a local manifest", root)
+		}
+		return nil, fmt.Errorf("stat %s: %w", path, statErr)
 	}
 	return hooks.LoadManifest(path)
 }
