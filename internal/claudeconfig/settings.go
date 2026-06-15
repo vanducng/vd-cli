@@ -14,25 +14,9 @@ import (
 
 const settingsFile = "settings.json"
 
-// hookCommand returns the literal settings.json command string for a hook file.
-// $HOME is kept literal — the Claude hook runner shell-expands it, and using
-// a literal $HOME avoids baking a personal absolute path into the user's config.
-func hookCommand(hookFile string) string {
-	return `node "$HOME/.claude/hooks/` + hookFile + `"`
-}
-
-// managedHooks maps each Claude event to the hook .cjs file we register.
-var managedHooks = []struct {
-	event   string
-	matcher string
-	file    string
-}{
-	{event: "SessionStart", matcher: "startup|resume|clear|compact", file: "session-init.cjs"},
-	{event: "SubagentStart", matcher: "*", file: "subagent-init.cjs"},
-	{event: "UserPromptSubmit", matcher: "", file: "dev-rules-reminder.cjs"},
-	{event: "PreToolUse", matcher: "Bash|Glob|Grep|Read|Edit|Write", file: "scout-block.cjs"},
-	{event: "SubagentStart", matcher: "*", file: "team-context-inject.cjs"},
-}
+// statusLineEvent is the sentinel Event value routing a Hook to the statusLine
+// key instead of the hooks{} map.
+const statusLineEvent = "statusLine"
 
 // HookEntry is one entry in a hooks event array in settings.json.
 type HookEntry struct {
@@ -112,41 +96,46 @@ func readSettingsAt(path string) (*Settings, error) {
 	return s, nil
 }
 
-// RegisterHooks ensures each managed hook has an entry in s.Hooks, using
-// match-and-replace so an existing registration of the same hook file is
-// replaced rather than duplicated.
-func RegisterHooks(s *Settings) {
+// RegisterHooks registers each non-lib hook in s, using match-and-replace so an
+// existing registration of the same hook file is replaced rather than
+// duplicated. A hook with Event=="statusLine" patches the statusLine key.
+func RegisterHooks(s *Settings, hooks []Hook) {
 	if s.Hooks == nil {
 		s.Hooks = make(map[string][]HookEntry)
 	}
 
-	for _, mh := range managedHooks {
-		cmd := hookCommand(mh.file)
-		entries := s.Hooks[mh.event]
+	for _, h := range hooks {
+		if h.Lib {
+			continue
+		}
+		if h.Event == statusLineEvent {
+			SetStatusLine(s, HookCommand(h))
+			continue
+		}
 
+		cmd := HookCommand(h)
 		// Pass 1: remove any existing HookItem whose command targets our file.
-		cleanedEntries := removeHookCommand(entries, mh.file)
+		cleanedEntries := removeHookCommand(s.Hooks[h.Event], h.File)
 
 		// Pass 2: find or create the entry block matching our matcher.
 		blockIdx := -1
 		for i, e := range cleanedEntries {
-			if e.Matcher == mh.matcher {
+			if e.Matcher == h.Matcher {
 				blockIdx = i
 				break
 			}
 		}
 
 		item := HookItem{Type: "command", Command: cmd}
-
 		if blockIdx >= 0 {
 			cleanedEntries[blockIdx].Hooks = append([]HookItem{item}, cleanedEntries[blockIdx].Hooks...)
 		} else {
 			cleanedEntries = append([]HookEntry{
-				{Matcher: mh.matcher, Hooks: []HookItem{item}},
+				{Matcher: h.Matcher, Hooks: []HookItem{item}},
 			}, cleanedEntries...)
 		}
 
-		s.Hooks[mh.event] = cleanedEntries
+		s.Hooks[h.Event] = cleanedEntries
 	}
 }
 
@@ -357,22 +346,19 @@ func atomicWrite(path string, data []byte) error {
 	return nil
 }
 
-// statusLineCommand is the literal command written to the statusLine key.
-const statusLineCommand = `node "$HOME/.claude/hooks/statusline.cjs"`
-
 // statusLineEntry is the JSON object written to settings.json "statusLine".
 type statusLineEntry struct {
 	Type    string `json:"type"`
 	Command string `json:"command"`
 }
 
-// SetStatusLine patches the "statusLine" key in s using the raw bytes so that
-// repeated calls are idempotent (same bytes in → same bytes out).
-func SetStatusLine(s *Settings) {
+// SetStatusLine patches the "statusLine" key in s with cmd using the raw bytes
+// so that repeated calls are idempotent (same bytes in → same bytes out).
+func SetStatusLine(s *Settings, cmd string) {
 	if s.rawOrig == nil {
 		s.rawOrig = []byte(`{}`)
 	}
-	entry := statusLineEntry{Type: "command", Command: statusLineCommand}
+	entry := statusLineEntry{Type: "command", Command: cmd}
 	entryJSON, _ := json.Marshal(entry)
 	patched, err := sjson.SetRawBytes(s.rawOrig, "statusLine", entryJSON)
 	if err == nil {
@@ -391,38 +377,46 @@ func UnsetStatusLine(s *Settings) {
 	}
 }
 
-// UnregisterHooks removes only our managed hook commands from s.Hooks.
-// Matcher blocks that become empty are pruned; unmanaged hooks are untouched.
-func UnregisterHooks(s *Settings) {
-	if s.Hooks == nil {
-		return
-	}
-	for _, mh := range managedHooks {
-		if entries, ok := s.Hooks[mh.event]; ok {
-			s.Hooks[mh.event] = removeHookCommand(entries, mh.file)
-			if len(s.Hooks[mh.event]) == 0 {
-				delete(s.Hooks, mh.event)
+// UnregisterHooks removes the given hooks' commands from s. Matcher blocks that
+// become empty are pruned; unmanaged hooks are untouched. A statusLine hook
+// clears the statusLine key.
+func UnregisterHooks(s *Settings, hooks []Hook) {
+	for _, h := range hooks {
+		if h.Lib {
+			continue
+		}
+		if h.Event == statusLineEvent {
+			UnsetStatusLine(s)
+			continue
+		}
+		if s.Hooks == nil {
+			continue
+		}
+		if entries, ok := s.Hooks[h.Event]; ok {
+			s.Hooks[h.Event] = removeHookCommand(entries, h.File)
+			if len(s.Hooks[h.Event]) == 0 {
+				delete(s.Hooks, h.Event)
 			}
 		}
 	}
 }
 
-// IsManagedCommand reports whether cmd references one of vd's managed hook files.
+// IsManagedCommand reports whether cmd targets a file under ~/.claude/hooks —
+// i.e. a hook vd manages. Recognition is path-based, not list-based, so it
+// needs no manifest.
 func IsManagedCommand(cmd string) bool {
-	for _, mh := range managedHooks {
-		if strings.Contains(cmd, mh.file) {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(cmd, hooksPathMarker)
 }
 
-// IsRegistered reports whether all managed hooks are present in s.
-func IsRegistered(s *Settings) bool {
-	for _, mh := range managedHooks {
-		cmd := hookCommand(mh.file)
+// IsRegistered reports whether all non-lib, non-statusLine hooks are present in s.
+func IsRegistered(s *Settings, hooks []Hook) bool {
+	for _, h := range hooks {
+		if h.Lib || h.Event == statusLineEvent {
+			continue
+		}
+		cmd := HookCommand(h)
 		found := false
-		for _, entry := range s.Hooks[mh.event] {
+		for _, entry := range s.Hooks[h.Event] {
 			for _, item := range entry.Hooks {
 				if item.Command == cmd {
 					found = true

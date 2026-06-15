@@ -13,11 +13,11 @@ type Manifest struct {
 
 // HooksConfig holds the optional [hooks] block in skills.toml.
 type HooksConfig struct {
-	// Enabled lists hook filenames that vd should register in settings.json.
-	// Absent / empty means "register all managed hooks" (the default).
+	// Enabled optionally filters which hook files (by manifest file name) vd
+	// registers. Absent / empty means "register every hook in the manifest".
 	Enabled []string `toml:"enabled,omitempty"`
-	// Source is the origin of the hook files: "embed" (default) uses the
-	// built-in embedded assets; "local" uses a path relative to the repo root.
+	// Source is the origin of the hook files. Always local now (read from
+	// <repoRoot>/hooks); kept for forward compatibility.
 	Source string `toml:"source,omitempty"`
 }
 

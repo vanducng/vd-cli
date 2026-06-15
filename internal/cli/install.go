@@ -51,7 +51,7 @@ Agents:
   codex          installs skills into Codex discovery paths
   claude         registers and installs this repo as a Claude Code plugin
   claude --dev   per-skill symlink into $HOME/.claude/skills (mirrors codex)
-  hooks          deploys clean-room session/subagent hooks to $HOME/.claude/hooks`,
+  hooks          deploys hooks from hooks/hooks.toml to $HOME/.claude/hooks`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := resolveInstallRoot(cmd, flagRoot, opts.dryRun)
@@ -121,9 +121,9 @@ func runInstallTarget(cmd *cobra.Command, repoRoot, agent string, skills []strin
 		return runInstallClaude(cmd, repoRoot, opts)
 	case "hooks":
 		if len(skills) > 0 {
-			return fmt.Errorf("hooks install does not accept skill names; it deploys the embedded hook files")
+			return fmt.Errorf("hooks install does not accept skill names; it deploys the hooks listed in hooks/hooks.toml")
 		}
-		return runInstallHooks(cmd, opts)
+		return runInstallHooks(cmd, repoRoot, opts)
 	default:
 		return fmt.Errorf("unknown agent %q (valid: codex, claude, hooks)", agent)
 	}
@@ -240,7 +240,7 @@ func runInstallClaude(cmd *cobra.Command, repoRoot string, opts installOptions) 
 	return nil
 }
 
-func runInstallHooks(cmd *cobra.Command, opts installOptions) error {
+func runInstallHooks(cmd *cobra.Command, repoRoot string, opts installOptions) error {
 	dest := opts.dest
 	if dest == "" {
 		var err error
@@ -250,6 +250,16 @@ func runInstallHooks(cmd *cobra.Command, opts installOptions) error {
 		}
 	}
 
+	srcDir := filepath.Join(repoRoot, "hooks")
+	manifest := filepath.Join(srcDir, "hooks.toml")
+	if _, err := os.Stat(manifest); os.IsNotExist(err) {
+		return fmt.Errorf("no hooks/hooks.toml found at %s — vd installs hooks from a local manifest", repoRoot)
+	}
+	manifestHooks, err := hooks.LoadManifest(manifest)
+	if err != nil {
+		return err
+	}
+
 	if opts.dryRun {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "would install hooks to %s\n", dest)
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "would register hooks in settings.json (dry-run):")
@@ -257,15 +267,14 @@ func runInstallHooks(cmd *cobra.Command, opts installOptions) error {
 		if err != nil {
 			return fmt.Errorf("read settings: %w", err)
 		}
-		claudeconfig.RegisterHooks(s)
-		claudeconfig.SetStatusLine(s)
+		claudeconfig.RegisterHooks(s, manifestHooks)
 		if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{DryRun: true}); err != nil {
 			return err
 		}
 		return nil
 	}
 
-	results, err := hooks.Install(dest)
+	results, err := hooks.InstallFrom(srcDir, dest, hooks.Files(manifestHooks))
 	if err != nil {
 		return err
 	}
@@ -277,16 +286,11 @@ func runInstallHooks(cmd *cobra.Command, opts installOptions) error {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "hooks installed to %s\n", dest)
 	}
 
-	// Register hooks in settings.json. Live ~/.claude write is deferred to
-	// Phase 6; for now we use the default path (which IS ~/.claude/settings.json
-	// when dest is the real hooks dir). Tests pass an explicit --dest pointing
-	// to a temp dir, so the settings path is always derived independently.
 	s, err := claudeconfig.ReadSettings()
 	if err != nil {
 		return fmt.Errorf("read settings.json: %w", err)
 	}
-	claudeconfig.RegisterHooks(s)
-	claudeconfig.SetStatusLine(s)
+	claudeconfig.RegisterHooks(s, manifestHooks)
 	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{}); err != nil {
 		return fmt.Errorf("register hooks in settings.json: %w", err)
 	}
