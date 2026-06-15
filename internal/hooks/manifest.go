@@ -1,13 +1,26 @@
 package hooks
 
 import (
+	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 
 	toml "github.com/pelletier/go-toml/v2"
 
 	"github.com/vanducng/vd-cli/v2/internal/claudeconfig"
 )
+
+// knownEvents are the Claude hook events (plus the statusLine pseudo-event) a
+// manifest may target. A typo'd event would otherwise become a dead key in
+// settings.json.
+var knownEvents = map[string]bool{
+	"SessionStart": true, "SessionEnd": true, "UserPromptSubmit": true,
+	"PreToolUse": true, "PostToolUse": true, "Stop": true,
+	"SubagentStart": true, "SubagentStop": true, "Notification": true,
+	"PreCompact": true, "PermissionRequest": true, "statusLine": true,
+}
 
 // tomlHook mirrors one [[hook]] table in hooks.toml.
 type tomlHook struct {
@@ -35,8 +48,12 @@ func LoadManifest(path string) ([]claudeconfig.Hook, error) {
 		return nil, fmt.Errorf("read hooks manifest %s: %w", path, err)
 	}
 
+	// Strict decode so a typo'd field (e.g. `runtimes`) errors instead of
+	// silently producing an empty value.
 	var m tomlManifest
-	if err := toml.Unmarshal(data, &m); err != nil {
+	dec := toml.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&m); err != nil {
 		return nil, fmt.Errorf("parse hooks manifest %s: %w", path, err)
 	}
 
@@ -45,13 +62,23 @@ func LoadManifest(path string) ([]claudeconfig.Hook, error) {
 		if h.File == "" {
 			return nil, fmt.Errorf("%s: hook #%d has empty file", path, i+1)
 		}
+		// File is joined under the hooks dir on install — reject path traversal
+		// and absolute paths (fs.ValidPath rejects "..", leading "/", and ".").
+		if !fs.ValidPath(filepath.ToSlash(h.File)) {
+			return nil, fmt.Errorf("%s: hook %q has an unsafe file path", path, h.File)
+		}
 		switch h.Runtime {
 		case "", "node", "python3":
 		default:
 			return nil, fmt.Errorf("%s: hook %q has invalid runtime %q (valid: node, python3, or empty)", path, h.File, h.Runtime)
 		}
-		if !h.Lib && h.Event == "" {
-			return nil, fmt.Errorf("%s: hook %q needs an event (or set lib = true)", path, h.File)
+		if !h.Lib {
+			if h.Event == "" {
+				return nil, fmt.Errorf("%s: hook %q needs an event (or set lib = true)", path, h.File)
+			}
+			if !knownEvents[h.Event] {
+				return nil, fmt.Errorf("%s: hook %q has unknown event %q", path, h.File, h.Event)
+			}
 		}
 		hooks = append(hooks, claudeconfig.Hook{
 			File:    h.File,
@@ -65,10 +92,17 @@ func LoadManifest(path string) ([]claudeconfig.Hook, error) {
 	return hooks, nil
 }
 
-// Files returns every hook file (lib and non-lib), suitable for InstallFrom.
+// Files returns each unique hook file (lib and non-lib), suitable for
+// InstallFrom. The same file may be registered for multiple events; it is
+// copied once.
 func Files(hooks []claudeconfig.Hook) []string {
+	seen := make(map[string]bool, len(hooks))
 	files := make([]string, 0, len(hooks))
 	for _, h := range hooks {
+		if seen[h.File] {
+			continue
+		}
+		seen[h.File] = true
 		files = append(files, h.File)
 	}
 	return files

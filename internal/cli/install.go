@@ -252,8 +252,11 @@ func runInstallHooks(cmd *cobra.Command, repoRoot string, opts installOptions) e
 
 	srcDir := filepath.Join(repoRoot, "hooks")
 	manifest := filepath.Join(srcDir, "hooks.toml")
-	if _, err := os.Stat(manifest); os.IsNotExist(err) {
-		return fmt.Errorf("no hooks/hooks.toml found at %s — vd installs hooks from a local manifest", repoRoot)
+	if _, err := os.Stat(manifest); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no hooks/hooks.toml found at %s — vd installs hooks from a local manifest", repoRoot)
+		}
+		return fmt.Errorf("stat %s: %w", manifest, err)
 	}
 	manifestHooks, err := hooks.LoadManifest(manifest)
 	if err != nil {
