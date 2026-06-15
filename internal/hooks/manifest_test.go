@@ -127,6 +127,23 @@ event = "Stop"
 	}
 }
 
+func TestLoadManifestAcceptsCodexNotifyEvent(t *testing.T) {
+	path := writeManifest(t, `
+[[hook]]
+file = "agent-notify.py"
+runtime = "python3"
+event = "codex.notify"
+args = ["codex"]
+`)
+	hooks, err := LoadManifest(path)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+	if len(hooks) != 1 || hooks[0].Event != "codex.notify" {
+		t.Errorf("codex.notify hook parsed wrong: %+v", hooks)
+	}
+}
+
 func TestLoadManifestRejectsUnknownEvent(t *testing.T) {
 	path := writeManifest(t, `
 [[hook]]

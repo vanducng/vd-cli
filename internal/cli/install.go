@@ -274,6 +274,12 @@ func runInstallHooks(cmd *cobra.Command, repoRoot string, opts installOptions) e
 		if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{DryRun: true}); err != nil {
 			return err
 		}
+		for _, h := range manifestHooks {
+			if h.Event == "codex.notify" {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "would wire Codex notify: %s\n",
+					strings.Join(claudeconfig.CodexNotifyCommand(h, dest), " "))
+			}
+		}
 		return nil
 	}
 
@@ -300,6 +306,37 @@ func runInstallHooks(cmd *cobra.Command, repoRoot string, opts installOptions) e
 
 	if !flagQuiet {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "hooks registered in settings.json")
+	}
+
+	return wireCodexNotify(cmd, manifestHooks, dest)
+}
+
+// wireCodexNotify registers each codex.notify hook into ~/.codex/config.toml.
+func wireCodexNotify(cmd *cobra.Command, manifestHooks []claudeconfig.Hook, dest string) error {
+	var codexPath string
+	for _, h := range manifestHooks {
+		if h.Event != "codex.notify" {
+			continue
+		}
+		if codexPath == "" {
+			var err error
+			codexPath, err = claudeconfig.CodexConfigPath()
+			if err != nil {
+				return err
+			}
+		}
+		command := claudeconfig.CodexNotifyCommand(h, dest)
+		prev, err := claudeconfig.WireCodexNotify(codexPath, command)
+		if err != nil {
+			return fmt.Errorf("wire Codex notify: %w", err)
+		}
+		if !flagQuiet {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "wired Codex notify in %s\n", codexPath)
+			if prev != "" {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(),
+					"note: replaced existing Codex notify (set CODEX_NOTIFY_FORWARD in your env to chain it): %s\n", prev)
+			}
+		}
 	}
 	return nil
 }

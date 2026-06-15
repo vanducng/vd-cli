@@ -1,13 +1,16 @@
 package claudeconfig
 
-import "strings"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // Hook describes one entry from the hooks manifest. A non-lib hook is registered
 // in settings.json under its Event; a lib hook is copied only (support file).
 type Hook struct {
 	File    string   // path relative to the hooks dir, e.g. "session-init.cjs" or "lib/config.cjs"
 	Runtime string   // "node" | "python3" | "" (direct exec via shebang)
-	Event   string   // Claude event (SessionStart, Stop, ...) or "statusLine"
+	Event   string   // Claude event (SessionStart, Stop, ...), "statusLine", or "codex.notify"
 	Matcher string   // optional matcher
 	Args    []string // extra argv appended after the file path
 	Lib     bool     // true => support file only (copied, never registered)
@@ -32,6 +35,23 @@ func HookCommand(h Hook) string {
 	for _, a := range h.Args {
 		cmd += " " + shellQuote(a)
 	}
+	return cmd
+}
+
+// CodexNotifyCommand builds the exec array Codex runs for a codex.notify hook.
+// Codex execs the program DIRECTLY (no shell), so the hook path must be absolute
+// (joined under hooksDir, the real install dest — not the $HOME-literal form).
+// The runtime is prepended as argv[0] when set; otherwise the absolute path is
+// argv[0]. Args are appended.
+func CodexNotifyCommand(h Hook, hooksDir string) []string {
+	abs := filepath.Join(hooksDir, filepath.FromSlash(h.File))
+	cmd := make([]string, 0, 2+len(h.Args))
+	if h.Runtime != "" {
+		cmd = append(cmd, h.Runtime, abs)
+	} else {
+		cmd = append(cmd, abs)
+	}
+	cmd = append(cmd, h.Args...)
 	return cmd
 }
 
