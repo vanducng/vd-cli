@@ -38,7 +38,7 @@ func HookCommand(h Hook) string {
 // shellMeta are characters that, unquoted, the shell would interpret.
 const shellMeta = " \t\n\"'`$\\&|;<>()*?[]{}~#!="
 
-// shellQuote returns a safe to bare token unchanged, else POSIX single-quotes it
+// shellQuote returns a safe bare token unchanged, else POSIX single-quotes it
 // (escaping embedded single quotes) so args with metacharacters cannot inject.
 func shellQuote(s string) string {
 	if s != "" && !strings.ContainsAny(s, shellMeta) {
