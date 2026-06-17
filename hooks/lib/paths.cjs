@@ -369,7 +369,7 @@ function computeFeatureId(ticket, slug) {
     const desc = slug ? slug.replace(new RegExp(`^${pre}-?${num}-?`, 'i'), '') : '';
     return cleanSlug((desc ? `${ticket}-${desc}` : ticket).toLowerCase());
   }
-  if (slug) return cleanSlug(slug);
+  if (slug) return cleanSlug(slug.toLowerCase()); // lowercase for parity with the ticket branch
   return null;
 }
 
@@ -505,6 +505,7 @@ module.exports = {
   slugFromBranch,
   extractIssueFromBranch,
   resolveUmbrellaRoot,
+  cleanSlug,
   extractTicketFromBranch,
   computeFeatureId,
   resolveFeatureId,

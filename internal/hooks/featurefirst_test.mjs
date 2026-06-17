@@ -43,6 +43,7 @@ ok('strips duplicate ticket', computeFeatureId('ELT-3316', 'ELT-3316-manual-uplo
 ok('joins ticket+slug', computeFeatureId('ELT-3316', 'manual-upload') === 'elt-3316-manual-upload');
 ok('ticket only', computeFeatureId('ELT-3316', '') === 'elt-3316');
 ok('slug only', computeFeatureId(null, 'retell-binding') === 'retell-binding');
+ok('slug-only lowercases for parity', computeFeatureId(null, 'My-Cool-Slug') === 'my-cool-slug');
 
 console.log('gating (layout flag):');
 let d = repo('feat/ELT-3316-manual-upload');
