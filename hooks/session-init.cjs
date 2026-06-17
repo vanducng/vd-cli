@@ -24,7 +24,10 @@ try {
     resolvePlanPath,
     extractTaskListId,
     getGitBranch,
-    getGitRoot
+    getGitRoot,
+    resolveFeatureRoot,
+    getGlobalPath,
+    getArchivePath
   } = require('./lib/paths.cjs');
   const { readSessionState, updateSessionState } = require('./lib/state.cjs');
 
@@ -119,7 +122,7 @@ try {
     const config = loadConfig();
 
     // Resolve plan (session lookup needs the state reader injected)
-    const resolved = resolvePlanPath(sessionId, config, readSessionState);
+    const resolved = resolvePlanPath(sessionId, config, readSessionState, baseDir);
 
     // Persist session state
     if (sessionId) {
@@ -149,6 +152,11 @@ try {
     const visualsPathAbs  = umbrellaVal ? getVisualsPath(baseDir, config)  : null;
     const journalsPathAbs = umbrellaVal ? getJournalsPath(baseDir, config) : null;
     const statePathAbs    = umbrellaVal ? getStatePath(baseDir, config)    : null;
+    // Feature-first additions are gated so type-first output stays byte-identical.
+    const featureFirst = !!umbrellaVal && (config.paths?.layout === 'feature-first');
+    const featurePathAbs = featureFirst ? resolveFeatureRoot(config, baseDir) : null;
+    const globalPathAbs  = featureFirst ? getGlobalPath(baseDir, config)  : null;
+    const archivePathAbs = featureFirst ? getArchivePath(baseDir, config) : null;
 
     const taskListId = extractTaskListId(resolved);
 
@@ -194,6 +202,12 @@ try {
         writeEnv(envFile, 'VD_VISUALS_PATH',  visualsPathAbs);
         writeEnv(envFile, 'VD_JOURNALS_PATH', journalsPathAbs);
         writeEnv(envFile, 'VD_STATE_PATH',    statePathAbs);
+        // Feature-first only — keeps the type-first env output byte-identical.
+        if (featureFirst) {
+          writeEnv(envFile, 'VD_FEATURE_PATH', featurePathAbs);
+          writeEnv(envFile, 'VD_GLOBAL_PATH',  globalPathAbs);
+          writeEnv(envFile, 'VD_ARCHIVE_PATH', archivePathAbs);
+        }
       }
       writeEnv(envFile, 'VD_PROJECT_TYPE', projectType);
       writeEnv(envFile, 'VD_PACKAGE_MANAGER', packageManager);

@@ -24,7 +24,8 @@ try {
     resolvePlanPath,
     extractTaskListId,
     getGitBranch,
-    resolveSkillsVenv
+    resolveSkillsVenv,
+    resolveFeatureRoot
   } = require('./lib/paths.cjs');
   const { readSessionState } = require('./lib/state.cjs');
 
@@ -51,7 +52,7 @@ try {
     // Re-derive naming pattern independently (not from env)
     const namePattern = resolveNamingPattern(config.plan, gitBranch);
 
-    const resolved = resolvePlanPath(sessionId, config, readSessionState);
+    const resolved = resolvePlanPath(sessionId, config, readSessionState, baseDir);
     const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config);
     const plansPath = getPlansPath(baseDir, config);
     const docsPath = getDocsPath(baseDir, config);
@@ -59,6 +60,8 @@ try {
     const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config)  : null;
     const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config) : null;
     const statePath    = umbrellaVal ? getStatePath(baseDir, config)    : null;
+    const featureFirst = !!umbrellaVal && (config.paths?.layout === 'feature-first');
+    const featureRoot  = featureFirst ? resolveFeatureRoot(config, baseDir) : null;
 
     const activePlan = resolved.resolvedBy === 'session' ? resolved.path : '';
     const suggestedPlan = resolved.resolvedBy === 'branch' ? resolved.path : '';
@@ -94,6 +97,7 @@ try {
     } else {
       lines.push(`- Paths: ${plansPath}/ | ${docsPath}/`);
     }
+    if (featureFirst) lines.push(`- Feature: ${featureRoot}/`);
     lines.push('');
 
     const hasThinking = effectiveThinking && effectiveThinking !== responseLang;

@@ -26,7 +26,8 @@ try {
     resolveNamingPattern,
     resolvePlanPath,
     getGitBranch,
-    resolveSkillsVenv
+    resolveSkillsVenv,
+    resolveFeatureRoot
   } = require('./lib/paths.cjs');
   const { readSessionState } = require('./lib/state.cjs');
 
@@ -42,7 +43,7 @@ try {
     const gitBranch = getGitBranch(baseDir);
     const namePattern = resolveNamingPattern(config.plan, gitBranch);
 
-    const resolved = resolvePlanPath(sessionId, config, readSessionState);
+    const resolved = resolvePlanPath(sessionId, config, readSessionState, baseDir);
     const reportsPath = getReportsPath(resolved.path, resolved.resolvedBy, config.plan, config.paths, baseDir, config);
     const plansPath = getPlansPath(baseDir, config);
     const docsPath = getDocsPath(baseDir, config);
@@ -51,6 +52,8 @@ try {
     const visualsPath  = umbrellaVal ? getVisualsPath(baseDir, config)  : null;
     const journalsPath = umbrellaVal ? getJournalsPath(baseDir, config) : null;
     const statePath    = umbrellaVal ? getStatePath(baseDir, config)    : null;
+    const featureFirst = !!umbrellaVal && (config.paths?.layout === 'feature-first');
+    const featureRoot  = featureFirst ? resolveFeatureRoot(config, baseDir) : null;
 
     const skillsVenv = resolveSkillsVenv(baseDir);
 
@@ -62,6 +65,7 @@ try {
     } else {
       lines.push(`Reports: ${reportsPath}/ | Plans: ${plansPath}/ | Docs: ${docsPath}/`);
     }
+    if (featureFirst) lines.push(`Feature: ${featureRoot}/`);
     lines.push('');
 
     lines.push('## Naming');
