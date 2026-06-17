@@ -4,6 +4,19 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.2.0](https://github.com/vanducng/vd-cli/compare/v3.1.0...v3.2.0) (2026-06-17)
+
+
+### Features
+
+* **hooks:** feature-first .workbench resolver + injection (gated, type-first default) ([b47dac6](https://github.com/vanducng/vd-cli/commit/b47dac685dcd531d07b007c4f6783fc46f4f1b7e))
+* **hooks:** feature-first .workbench resolver + injection (gated) ([cc48320](https://github.com/vanducng/vd-cli/commit/cc4832088c5fd8a65fa8daf66e5e53b752dc934e))
+
+
+### Bug Fixes
+
+* **hooks:** lowercase slug-only feature id + export cleanSlug ([d0a3d8e](https://github.com/vanducng/vd-cli/commit/d0a3d8e869b01e0d555fe0a709c927c12c61e1f0))
+
 ## [3.1.0](https://github.com/vanducng/vd-cli/compare/v3.0.1...v3.1.0) (2026-06-15)
 
 
