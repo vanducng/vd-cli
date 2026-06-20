@@ -33,7 +33,7 @@ function runGit(args, cwd) {
 function getGitBranch(cwd) { return runGit(['branch', '--show-current'], cwd); }
 
 function getGitRoot(cwd) {
-  const key = cwd || process.cwd();
+  const key = realpathSafe(cwd || process.cwd());
   if (_gitRootCache.has(key)) return _gitRootCache.get(key);
   const result = runGit(['rev-parse', '--show-toplevel'], cwd);
   _gitRootCache.set(key, result);
@@ -46,7 +46,7 @@ function getGitRoot(cwd) {
 // (the .workbench umbrella) survive `git worktree remove` instead of dying with the tree.
 const _mainRootCache = new Map();
 function getMainWorktreeRoot(cwd) {
-  const key = cwd || process.cwd();
+  const key = realpathSafe(cwd || process.cwd());
   if (_mainRootCache.has(key)) return _mainRootCache.get(key);
   let result = null;
   const out = runGit(['worktree', 'list', '--porcelain'], cwd);
@@ -68,6 +68,69 @@ function getMainWorktreeRoot(cwd) {
 
 // ── path helpers ──────────────────────────────────────────────────────────
 
+/** Resolve symlinks for a stable path comparison; fall back to path.resolve. */
+function realpathSafe(p) {
+  try { return fs.realpathSync(p); } catch { return path.resolve(p); }
+}
+
+function stripPathTrailingSeparators(p) {
+  // Preserve root-only paths; stripping them would turn "/" into "".
+  if (/^[/\\]+$/.test(p)) return p[0];
+  if (process.platform === 'win32' && /^[a-zA-Z]:[\\/]$/.test(p)) return p;
+  return p.replace(/[/\\]+$/, '');
+}
+
+function isCaseInsensitivePathPlatform() {
+  return process.platform === 'win32' || process.platform === 'darwin';
+}
+
+function samePath(a, b) {
+  if (!a || !b) return false;
+  const aa = stripPathTrailingSeparators(process.platform === 'win32' ? a.replace(/\//g, '\\') : a);
+  const bb = stripPathTrailingSeparators(process.platform === 'win32' ? b.replace(/\//g, '\\') : b);
+  // macOS defaults to case-insensitive APFS/HFS+. Case-sensitive APFS volumes
+  // exist; detect per-volume sensitivity if that becomes necessary.
+  return isCaseInsensitivePathPlatform() ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
+}
+
+function getHomeReal() {
+  const home = os.homedir();
+  return home ? realpathSafe(home) : null;
+}
+
+function nearestGitBoundary(startReal, stopReal) {
+  startReal = stripPathTrailingSeparators(startReal);
+  stopReal = stripPathTrailingSeparators(stopReal);
+  let dir = startReal;
+  let depth = 0;
+  // Safety limit; legitimate paths rarely exceed this depth below $HOME.
+  const maxDepth = 64;
+  // The caller skips the startReal === stopReal case; this handles subdirs under $HOME.
+  if (!samePath(startReal, stopReal)) {
+    // Reject same-drive paths outside $HOME before an unrelated ancestor .git can become the anchor.
+    const caseInsensitive = isCaseInsensitivePathPlatform();
+    const normStop = path.normalize(stopReal);
+    const normDir = path.normalize(dir);
+    const rel = path.relative(
+      caseInsensitive ? normStop.toLowerCase() : normStop,
+      caseInsensitive ? normDir.toLowerCase() : normDir
+    );
+    if (path.isAbsolute(rel) || rel === '..' || rel.startsWith('..' + path.sep)) return null;
+  }
+  while (!samePath(dir, stopReal)) {
+    // Detects .git directories and gitfiles; bare repos are intentionally out of scope here.
+    if (fs.existsSync(path.join(dir, '.git'))) return dir;
+    if (++depth > maxDepth) {
+      // Safety valve: caller falls back to the working dir when traversal is too deep.
+      return null;
+    }
+    const parent = path.dirname(dir);
+    if (samePath(parent, dir)) return null;
+    dir = parent;
+  }
+  return null;
+}
+
 /** Strip trailing slashes; return null if blank after trim. */
 function stripTrailing(p) {
   if (!p || typeof p !== 'string') return null;
@@ -82,16 +145,37 @@ const normalizePath = stripTrailing;
  * Resolve the umbrella root directory when umbrella is active.
  * Anchored to the MAIN worktree so artifacts written from inside a linked
  * worktree land in the main repo's umbrella (and survive `git worktree remove`).
- * Returns absolute path to <mainRoot>/<umbrella>, or null when umbrella is not set.
+ * Returns absolute path to <mainRoot>/<umbrella>; under a stray $HOME repo with
+ * no nested git boundary, falls back to <workingDir>/<umbrella>.
  */
 function resolveUmbrellaRoot(config, baseDir) {
   const umbrella = config?.paths?.umbrella;
   if (!umbrella) return null;
   // Main worktree == local git-root in a normal checkout (byte-identical), and the
   // main checkout when inside a linked worktree. config._gitRoot (the LOCAL root,
-  // used for docs which stay branch-local) is only a last-resort fallback.
-  const gitRoot = getMainWorktreeRoot(baseDir) || config._gitRoot || getGitRoot(baseDir);
+  // used for docs which stay branch-local) is an absolute last-resort fallback.
+  // Normalize the base so git helper cache keys are stable across symlinked CWDs.
+  const gitBaseDir = realpathSafe(baseDir || process.cwd());
+  // Prefer a fresh lookup for gitBaseDir before the config-load cwd fallback.
+  let gitRoot = getMainWorktreeRoot(gitBaseDir) || getGitRoot(gitBaseDir) || config._gitRoot;
   if (!gitRoot) return null;
+  gitRoot = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot));
+  // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
+  // `git init ~`) would otherwise swallow every project below it and scatter
+  // .workbench into the home dir. When the resolved root is exactly $HOME but the
+  // working dir is a real subdir below it, prefer the nearest nested git boundary;
+  // otherwise anchor to the working dir so artifacts stay with the project.
+  const homeReal = getHomeReal();
+  if (homeReal && samePath(gitRoot, homeReal)) {
+    if (!samePath(gitBaseDir, homeReal)) {
+      // No nested .git found: fall back to the working dir so artifacts stay local
+      // instead of being absorbed into a stray $HOME repo. This anchors to CWD
+      // when no proper project root exists above it.
+      gitRoot = nearestGitBoundary(gitBaseDir, homeReal) || gitBaseDir;
+    } else {
+      // Running from $HOME itself has no project-local alternative; keep $HOME.
+    }
+  }
   return path.join(gitRoot, umbrella);
 }
 
