@@ -87,6 +87,18 @@ func TestResolveUmbrellaRoot_HomeAncestorNoHijack(t *testing.T) {
 	if got := resolve(repoSubdir, fakeHome); realpath(t, filepath.Dir(got)) != realpath(t, repoRoot) || filepath.Base(got) != ".workbench" {
 		t.Errorf("nested git boundary: umbrella = %q, want %q", got, wantRepo)
 	}
+
+	outsideRoot := t.TempDir()
+	outsideSubdir := filepath.Join(outsideRoot, "subdir")
+	if err := os.MkdirAll(filepath.Join(outsideRoot, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(outsideSubdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolve(outsideSubdir, fakeHome); realpath(t, filepath.Dir(got)) != realpath(t, outsideSubdir) || filepath.Base(got) != ".workbench" {
+		t.Errorf("outside home boundary: umbrella = %q, want base dir under %q", got, outsideSubdir)
+	}
 }
 
 func realpath(t *testing.T, p string) string {

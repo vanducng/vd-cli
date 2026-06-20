@@ -80,6 +80,8 @@ const _homeReal = (() => {
 
 function nearestGitBoundary(startDir, stopReal) {
   let dir = realpathSafe(startDir);
+  const rel = path.relative(stopReal, dir);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   while (dir !== stopReal) {
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
     const parent = path.dirname(dir);
