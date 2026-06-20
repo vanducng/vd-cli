@@ -75,9 +75,8 @@ function realpathSafe(p) {
 
 function samePath(a, b) {
   if (!a || !b) return a === b;
-  return process.platform === 'win32'
-    ? a.toLowerCase() === b.toLowerCase()
-    : a === b;
+  if (process.platform !== 'win32') return a === b;
+  return a.replace(/\//g, '\\').toLowerCase() === b.replace(/\//g, '\\').toLowerCase();
 }
 
 let _homeRealKey;
@@ -139,7 +138,8 @@ function resolveUmbrellaRoot(config, baseDir) {
   const homeReal = getHomeReal();
   if (homeReal && baseDir) {
     const baseReal = realpathSafe(baseDir);
-    if (!samePath(baseReal, homeReal) && samePath(realpathSafe(gitRoot), homeReal)) {
+    const gitRootReal = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot));
+    if (!samePath(baseReal, homeReal) && samePath(gitRootReal, homeReal)) {
       // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
       gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
     }

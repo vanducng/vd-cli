@@ -47,7 +47,7 @@ func TestResolveUmbrellaRoot_HomeAncestorNoHijack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resolve := func(baseDir, gitRoot string) string {
+	resolveWithHome := func(home, baseDir, gitRoot string) string {
 		t.Helper()
 		script := `const p=require(process.env.PCJS);` +
 			`const c={paths:{umbrella:'.workbench'}};` +
@@ -55,12 +55,16 @@ func TestResolveUmbrellaRoot_HomeAncestorNoHijack(t *testing.T) {
 			`process.stdout.write(p.resolveUmbrellaRoot(c, process.env.BASE) || 'NULL');`
 		cmd := exec.Command("node", "-e", script)
 		// HOME drives os.homedir() inside the resolver — point it at the stray repo.
-		cmd.Env = append(os.Environ(), "PCJS="+pathsCJS, "BASE="+baseDir, "HOME="+fakeHome, "GIT_ROOT="+gitRoot)
+		cmd.Env = append(os.Environ(), "PCJS="+pathsCJS, "BASE="+baseDir, "HOME="+home, "GIT_ROOT="+gitRoot)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("node resolve(%s): %v\n%s", baseDir, err, out)
 		}
 		return strings.TrimSpace(string(out))
+	}
+	resolve := func(baseDir, gitRoot string) string {
+		t.Helper()
+		return resolveWithHome(fakeHome, baseDir, gitRoot)
 	}
 
 	got := resolve(project, "")
@@ -98,6 +102,19 @@ func TestResolveUmbrellaRoot_HomeAncestorNoHijack(t *testing.T) {
 	}
 	if got := resolve(outsideSubdir, fakeHome); realpath(t, filepath.Dir(got)) != realpath(t, outsideSubdir) || filepath.Base(got) != ".workbench" {
 		t.Errorf("outside home boundary: umbrella = %q, want base dir under %q", got, outsideSubdir)
+	}
+
+	relHome := t.TempDir()
+	relProject := filepath.Join(relHome, "git", "personal", "relproj")
+	if err := os.MkdirAll(relProject, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	relGitRoot, err := filepath.Rel(relProject, relHome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveWithHome(relHome, relProject, relGitRoot); realpath(t, filepath.Dir(got)) != realpath(t, relProject) || filepath.Base(got) != ".workbench" {
+		t.Errorf("relative fallback git root: umbrella = %q, want base dir under %q", got, relProject)
 	}
 }
 
