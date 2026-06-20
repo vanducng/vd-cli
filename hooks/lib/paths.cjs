@@ -81,8 +81,8 @@ function samePath(a, b) {
   if (!a || !b) return false;
   const aa = stripPathTrailingSeparators(process.platform === 'win32' ? a.replace(/\//g, '\\') : a);
   const bb = stripPathTrailingSeparators(process.platform === 'win32' ? b.replace(/\//g, '\\') : b);
-  // Windows is case-insensitive. macOS defaults to case-insensitive APFS/HFS+,
-  // but case-sensitive APFS volumes exist; detect per-volume sensitivity if that matters.
+  // macOS defaults to case-insensitive APFS/HFS+. Case-sensitive APFS volumes
+  // exist; detect per-volume sensitivity if that becomes necessary.
   const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin';
   return caseInsensitive ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
 }
@@ -150,7 +150,7 @@ function resolveUmbrellaRoot(config, baseDir) {
     const gitRootPath = path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot);
     const gitRootReal = realpathSafe(gitRootPath);
     if (!samePath(baseReal, homeReal) && samePath(gitRootReal, homeReal)) {
-      // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
+      // No nested .git leaves no better project-local anchor; keep artifacts with the caller.
       gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
     }
   }
