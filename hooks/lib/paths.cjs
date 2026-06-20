@@ -109,9 +109,11 @@ function nearestGitBoundary(startReal, stopReal) {
   if (!samePath(startReal, stopReal)) {
     // Reject same-drive paths outside $HOME before an unrelated ancestor .git can become the anchor.
     const caseInsensitive = isCaseInsensitivePathPlatform();
+    const normStop = path.normalize(stopReal);
+    const normDir = path.normalize(dir);
     const rel = path.relative(
-      caseInsensitive ? stopReal.toLowerCase() : stopReal,
-      caseInsensitive ? dir.toLowerCase() : dir
+      caseInsensitive ? normStop.toLowerCase() : normStop,
+      caseInsensitive ? normDir.toLowerCase() : normDir
     );
     if (path.isAbsolute(rel) || rel === '..' || rel.startsWith('..' + path.sep)) return null;
   }
@@ -154,7 +156,7 @@ function resolveUmbrellaRoot(config, baseDir) {
   // used for docs which stay branch-local) is an absolute last-resort fallback.
   // Normalize the base so git helper cache keys are stable across symlinked CWDs.
   const gitBaseDir = realpathSafe(baseDir || process.cwd());
-  let gitRoot = getMainWorktreeRoot(gitBaseDir) || config._gitRoot || getGitRoot(gitBaseDir);
+  let gitRoot = getMainWorktreeRoot(gitBaseDir) || getGitRoot(gitBaseDir) || config._gitRoot;
   if (!gitRoot) return null;
   gitRoot = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot));
   // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
