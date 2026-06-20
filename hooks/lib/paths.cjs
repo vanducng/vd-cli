@@ -103,7 +103,7 @@ function nearestGitBoundary(startReal, stopReal) {
   if (!samePath(startReal, stopReal)) {
     // path.isAbsolute handles Windows cross-drive relative paths.
     const rel = path.relative(stopReal, dir);
-    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+    if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   }
   while (!samePath(dir, stopReal)) {
     // Detects .git directories and gitfiles; bare repos are intentionally out of scope here.
@@ -138,7 +138,8 @@ function resolveUmbrellaRoot(config, baseDir) {
   // Main worktree == local git-root in a normal checkout (byte-identical), and the
   // main checkout when inside a linked worktree. config._gitRoot (the LOCAL root,
   // used for docs which stay branch-local) is only a last-resort fallback.
-  let gitRoot = getMainWorktreeRoot(baseDir) || config._gitRoot || getGitRoot(baseDir);
+  const gitBaseDir = realpathSafe(baseDir || process.cwd());
+  let gitRoot = getMainWorktreeRoot(gitBaseDir) || config._gitRoot || getGitRoot(gitBaseDir);
   if (!gitRoot) return null;
   // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
   // `git init ~`) would otherwise swallow every project below it and scatter
@@ -147,8 +148,8 @@ function resolveUmbrellaRoot(config, baseDir) {
   // otherwise anchor to the working dir so artifacts stay with the project.
   const homeReal = getHomeReal();
   if (homeReal && baseDir) {
-    const baseReal = realpathSafe(baseDir);
-    const gitRootPath = path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot);
+    const baseReal = gitBaseDir;
+    const gitRootPath = path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot);
     const gitRootReal = realpathSafe(gitRootPath);
     if (!samePath(baseReal, homeReal) && samePath(gitRootReal, homeReal)) {
       // No nested .git found: fall back to the working dir so artifacts stay local
