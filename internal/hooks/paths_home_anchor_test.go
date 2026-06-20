@@ -47,21 +47,23 @@ func TestResolveUmbrellaRoot_HomeAncestorNoHijack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resolve := func(baseDir string) string {
+	resolve := func(baseDir, gitRoot string) string {
 		t.Helper()
 		script := `const p=require(process.env.PCJS);` +
-			`process.stdout.write(p.resolveUmbrellaRoot({paths:{umbrella:'.workbench'}}, process.env.BASE) || 'NULL');`
+			`const c={paths:{umbrella:'.workbench'}};` +
+			`if (process.env.GIT_ROOT) c._gitRoot=process.env.GIT_ROOT;` +
+			`process.stdout.write(p.resolveUmbrellaRoot(c, process.env.BASE) || 'NULL');`
 		cmd := exec.Command("node", "-e", script)
 		// HOME drives os.homedir() inside the resolver — point it at the stray repo.
-		cmd.Env = append(os.Environ(), "PCJS="+pathsCJS, "BASE="+project, "HOME="+fakeHome)
+		cmd.Env = append(os.Environ(), "PCJS="+pathsCJS, "BASE="+baseDir, "HOME="+fakeHome, "GIT_ROOT="+gitRoot)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("node resolve(%s): %v\n%s", project, err, out)
+			t.Fatalf("node resolve(%s): %v\n%s", baseDir, err, out)
 		}
 		return strings.TrimSpace(string(out))
 	}
 
-	got := resolve(project)
+	got := resolve(project, "")
 	wantProject := filepath.Join(project, ".workbench")
 	homeUmbrella := filepath.Join(fakeHome, ".workbench")
 
@@ -71,6 +73,18 @@ func TestResolveUmbrellaRoot_HomeAncestorNoHijack(t *testing.T) {
 	}
 	if realpath(t, got) != realpath(t, wantProject) {
 		t.Errorf("umbrella = %q, want project-anchored %q", got, wantProject)
+	}
+
+	repoRoot := filepath.Join(fakeHome, "git", "personal", "repo")
+	repoSubdir := filepath.Join(repoRoot, "subdir")
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(repoSubdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolve(repoSubdir, fakeHome); got != filepath.Join(repoRoot, ".workbench") {
+		t.Errorf("nested git boundary: umbrella = %q, want %q", got, filepath.Join(repoRoot, ".workbench"))
 	}
 }
 

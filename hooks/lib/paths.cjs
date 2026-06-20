@@ -73,6 +73,22 @@ function realpathSafe(p) {
   try { return fs.realpathSync(p); } catch { return path.resolve(p); }
 }
 
+const _homeReal = (() => {
+  const home = os.homedir();
+  return home ? realpathSafe(home) : null;
+})();
+
+function nearestGitBoundary(startDir, stopReal) {
+  let dir = path.resolve(startDir);
+  while (realpathSafe(dir) !== stopReal) {
+    if (fs.existsSync(path.join(dir, '.git'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+  return null;
+}
+
 /** Strip trailing slashes; return null if blank after trim. */
 function stripTrailing(p) {
   if (!p || typeof p !== 'string') return null;
@@ -100,12 +116,11 @@ function resolveUmbrellaRoot(config, baseDir) {
   // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
   // `git init ~`) would otherwise swallow every project below it and scatter
   // .workbench into the home dir. When the resolved root is exactly $HOME but the
-  // working dir is a real subdir below it, anchor to the working dir so artifacts
-  // stay with the project (matches docs, which are always baseDir-anchored).
-  const home = os.homedir();
-  if (home && baseDir && realpathSafe(gitRoot) === realpathSafe(home)
-      && realpathSafe(baseDir) !== realpathSafe(home)) {
-    gitRoot = baseDir;
+  // working dir is a real subdir below it, prefer the nearest nested git boundary;
+  // otherwise anchor to the working dir so artifacts stay with the project.
+  const baseReal = baseDir ? realpathSafe(baseDir) : null;
+  if (_homeReal && baseDir && realpathSafe(gitRoot) === _homeReal && baseReal !== _homeReal) {
+    gitRoot = nearestGitBoundary(baseDir, _homeReal) || baseDir;
   }
   return path.join(gitRoot, umbrella);
 }
