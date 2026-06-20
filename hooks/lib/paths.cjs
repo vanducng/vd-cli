@@ -74,7 +74,7 @@ function realpathSafe(p) {
 }
 
 function samePath(a, b) {
-  if (!a || !b) return a === b;
+  if (!a || !b) return false;
   const aa = process.platform === 'win32' ? a.replace(/\//g, '\\') : a;
   const bb = process.platform === 'win32' ? b.replace(/\//g, '\\') : b;
   // macOS defaults to case-insensitive APFS/HFS+; case-sensitive volumes may differ.
@@ -99,7 +99,7 @@ function nearestGitBoundary(startReal, stopReal) {
   if (!samePath(startReal, stopReal)) {
     // path.isAbsolute handles Windows cross-drive relative paths.
     const rel = path.relative(stopReal, dir);
-    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+    if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   }
   while (!samePath(dir, stopReal)) {
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
