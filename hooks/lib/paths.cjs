@@ -86,6 +86,7 @@ function getHomeReal() {
 
 function nearestGitBoundary(startReal, stopReal) {
   let dir = startReal;
+  // path.isAbsolute handles Windows cross-drive relative paths.
   const rel = path.relative(stopReal, dir);
   if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   while (dir !== stopReal) {
