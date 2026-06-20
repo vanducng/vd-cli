@@ -81,10 +81,8 @@ function samePath(a, b) {
   if (!a || !b) return false;
   const aa = stripPathTrailingSeparators(process.platform === 'win32' ? a.replace(/\//g, '\\') : a);
   const bb = stripPathTrailingSeparators(process.platform === 'win32' ? b.replace(/\//g, '\\') : b);
-  // macOS defaults to case-insensitive APFS/HFS+; case-sensitive volumes may differ.
-  return process.platform === 'win32' || process.platform === 'darwin'
-    ? aa.toLowerCase() === bb.toLowerCase()
-    : aa === bb;
+  // POSIX callers compare realpath-normalized paths; Darwin may be case-sensitive.
+  return process.platform === 'win32' ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
 }
 
 let _homeRealKey;
@@ -108,6 +106,7 @@ function nearestGitBoundary(startReal, stopReal) {
     if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   }
   while (!samePath(dir, stopReal)) {
+    // Detects .git directories and gitfiles; bare repos are intentionally out of scope here.
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
     if (++depth > 64) return null;
     const parent = path.dirname(dir);
