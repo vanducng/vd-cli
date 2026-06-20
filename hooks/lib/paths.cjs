@@ -89,7 +89,10 @@ function nearestGitBoundary(startReal, stopReal) {
   // path.isAbsolute handles Windows cross-drive relative paths.
   const rel = path.relative(stopReal, dir);
   if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
-  while (dir !== stopReal) {
+  const samePath = process.platform === 'win32'
+    ? (a, b) => a.toLowerCase() === b.toLowerCase()
+    : (a, b) => a === b;
+  while (!samePath(dir, stopReal)) {
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
