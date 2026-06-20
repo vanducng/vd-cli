@@ -81,21 +81,15 @@ function samePath(a, b) {
   if (!a || !b) return false;
   const aa = stripPathTrailingSeparators(process.platform === 'win32' ? a.replace(/\//g, '\\') : a);
   const bb = stripPathTrailingSeparators(process.platform === 'win32' ? b.replace(/\//g, '\\') : b);
-  // Windows and default macOS filesystems are case-insensitive; Linux stays byte-exact.
+  // Windows is case-insensitive. macOS defaults to case-insensitive APFS/HFS+,
+  // but case-sensitive APFS volumes exist; detect per-volume sensitivity if that matters.
   const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin';
   return caseInsensitive ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
 }
 
-let _homeRealKey;
-let _homeRealValue;
 function getHomeReal() {
   const home = os.homedir();
-  // Keyed by current homedir so HOME/USERPROFILE test changes invalidate the cached realpath.
-  if (home !== _homeRealKey) {
-    _homeRealKey = home;
-    _homeRealValue = home ? realpathSafe(home) : null;
-  }
-  return _homeRealValue;
+  return home ? realpathSafe(home) : null;
 }
 
 function nearestGitBoundary(startReal, stopReal) {
