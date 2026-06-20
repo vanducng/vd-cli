@@ -74,6 +74,7 @@ function realpathSafe(p) {
 }
 
 function stripPathTrailingSeparators(p) {
+  // Preserve root-only paths; stripping them would turn "/" into "".
   if (/^[/\\]+$/.test(p)) return p[0];
   if (process.platform === 'win32' && /^[a-zA-Z]:[\\/]$/.test(p)) return p;
   return p.replace(/[/\\]+$/, '');
@@ -150,6 +151,7 @@ function resolveUmbrellaRoot(config, baseDir) {
   const gitBaseDir = realpathSafe(baseDir || process.cwd());
   let gitRoot = getMainWorktreeRoot(gitBaseDir) || config._gitRoot || getGitRoot(gitBaseDir);
   if (!gitRoot) return null;
+  gitRoot = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot));
   // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
   // `git init ~`) would otherwise swallow every project below it and scatter
   // .workbench into the home dir. When the resolved root is exactly $HOME but the
@@ -157,9 +159,7 @@ function resolveUmbrellaRoot(config, baseDir) {
   // otherwise anchor to the working dir so artifacts stay with the project.
   const homeReal = getHomeReal();
   if (homeReal && baseDir) {
-    const gitRootPath = path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot);
-    const gitRootReal = realpathSafe(gitRootPath);
-    if (!samePath(gitBaseDir, homeReal) && samePath(gitRootReal, homeReal)) {
+    if (!samePath(gitBaseDir, homeReal) && samePath(gitRoot, homeReal)) {
       // No nested .git found: fall back to the working dir so artifacts stay local
       // instead of being absorbed into a stray $HOME repo. This anchors to CWD
       // when no proper project root exists above it.
