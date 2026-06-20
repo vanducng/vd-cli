@@ -103,7 +103,7 @@ function nearestGitBoundary(startReal, stopReal) {
   const maxDepth = 64;
   // The caller skips the startReal === stopReal case; this handles subdirs under $HOME.
   if (!samePath(startReal, stopReal)) {
-    // path.isAbsolute handles Windows cross-drive relative paths.
+    // Reject paths outside $HOME before an unrelated ancestor .git can become the anchor.
     const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin';
     const rel = path.relative(
       caseInsensitive ? stopReal.toLowerCase() : stopReal,
@@ -157,14 +157,13 @@ function resolveUmbrellaRoot(config, baseDir) {
   // otherwise anchor to the working dir so artifacts stay with the project.
   const homeReal = getHomeReal();
   if (homeReal && baseDir) {
-    const baseReal = gitBaseDir;
     const gitRootPath = path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot);
     const gitRootReal = realpathSafe(gitRootPath);
-    if (!samePath(baseReal, homeReal) && samePath(gitRootReal, homeReal)) {
+    if (!samePath(gitBaseDir, homeReal) && samePath(gitRootReal, homeReal)) {
       // No nested .git found: fall back to the working dir so artifacts stay local
       // instead of being absorbed into a stray $HOME repo. This anchors to CWD
       // when no proper project root exists above it.
-      gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
+      gitRoot = nearestGitBoundary(gitBaseDir, homeReal) || gitBaseDir;
     }
   }
   return path.join(gitRoot, umbrella);
