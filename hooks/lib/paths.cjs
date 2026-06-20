@@ -80,14 +80,17 @@ function stripPathTrailingSeparators(p) {
   return p.replace(/[/\\]+$/, '');
 }
 
+function isCaseInsensitivePathPlatform() {
+  return process.platform === 'win32' || process.platform === 'darwin';
+}
+
 function samePath(a, b) {
   if (!a || !b) return false;
   const aa = stripPathTrailingSeparators(process.platform === 'win32' ? a.replace(/\//g, '\\') : a);
   const bb = stripPathTrailingSeparators(process.platform === 'win32' ? b.replace(/\//g, '\\') : b);
   // macOS defaults to case-insensitive APFS/HFS+. Case-sensitive APFS volumes
   // exist; detect per-volume sensitivity if that becomes necessary.
-  const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin';
-  return caseInsensitive ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
+  return isCaseInsensitivePathPlatform() ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
 }
 
 function getHomeReal() {
@@ -105,7 +108,7 @@ function nearestGitBoundary(startReal, stopReal) {
   // The caller skips the startReal === stopReal case; this handles subdirs under $HOME.
   if (!samePath(startReal, stopReal)) {
     // Reject paths outside $HOME before an unrelated ancestor .git can become the anchor.
-    const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin';
+    const caseInsensitive = isCaseInsensitivePathPlatform();
     const rel = path.relative(
       caseInsensitive ? stopReal.toLowerCase() : stopReal,
       caseInsensitive ? dir.toLowerCase() : dir
@@ -148,6 +151,7 @@ function resolveUmbrellaRoot(config, baseDir) {
   // Main worktree == local git-root in a normal checkout (byte-identical), and the
   // main checkout when inside a linked worktree. config._gitRoot (the LOCAL root,
   // used for docs which stay branch-local) is only a last-resort fallback.
+  // Normalize the base so git helper cache keys are stable across symlinked CWDs.
   const gitBaseDir = realpathSafe(baseDir || process.cwd());
   let gitRoot = getMainWorktreeRoot(gitBaseDir) || config._gitRoot || getGitRoot(gitBaseDir);
   if (!gitRoot) return null;
@@ -158,7 +162,7 @@ function resolveUmbrellaRoot(config, baseDir) {
   // working dir is a real subdir below it, prefer the nearest nested git boundary;
   // otherwise anchor to the working dir so artifacts stay with the project.
   const homeReal = getHomeReal();
-  if (homeReal && baseDir) {
+  if (homeReal) {
     if (!samePath(gitBaseDir, homeReal) && samePath(gitRoot, homeReal)) {
       // No nested .git found: fall back to the working dir so artifacts stay local
       // instead of being absorbed into a stray $HOME repo. This anchors to CWD
