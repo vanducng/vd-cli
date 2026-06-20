@@ -99,6 +99,8 @@ function getHomeReal() {
 }
 
 function nearestGitBoundary(startReal, stopReal) {
+  startReal = stripPathTrailingSeparators(startReal);
+  stopReal = stripPathTrailingSeparators(stopReal);
   let dir = startReal;
   let depth = 0;
   // Safety limit; legitimate paths rarely exceed this depth below $HOME.
@@ -106,7 +108,7 @@ function nearestGitBoundary(startReal, stopReal) {
   if (!samePath(startReal, stopReal)) {
     // path.isAbsolute handles Windows cross-drive relative paths.
     const rel = path.relative(stopReal, dir);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return null;
   }
   while (!samePath(dir, stopReal)) {
     // Detects .git directories and gitfiles; bare repos are intentionally out of scope here.
@@ -153,7 +155,7 @@ function resolveUmbrellaRoot(config, baseDir) {
     const baseReal = realpathSafe(baseDir);
     const gitRootPath = path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot);
     const gitRootReal = realpathSafe(gitRootPath);
-    if (!samePath(baseReal, homeReal) && (samePath(gitRootReal, homeReal) || samePath(gitRootPath, homeReal))) {
+    if (!samePath(baseReal, homeReal) && (samePath(gitRootReal, homeReal) || samePath(stripPathTrailingSeparators(gitRootPath), homeReal))) {
       // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
       gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
     }
