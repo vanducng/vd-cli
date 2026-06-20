@@ -73,6 +73,13 @@ function realpathSafe(p) {
   try { return fs.realpathSync(p); } catch { return path.resolve(p); }
 }
 
+function samePath(a, b) {
+  if (!a || !b) return a === b;
+  return process.platform === 'win32'
+    ? a.toLowerCase() === b.toLowerCase()
+    : a === b;
+}
+
 let _homeRealKey;
 let _homeRealValue;
 function getHomeReal() {
@@ -86,12 +93,11 @@ function getHomeReal() {
 
 function nearestGitBoundary(startReal, stopReal) {
   let dir = startReal;
-  // path.isAbsolute handles Windows cross-drive relative paths.
-  const rel = path.relative(stopReal, dir);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
-  const samePath = process.platform === 'win32'
-    ? (a, b) => a.toLowerCase() === b.toLowerCase()
-    : (a, b) => a === b;
+  if (!samePath(startReal, stopReal)) {
+    // path.isAbsolute handles Windows cross-drive relative paths.
+    const rel = path.relative(stopReal, dir);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  }
   while (!samePath(dir, stopReal)) {
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
     const parent = path.dirname(dir);
@@ -133,7 +139,7 @@ function resolveUmbrellaRoot(config, baseDir) {
   const homeReal = getHomeReal();
   if (homeReal && baseDir) {
     const baseReal = realpathSafe(baseDir);
-    if (baseReal !== homeReal && realpathSafe(gitRoot) === homeReal) {
+    if (!samePath(baseReal, homeReal) && samePath(realpathSafe(gitRoot), homeReal)) {
       // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
       gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
     }
