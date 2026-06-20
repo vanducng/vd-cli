@@ -113,7 +113,7 @@ function nearestGitBoundary(startReal, stopReal) {
       caseInsensitive ? stopReal.toLowerCase() : stopReal,
       caseInsensitive ? dir.toLowerCase() : dir
     );
-    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+    if (path.isAbsolute(rel) || rel === '..' || rel.startsWith('..' + path.sep)) return null;
   }
   while (!samePath(dir, stopReal)) {
     // Detects .git directories and gitfiles; bare repos are intentionally out of scope here.
