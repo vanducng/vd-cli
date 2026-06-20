@@ -33,7 +33,7 @@ function runGit(args, cwd) {
 function getGitBranch(cwd) { return runGit(['branch', '--show-current'], cwd); }
 
 function getGitRoot(cwd) {
-  const key = cwd || process.cwd();
+  const key = realpathSafe(cwd || process.cwd());
   if (_gitRootCache.has(key)) return _gitRootCache.get(key);
   const result = runGit(['rev-parse', '--show-toplevel'], cwd);
   _gitRootCache.set(key, result);
@@ -46,7 +46,7 @@ function getGitRoot(cwd) {
 // (the .workbench umbrella) survive `git worktree remove` instead of dying with the tree.
 const _mainRootCache = new Map();
 function getMainWorktreeRoot(cwd) {
-  const key = cwd || process.cwd();
+  const key = realpathSafe(cwd || process.cwd());
   if (_mainRootCache.has(key)) return _mainRootCache.get(key);
   let result = null;
   const out = runGit(['worktree', 'list', '--porcelain'], cwd);
@@ -156,6 +156,7 @@ function resolveUmbrellaRoot(config, baseDir) {
   // used for docs which stay branch-local) is an absolute last-resort fallback.
   // Normalize the base so git helper cache keys are stable across symlinked CWDs.
   const gitBaseDir = realpathSafe(baseDir || process.cwd());
+  // Prefer a fresh lookup for gitBaseDir before the config-load cwd fallback.
   let gitRoot = getMainWorktreeRoot(gitBaseDir) || getGitRoot(gitBaseDir) || config._gitRoot;
   if (!gitRoot) return null;
   gitRoot = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot));
