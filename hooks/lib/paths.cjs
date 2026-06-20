@@ -77,9 +77,10 @@ function samePath(a, b) {
   if (!a || !b) return a === b;
   const aa = process.platform === 'win32' ? a.replace(/\//g, '\\') : a;
   const bb = process.platform === 'win32' ? b.replace(/\//g, '\\') : b;
+  // macOS defaults to case-insensitive APFS/HFS+; case-sensitive volumes may differ.
   return process.platform === 'win32' || process.platform === 'darwin'
     ? aa.toLowerCase() === bb.toLowerCase()
-    : a === b;
+    : aa === bb;
 }
 
 let _homeRealKey;
@@ -103,7 +104,7 @@ function nearestGitBoundary(startReal, stopReal) {
   while (!samePath(dir, stopReal)) {
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
     const parent = path.dirname(dir);
-    if (parent === dir) return null;
+    if (samePath(parent, dir)) return null;
     dir = parent;
   }
   return null;
@@ -144,7 +145,7 @@ function resolveUmbrellaRoot(config, baseDir) {
     const gitRootReal = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot));
     if (!samePath(baseReal, homeReal) && samePath(gitRootReal, homeReal)) {
       // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
-      gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
+      gitRoot = nearestGitBoundary(baseReal, homeReal) || baseDir;
     }
   }
   return path.join(gitRoot, umbrella);
