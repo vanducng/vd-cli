@@ -71,7 +71,7 @@ func TestResolveUmbrellaRoot_HomeAncestorNoHijack(t *testing.T) {
 	if realpath(t, got) == realpath(t, homeUmbrella) {
 		t.Fatalf("umbrella hijacked to $HOME: got %q, must anchor to project %q", got, wantProject)
 	}
-	if realpath(t, got) != realpath(t, wantProject) {
+	if realpath(t, filepath.Dir(got)) != realpath(t, project) || filepath.Base(got) != ".workbench" {
 		t.Errorf("umbrella = %q, want project-anchored %q", got, wantProject)
 	}
 
