@@ -81,7 +81,8 @@ function samePath(a, b) {
   if (!a || !b) return false;
   const aa = stripPathTrailingSeparators(process.platform === 'win32' ? a.replace(/\//g, '\\') : a);
   const bb = stripPathTrailingSeparators(process.platform === 'win32' ? b.replace(/\//g, '\\') : b);
-  // POSIX callers compare realpath-normalized paths; Darwin may be case-sensitive.
+  // POSIX callers pass realpath-normalized paths, so byte comparison is safe.
+  // macOS APFS is usually case-insensitive, but realpathSync normalizes to on-disk casing.
   return process.platform === 'win32' ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
 }
 
