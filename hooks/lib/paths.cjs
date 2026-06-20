@@ -107,7 +107,7 @@ function nearestGitBoundary(startReal, stopReal) {
   const maxDepth = 64;
   // The caller skips the startReal === stopReal case; this handles subdirs under $HOME.
   if (!samePath(startReal, stopReal)) {
-    // Reject paths outside $HOME before an unrelated ancestor .git can become the anchor.
+    // Reject same-drive paths outside $HOME before an unrelated ancestor .git can become the anchor.
     const caseInsensitive = isCaseInsensitivePathPlatform();
     const rel = path.relative(
       caseInsensitive ? stopReal.toLowerCase() : stopReal,
@@ -143,14 +143,15 @@ const normalizePath = stripTrailing;
  * Resolve the umbrella root directory when umbrella is active.
  * Anchored to the MAIN worktree so artifacts written from inside a linked
  * worktree land in the main repo's umbrella (and survive `git worktree remove`).
- * Returns absolute path to <mainRoot>/<umbrella>, or null when umbrella is not set.
+ * Returns absolute path to <mainRoot>/<umbrella>; under a stray $HOME repo with
+ * no nested git boundary, falls back to <workingDir>/<umbrella>.
  */
 function resolveUmbrellaRoot(config, baseDir) {
   const umbrella = config?.paths?.umbrella;
   if (!umbrella) return null;
   // Main worktree == local git-root in a normal checkout (byte-identical), and the
   // main checkout when inside a linked worktree. config._gitRoot (the LOCAL root,
-  // used for docs which stay branch-local) is only a last-resort fallback.
+  // used for docs which stay branch-local) is an absolute last-resort fallback.
   // Normalize the base so git helper cache keys are stable across symlinked CWDs.
   const gitBaseDir = realpathSafe(baseDir || process.cwd());
   let gitRoot = getMainWorktreeRoot(gitBaseDir) || config._gitRoot || getGitRoot(gitBaseDir);
