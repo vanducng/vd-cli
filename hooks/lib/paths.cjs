@@ -84,8 +84,8 @@ function getHomeReal() {
   return _homeRealValue;
 }
 
-function nearestGitBoundary(startDir, stopReal) {
-  let dir = realpathSafe(startDir);
+function nearestGitBoundary(startReal, stopReal) {
+  let dir = startReal;
   const rel = path.relative(stopReal, dir);
   if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   while (dir !== stopReal) {
@@ -130,7 +130,8 @@ function resolveUmbrellaRoot(config, baseDir) {
   if (homeReal && baseDir) {
     const baseReal = realpathSafe(baseDir);
     if (baseReal !== homeReal && realpathSafe(gitRoot) === homeReal) {
-      gitRoot = nearestGitBoundary(baseDir, homeReal) || baseReal;
+      // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
+      gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
     }
   }
   return path.join(gitRoot, umbrella);
