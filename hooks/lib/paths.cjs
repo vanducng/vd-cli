@@ -79,8 +79,8 @@ const _homeReal = (() => {
 })();
 
 function nearestGitBoundary(startDir, stopReal) {
-  let dir = path.resolve(startDir);
-  while (realpathSafe(dir) !== stopReal) {
+  let dir = realpathSafe(startDir);
+  while (dir !== stopReal) {
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
@@ -118,9 +118,11 @@ function resolveUmbrellaRoot(config, baseDir) {
   // .workbench into the home dir. When the resolved root is exactly $HOME but the
   // working dir is a real subdir below it, prefer the nearest nested git boundary;
   // otherwise anchor to the working dir so artifacts stay with the project.
-  const baseReal = baseDir ? realpathSafe(baseDir) : null;
-  if (_homeReal && baseDir && realpathSafe(gitRoot) === _homeReal && baseReal !== _homeReal) {
-    gitRoot = nearestGitBoundary(baseDir, _homeReal) || baseDir;
+  if (_homeReal && baseDir) {
+    const baseReal = realpathSafe(baseDir);
+    if (baseReal !== _homeReal && realpathSafe(gitRoot) === _homeReal) {
+      gitRoot = nearestGitBoundary(baseDir, _homeReal) || baseDir;
+    }
   }
   return path.join(gitRoot, umbrella);
 }
