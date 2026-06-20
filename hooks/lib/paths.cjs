@@ -100,6 +100,8 @@ function getHomeReal() {
 function nearestGitBoundary(startReal, stopReal) {
   let dir = startReal;
   let depth = 0;
+  // Safety limit; legitimate paths rarely exceed this depth below $HOME.
+  const maxDepth = 64;
   if (!samePath(startReal, stopReal)) {
     // path.isAbsolute handles Windows cross-drive relative paths.
     const rel = path.relative(stopReal, dir);
@@ -108,7 +110,7 @@ function nearestGitBoundary(startReal, stopReal) {
   while (!samePath(dir, stopReal)) {
     // Detects .git directories and gitfiles; bare repos are intentionally out of scope here.
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
-    if (++depth > 64) return null;
+    if (++depth > maxDepth) return null;
     const parent = path.dirname(dir);
     if (samePath(parent, dir)) return null;
     dir = parent;
