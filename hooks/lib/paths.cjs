@@ -101,6 +101,7 @@ function getHomeReal() {
 
 function nearestGitBoundary(startReal, stopReal) {
   let dir = startReal;
+  let depth = 0;
   if (!samePath(startReal, stopReal)) {
     // path.isAbsolute handles Windows cross-drive relative paths.
     const rel = path.relative(stopReal, dir);
@@ -108,6 +109,7 @@ function nearestGitBoundary(startReal, stopReal) {
   }
   while (!samePath(dir, stopReal)) {
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
+    if (++depth > 64) return null;
     const parent = path.dirname(dir);
     if (samePath(parent, dir)) return null;
     dir = parent;
