@@ -75,8 +75,11 @@ function realpathSafe(p) {
 
 function samePath(a, b) {
   if (!a || !b) return a === b;
-  if (process.platform !== 'win32') return a === b;
-  return a.replace(/\//g, '\\').toLowerCase() === b.replace(/\//g, '\\').toLowerCase();
+  const aa = process.platform === 'win32' ? a.replace(/\//g, '\\') : a;
+  const bb = process.platform === 'win32' ? b.replace(/\//g, '\\') : b;
+  return process.platform === 'win32' || process.platform === 'darwin'
+    ? aa.toLowerCase() === bb.toLowerCase()
+    : a === b;
 }
 
 let _homeRealKey;
@@ -95,7 +98,7 @@ function nearestGitBoundary(startReal, stopReal) {
   if (!samePath(startReal, stopReal)) {
     // path.isAbsolute handles Windows cross-drive relative paths.
     const rel = path.relative(stopReal, dir);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
   }
   while (!samePath(dir, stopReal)) {
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
