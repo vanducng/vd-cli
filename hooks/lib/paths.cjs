@@ -68,6 +68,11 @@ function getMainWorktreeRoot(cwd) {
 
 // ── path helpers ──────────────────────────────────────────────────────────
 
+/** Resolve symlinks for a stable path comparison; fall back to path.resolve. */
+function realpathSafe(p) {
+  try { return fs.realpathSync(p); } catch { return path.resolve(p); }
+}
+
 /** Strip trailing slashes; return null if blank after trim. */
 function stripTrailing(p) {
   if (!p || typeof p !== 'string') return null;
@@ -90,8 +95,18 @@ function resolveUmbrellaRoot(config, baseDir) {
   // Main worktree == local git-root in a normal checkout (byte-identical), and the
   // main checkout when inside a linked worktree. config._gitRoot (the LOCAL root,
   // used for docs which stay branch-local) is only a last-resort fallback.
-  const gitRoot = getMainWorktreeRoot(baseDir) || config._gitRoot || getGitRoot(baseDir);
+  let gitRoot = getMainWorktreeRoot(baseDir) || config._gitRoot || getGitRoot(baseDir);
   if (!gitRoot) return null;
+  // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
+  // `git init ~`) would otherwise swallow every project below it and scatter
+  // .workbench into the home dir. When the resolved root is exactly $HOME but the
+  // working dir is a real subdir below it, anchor to the working dir so artifacts
+  // stay with the project (matches docs, which are always baseDir-anchored).
+  const home = os.homedir();
+  if (home && baseDir && realpathSafe(gitRoot) === realpathSafe(home)
+      && realpathSafe(baseDir) !== realpathSafe(home)) {
+    gitRoot = baseDir;
+  }
   return path.join(gitRoot, umbrella);
 }
 
