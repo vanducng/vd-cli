@@ -148,8 +148,9 @@ function resolveUmbrellaRoot(config, baseDir) {
   const homeReal = getHomeReal();
   if (homeReal && baseDir) {
     const baseReal = realpathSafe(baseDir);
-    const gitRootReal = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot));
-    if (!samePath(baseReal, homeReal) && samePath(gitRootReal, homeReal)) {
+    const gitRootPath = path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot);
+    const gitRootReal = realpathSafe(gitRootPath);
+    if (!samePath(baseReal, homeReal) && (samePath(gitRootReal, homeReal) || samePath(gitRootPath, homeReal))) {
       // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
       gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
     }
