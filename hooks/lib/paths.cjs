@@ -113,7 +113,7 @@ function nearestGitBoundary(startReal, stopReal) {
       caseInsensitive ? stopReal.toLowerCase() : stopReal,
       caseInsensitive ? dir.toLowerCase() : dir
     );
-    if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null;
   }
   while (!samePath(dir, stopReal)) {
     // Detects .git directories and gitfiles; bare repos are intentionally out of scope here.
@@ -163,12 +163,14 @@ function resolveUmbrellaRoot(config, baseDir) {
   // working dir is a real subdir below it, prefer the nearest nested git boundary;
   // otherwise anchor to the working dir so artifacts stay with the project.
   const homeReal = getHomeReal();
-  if (homeReal) {
-    if (!samePath(gitBaseDir, homeReal) && samePath(gitRoot, homeReal)) {
+  if (homeReal && samePath(gitRoot, homeReal)) {
+    if (!samePath(gitBaseDir, homeReal)) {
       // No nested .git found: fall back to the working dir so artifacts stay local
       // instead of being absorbed into a stray $HOME repo. This anchors to CWD
       // when no proper project root exists above it.
       gitRoot = nearestGitBoundary(gitBaseDir, homeReal) || gitBaseDir;
+    } else {
+      // Running from $HOME itself has no project-local alternative; keep $HOME.
     }
   }
   return path.join(gitRoot, umbrella);
