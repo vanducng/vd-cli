@@ -4,6 +4,39 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.2.1](https://github.com/vanducng/vd-cli/compare/v3.2.0...v3.2.1) (2026-06-20)
+
+
+### Bug Fixes
+
+* **hooks:** align home guard path comparisons ([698b62b](https://github.com/vanducng/vd-cli/commit/698b62be28163185e3148808a923b37db222cfee))
+* **hooks:** avoid repeated realpath calls in home guard ([9e6a2ee](https://github.com/vanducng/vd-cli/commit/9e6a2ee1c7730ff9fc6b1d6580b28a7285093f7e))
+* **hooks:** bound home boundary traversal ([2664819](https://github.com/vanducng/vd-cli/commit/266481960f14c34523d8e4070cb179a840b43af5))
+* **hooks:** canonicalize home guard fallback ([770639d](https://github.com/vanducng/vd-cli/commit/770639d2103d86b5626970e46e28c098a539e98d))
+* **hooks:** centralize path case handling ([5bd7dff](https://github.com/vanducng/vd-cli/commit/5bd7dffeb82aecea3c045763ded33302c1919f36))
+* **hooks:** clarify home path comparison contract ([5cf2777](https://github.com/vanducng/vd-cli/commit/5cf2777fd3181de7af040bb888ebe12a61136d1d))
+* **hooks:** compare home scan paths case-insensitively on windows ([338df4d](https://github.com/vanducng/vd-cli/commit/338df4d0704582a3f68f483944fe7d496655e359))
+* **hooks:** compare resolved git root fallback ([e5434d2](https://github.com/vanducng/vd-cli/commit/e5434d2c85418efee7ea91ab96fb2168714b4025))
+* **hooks:** constrain home boundary scan ([f768727](https://github.com/vanducng/vd-cli/commit/f7687271212a053f91e33020679b54af2e785650))
+* **hooks:** document home boundary path assumptions ([cdd4dcb](https://github.com/vanducng/vd-cli/commit/cdd4dcb8fa197890a983b51f2c7100488177cb12))
+* **hooks:** guard umbrella against a stray $HOME ancestor repo ([b300b46](https://github.com/vanducng/vd-cli/commit/b300b469011bf1f4188c2e5118259c80020f4832))
+* **hooks:** guard umbrella against a stray $HOME ancestor repo ([b65bdb9](https://github.com/vanducng/vd-cli/commit/b65bdb9c94309138aa93ee71547e731a8e602042))
+* **hooks:** harden home boundary containment ([0997b1c](https://github.com/vanducng/vd-cli/commit/0997b1cfacd5c37b57e7b6d63c2012a2816c61d0))
+* **hooks:** harden home path equality checks ([1a72844](https://github.com/vanducng/vd-cli/commit/1a72844aa4dfefc1ac297ead02e05fdb8ffc0481))
+* **hooks:** normalize git helper cache keys ([356748a](https://github.com/vanducng/vd-cli/commit/356748a8378b21a02c6957532a62da435f890642))
+* **hooks:** normalize home boundary inputs ([3cff898](https://github.com/vanducng/vd-cli/commit/3cff898e9c094753c1cf8c48e8f5a35e0ebc8e8e))
+* **hooks:** normalize home guard fallback paths ([dd6a57f](https://github.com/vanducng/vd-cli/commit/dd6a57fdc42e76e7c7205ee169488862ed9c8cfc))
+* **hooks:** normalize home path separators ([4ad6609](https://github.com/vanducng/vd-cli/commit/4ad6609d92120b487b8f95ffc34cc475543bf387))
+* **hooks:** normalize home relative inputs ([11dccf3](https://github.com/vanducng/vd-cli/commit/11dccf366a654699ab726244275f915f7e6e7cbe))
+* **hooks:** normalize umbrella git base dir ([ea1edba](https://github.com/vanducng/vd-cli/commit/ea1edba98bafe028cb38fc9b6c1bf07b38e357a1))
+* **hooks:** normalize umbrella git root ([197f455](https://github.com/vanducng/vd-cli/commit/197f4554c009e143e03d4ac6e4785d7cecbc1015))
+* **hooks:** preserve nested git anchor under home guard ([c03ff17](https://github.com/vanducng/vd-cli/commit/c03ff1768ca71574abcf1ce18708a47d9a8b3d88))
+* **hooks:** reuse canonical base in home scan ([ebf2bc3](https://github.com/vanducng/vd-cli/commit/ebf2bc31290027007a6be48129fc2bfb222f047a))
+* **hooks:** simplify git root home comparison ([0dde531](https://github.com/vanducng/vd-cli/commit/0dde53121e2a77c4eebcc5d4e7a41641c2d4bb05))
+* **hooks:** simplify home realpath lookup ([f02cda2](https://github.com/vanducng/vd-cli/commit/f02cda2279f40d500904e8346a15457f076012cc))
+* **hooks:** tighten home relative guard ([0b35610](https://github.com/vanducng/vd-cli/commit/0b35610c1d1062f5355919f247af5817276564a7))
+* **hooks:** use consistent path equality in home guard ([6b25dd4](https://github.com/vanducng/vd-cli/commit/6b25dd467a5a72d2fb1eb5f7e5486280a5333923))
+
 ## [3.2.0](https://github.com/vanducng/vd-cli/compare/v3.1.0...v3.2.0) (2026-06-17)
 
 
