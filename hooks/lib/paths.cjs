@@ -73,10 +73,14 @@ function realpathSafe(p) {
   try { return fs.realpathSync(p); } catch { return path.resolve(p); }
 }
 
+function stripPathTrailingSeparators(p) {
+  return p.replace(/[/\\]+$/, '');
+}
+
 function samePath(a, b) {
   if (!a || !b) return false;
-  const aa = process.platform === 'win32' ? a.replace(/\//g, '\\') : a;
-  const bb = process.platform === 'win32' ? b.replace(/\//g, '\\') : b;
+  const aa = stripPathTrailingSeparators(process.platform === 'win32' ? a.replace(/\//g, '\\') : a);
+  const bb = stripPathTrailingSeparators(process.platform === 'win32' ? b.replace(/\//g, '\\') : b);
   // macOS defaults to case-insensitive APFS/HFS+; case-sensitive volumes may differ.
   return process.platform === 'win32' || process.platform === 'darwin'
     ? aa.toLowerCase() === bb.toLowerCase()
@@ -87,6 +91,7 @@ let _homeRealKey;
 let _homeRealValue;
 function getHomeReal() {
   const home = os.homedir();
+  // Keyed by current homedir so HOME/USERPROFILE test changes invalidate the cached realpath.
   if (home !== _homeRealKey) {
     _homeRealKey = home;
     _homeRealValue = home ? realpathSafe(home) : null;
@@ -145,7 +150,7 @@ function resolveUmbrellaRoot(config, baseDir) {
     const gitRootReal = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot));
     if (!samePath(baseReal, homeReal) && samePath(gitRootReal, homeReal)) {
       // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
-      gitRoot = nearestGitBoundary(baseReal, homeReal) || baseDir;
+      gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
     }
   }
   return path.join(gitRoot, umbrella);
