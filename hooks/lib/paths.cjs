@@ -81,9 +81,9 @@ function samePath(a, b) {
   if (!a || !b) return false;
   const aa = stripPathTrailingSeparators(process.platform === 'win32' ? a.replace(/\//g, '\\') : a);
   const bb = stripPathTrailingSeparators(process.platform === 'win32' ? b.replace(/\//g, '\\') : b);
-  // POSIX callers pass realpath-normalized paths, so byte comparison is safe.
-  // macOS APFS is usually case-insensitive, but realpathSync normalizes to on-disk casing.
-  return process.platform === 'win32' ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
+  // Windows and default macOS filesystems are case-insensitive; Linux stays byte-exact.
+  const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin';
+  return caseInsensitive ? aa.toLowerCase() === bb.toLowerCase() : aa === bb;
 }
 
 let _homeRealKey;
@@ -155,7 +155,7 @@ function resolveUmbrellaRoot(config, baseDir) {
     const baseReal = realpathSafe(baseDir);
     const gitRootPath = path.isAbsolute(gitRoot) ? gitRoot : path.resolve(baseDir, gitRoot);
     const gitRootReal = realpathSafe(gitRootPath);
-    if (!samePath(baseReal, homeReal) && (samePath(gitRootReal, homeReal) || samePath(stripPathTrailingSeparators(gitRootPath), homeReal))) {
+    if (!samePath(baseReal, homeReal) && samePath(gitRootReal, homeReal)) {
       // No nested .git means a repo-less project under a stray $HOME repo; keep artifacts there.
       gitRoot = nearestGitBoundary(baseReal, homeReal) || baseReal;
     }
