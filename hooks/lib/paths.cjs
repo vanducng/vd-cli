@@ -74,6 +74,8 @@ function realpathSafe(p) {
 }
 
 function stripPathTrailingSeparators(p) {
+  if (/^[/\\]+$/.test(p)) return p[0];
+  if (process.platform === 'win32' && /^[a-zA-Z]:[\\/]$/.test(p)) return p;
   return p.replace(/[/\\]+$/, '');
 }
 
@@ -102,13 +104,20 @@ function nearestGitBoundary(startReal, stopReal) {
   // The caller skips the startReal === stopReal case; this handles subdirs under $HOME.
   if (!samePath(startReal, stopReal)) {
     // path.isAbsolute handles Windows cross-drive relative paths.
-    const rel = path.relative(stopReal, dir);
+    const caseInsensitive = process.platform === 'win32' || process.platform === 'darwin';
+    const rel = path.relative(
+      caseInsensitive ? stopReal.toLowerCase() : stopReal,
+      caseInsensitive ? dir.toLowerCase() : dir
+    );
     if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   }
   while (!samePath(dir, stopReal)) {
     // Detects .git directories and gitfiles; bare repos are intentionally out of scope here.
     if (fs.existsSync(path.join(dir, '.git'))) return dir;
-    if (++depth > maxDepth) return null;
+    if (++depth > maxDepth) {
+      // Safety valve: caller falls back to the working dir when traversal is too deep.
+      return null;
+    }
     const parent = path.dirname(dir);
     if (samePath(parent, dir)) return null;
     dir = parent;
