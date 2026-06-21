@@ -615,6 +615,23 @@ func TestNewManagedHooksIdempotent(t *testing.T) {
 	}
 }
 
+func TestRegisterHooksSkipsCodexEvents(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	writeFixture(t, settingsPath, `{}`)
+
+	s := mustReadSettings(t, settingsPath)
+	RegisterHooks(s, []Hook{
+		{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "codex.UserPromptSubmit"},
+	})
+	if err := writeSettingsAt(settingsPath, s, false); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	data := string(mustReadFile(t, settingsPath))
+	if strings.Contains(data, "codex.UserPromptSubmit") || strings.Contains(data, "dev-rules-reminder.cjs") {
+		t.Fatalf("Codex event leaked into settings.json:\n%s", data)
+	}
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────
 
 func writeFixture(t *testing.T, path, content string) {

@@ -110,6 +110,9 @@ func runHooksUninstall(cmd *cobra.Command, hooksDir string, manifestHooks []clau
 				break
 			}
 		}
+		if len(codexHookFiles(manifestHooks)) > 0 {
+			_, _ = fmt.Fprintln(out, "dry-run: would unregister managed Codex hooks from ~/.codex/hooks.json")
+		}
 		return nil
 	}
 
@@ -123,6 +126,9 @@ func runHooksUninstall(cmd *cobra.Command, hooksDir string, manifestHooks []clau
 
 	if err := unwireCodexNotify(out, hooksDir, manifestHooks); err != nil {
 		return fmt.Errorf("unwire Codex notify: %w", err)
+	}
+	if err := unregisterCodexHooks(out, manifestHooks); err != nil {
+		return fmt.Errorf("unregister Codex hooks: %w", err)
 	}
 
 	// Delete managed hook files.
@@ -172,6 +178,31 @@ func unwireCodexNotify(out io.Writer, hooksDir string, manifestHooks []claudecon
 		if !flagQuiet {
 			_, _ = fmt.Fprintf(out, "unwired managed Codex notify from %s\n", codexPath)
 		}
+	}
+	return nil
+}
+
+func unregisterCodexHooks(out io.Writer, manifestHooks []claudeconfig.Hook) error {
+	if len(codexHookFiles(manifestHooks)) == 0 {
+		return nil
+	}
+	codexPath, err := claudeconfig.CodexHooksPath()
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(codexPath); os.IsNotExist(err) {
+		return nil
+	}
+	s, err := claudeconfig.ReadSettingsAt(codexPath)
+	if err != nil {
+		return err
+	}
+	claudeconfig.UnregisterCodexHooks(s, manifestHooks)
+	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: codexPath}); err != nil {
+		return err
+	}
+	if !flagQuiet {
+		_, _ = fmt.Fprintf(out, "unregistered managed Codex hooks from %s\n", codexPath)
 	}
 	return nil
 }

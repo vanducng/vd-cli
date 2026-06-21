@@ -26,7 +26,7 @@
 | Agent | Status | What `vd build` emits |
 |---|---|---|
 | **Claude Code** | ✅ first-class | `.claude-plugin/marketplace.json` + `plugin.json` (bundle or per-skill mode) |
-| **OpenAI Codex** | ✅ first-class | `.agents/skills/<name>` repo-scope symlinks; `vd install codex` for user scope |
+| **OpenAI Codex** | ✅ first-class | `.agents/skills/<name>` repo-scope symlinks; `vd install codex` for user scope; prompt-context hooks via `vd install hooks` |
 
 More targets land as the coding-agent ecosystem grows — the emitter interface (`internal/target/iface.go`) is intentionally small so adding a new agent is a single file.
 
@@ -123,9 +123,10 @@ After these five commands:
 | `vd remove <skill>` | Remove from manifest, lock, and (default) disk |
 | `vd build [target...]` | Emit manifests + symlinks for each agent target |
 | `vd install [agent] [skill...]` | Install local skills into Codex or Claude Code user scope |
-| `vd install hooks` | Install Claude hooks from a local `hooks/hooks.toml` manifest |
+| `vd install hooks` | Install Claude hooks and declared Codex context hooks from `hooks/hooks.toml` |
 | `vd hooks uninstall\|rollback` | Manage installed hooks |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |
+| `vd context print` | Print the resolved VD path/naming context |
 | `vd web` | Launch a local web UI to review skills, discovered `~/.claude` assets, and hooks |
 | `vd tui` | Browse the same inventory in an interactive terminal UI |
 

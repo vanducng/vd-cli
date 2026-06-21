@@ -10,7 +10,7 @@ import (
 type Hook struct {
 	File    string   // path relative to the hooks dir, e.g. "session-init.cjs" or "lib/config.cjs"
 	Runtime string   // "node" | "python3" | "" (direct exec via shebang)
-	Event   string   // Claude event (SessionStart, Stop, ...), "statusLine", or "codex.notify"
+	Event   string   // Claude event (SessionStart, Stop, ...), "statusLine", or "codex.*"
 	Matcher string   // optional matcher
 	Args    []string // extra argv appended after the file path
 	Lib     bool     // true => support file only (copied, never registered)
@@ -55,6 +55,23 @@ func CodexNotifyCommand(h Hook, hooksDir string) []string {
 	return cmd
 }
 
+// CodexHookCommand builds the shell command string stored in ~/.codex/hooks.json.
+func CodexHookCommand(h Hook, hooksDir string) string {
+	abs := filepath.Join(hooksDir, filepath.FromSlash(h.File))
+	cmd := singleQuote(abs)
+	if h.Runtime != "" {
+		cmd = h.Runtime + " " + cmd
+	}
+	for _, a := range h.Args {
+		cmd += " " + shellQuote(a)
+	}
+	return cmd
+}
+
+func singleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 // shellMeta are characters that, unquoted, the shell would interpret.
 const shellMeta = " \t\n\"'`$\\&|;<>()*?[]{}~#!="
 
@@ -64,5 +81,5 @@ func shellQuote(s string) string {
 	if s != "" && !strings.ContainsAny(s, shellMeta) {
 		return s
 	}
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+	return singleQuote(s)
 }

@@ -12,15 +12,12 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/claudeconfig"
 )
 
-// knownEvents are the Claude hook events (plus the statusLine and codex.notify
-// pseudo-events) a manifest may target. A typo'd event would otherwise become a
-// dead key in settings.json. codex.notify targets ~/.codex/config.toml instead.
+// knownEvents are the Claude hook events a manifest may target.
 var knownEvents = map[string]bool{
 	"SessionStart": true, "SessionEnd": true, "UserPromptSubmit": true,
 	"PreToolUse": true, "PostToolUse": true, "Stop": true,
 	"SubagentStart": true, "SubagentStop": true, "Notification": true,
 	"PreCompact": true, "PermissionRequest": true, "statusLine": true,
-	"codex.notify": true,
 }
 
 // tomlHook mirrors one [[hook]] table in hooks.toml.
@@ -77,7 +74,7 @@ func LoadManifest(path string) ([]claudeconfig.Hook, error) {
 			if h.Event == "" {
 				return nil, fmt.Errorf("%s: hook %q needs an event (or set lib = true)", path, h.File)
 			}
-			if !knownEvents[h.Event] {
+			if !knownEvents[h.Event] && !claudeconfig.IsCodexEvent(h.Event) {
 				return nil, fmt.Errorf("%s: hook %q has unknown event %q", path, h.File, h.Event)
 			}
 		}

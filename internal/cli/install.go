@@ -280,6 +280,9 @@ func runInstallHooks(cmd *cobra.Command, repoRoot string, opts installOptions) e
 					strings.Join(claudeconfig.CodexNotifyCommand(h, dest), " "))
 			}
 		}
+		if err := dryRunCodexHooks(cmd, manifestHooks); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -308,7 +311,10 @@ func runInstallHooks(cmd *cobra.Command, repoRoot string, opts installOptions) e
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "hooks registered in settings.json")
 	}
 
-	return wireCodexNotify(cmd, manifestHooks, dest)
+	if err := wireCodexNotify(cmd, manifestHooks, dest); err != nil {
+		return err
+	}
+	return installCodexHooks(cmd, srcDir, manifestHooks)
 }
 
 // wireCodexNotify registers each codex.notify hook into ~/.codex/config.toml.
@@ -344,6 +350,94 @@ func wireCodexNotify(cmd *cobra.Command, manifestHooks []claudeconfig.Hook, dest
 		}
 	}
 	return nil
+}
+
+func dryRunCodexHooks(cmd *cobra.Command, manifestHooks []claudeconfig.Hook) error {
+	files := codexHookFiles(manifestHooks)
+	if len(files) == 0 {
+		return nil
+	}
+	codexDest, err := claudeconfig.CodexHooksDest()
+	if err != nil {
+		return err
+	}
+	codexPath, err := claudeconfig.CodexHooksPath()
+	if err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "would install Codex hooks to %s\n", codexDest)
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "would register Codex hooks in hooks.json (dry-run):")
+	s, err := claudeconfig.ReadSettingsAt(codexPath)
+	if err != nil {
+		return fmt.Errorf("read codex hooks.json: %w", err)
+	}
+	claudeconfig.RegisterCodexHooks(s, manifestHooks, codexDest)
+	return claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: codexPath, DryRun: true})
+}
+
+func installCodexHooks(cmd *cobra.Command, srcDir string, manifestHooks []claudeconfig.Hook) error {
+	files := codexHookFiles(manifestHooks)
+	if len(files) == 0 {
+		return nil
+	}
+	codexDest, err := claudeconfig.CodexHooksDest()
+	if err != nil {
+		return err
+	}
+	results, err := hooks.InstallFrom(srcDir, codexDest, files)
+	if err != nil {
+		return fmt.Errorf("install Codex hooks: %w", err)
+	}
+	if !flagQuiet {
+		for _, r := range results {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s hooks/%s -> %s\n", r.Action, r.RelPath, r.Dest)
+		}
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Codex hooks installed to %s\n", codexDest)
+	}
+
+	codexPath, err := claudeconfig.CodexHooksPath()
+	if err != nil {
+		return err
+	}
+	s, err := claudeconfig.ReadSettingsAt(codexPath)
+	if err != nil {
+		return fmt.Errorf("read codex hooks.json: %w", err)
+	}
+	claudeconfig.RegisterCodexHooks(s, manifestHooks, codexDest)
+	if err := claudeconfig.WriteSettings(s, claudeconfig.WriteOptions{Path: codexPath}); err != nil {
+		return fmt.Errorf("register Codex hooks in hooks.json: %w", err)
+	}
+	if !flagQuiet {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Codex hooks registered in %s\n", codexPath)
+	}
+	return nil
+}
+
+func codexHookFiles(manifestHooks []claudeconfig.Hook) []string {
+	needed := make(map[string]bool)
+	for _, h := range manifestHooks {
+		if _, ok := claudeconfig.CodexEventName(h.Event); ok {
+			needed[h.File] = true
+		}
+	}
+	if len(needed) == 0 {
+		return nil
+	}
+	for _, h := range manifestHooks {
+		if h.Lib {
+			needed[h.File] = true
+		}
+	}
+
+	files := make([]string, 0, len(needed))
+	seen := make(map[string]bool, len(needed))
+	for _, h := range manifestHooks {
+		if needed[h.File] && !seen[h.File] {
+			seen[h.File] = true
+			files = append(files, h.File)
+		}
+	}
+	return files
 }
 
 func claudePluginSpec(repoRoot string) (pluginName, marketplaceName string, err error) {
