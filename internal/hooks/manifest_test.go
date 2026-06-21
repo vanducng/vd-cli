@@ -144,6 +144,22 @@ args = ["codex"]
 	}
 }
 
+func TestLoadManifestAcceptsCodexUserPromptSubmitEvent(t *testing.T) {
+	path := writeManifest(t, `
+[[hook]]
+file = "dev-rules-reminder.cjs"
+runtime = "node"
+event = "codex.UserPromptSubmit"
+`)
+	hooks, err := LoadManifest(path)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+	if len(hooks) != 1 || hooks[0].Event != "codex.UserPromptSubmit" {
+		t.Errorf("codex.UserPromptSubmit hook parsed wrong: %+v", hooks)
+	}
+}
+
 func TestLoadManifestRejectsUnknownEvent(t *testing.T) {
 	path := writeManifest(t, `
 [[hook]]

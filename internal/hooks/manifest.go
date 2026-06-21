@@ -12,15 +12,13 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/claudeconfig"
 )
 
-// knownEvents are the Claude hook events (plus the statusLine and codex.notify
-// pseudo-events) a manifest may target. A typo'd event would otherwise become a
-// dead key in settings.json. codex.notify targets ~/.codex/config.toml instead.
+// knownEvents are the hook events a manifest may target.
 var knownEvents = map[string]bool{
 	"SessionStart": true, "SessionEnd": true, "UserPromptSubmit": true,
 	"PreToolUse": true, "PostToolUse": true, "Stop": true,
 	"SubagentStart": true, "SubagentStop": true, "Notification": true,
 	"PreCompact": true, "PermissionRequest": true, "statusLine": true,
-	"codex.notify": true,
+	"codex.notify": true, "codex.UserPromptSubmit": true,
 }
 
 // tomlHook mirrors one [[hook]] table in hooks.toml.

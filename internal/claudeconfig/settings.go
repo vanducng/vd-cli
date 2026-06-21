@@ -25,7 +25,12 @@ const codexNotifyEvent = "codex.notify"
 // skipsSettingsJSON reports whether a hook event is registered somewhere other
 // than settings.json's hooks{} map (statusLine key, or Codex config).
 func skipsSettingsJSON(event string) bool {
-	return event == statusLineEvent || event == codexNotifyEvent
+	return event == statusLineEvent || IsCodexEvent(event)
+}
+
+// IsCodexEvent reports whether an event is managed outside Claude settings.
+func IsCodexEvent(event string) bool {
+	return strings.HasPrefix(event, "codex.")
 }
 
 // HookEntry is one entry in a hooks event array in settings.json.
@@ -118,7 +123,7 @@ func RegisterHooks(s *Settings, hooks []Hook) {
 		if h.Lib || h.Event == "" {
 			continue // lib files are copied only; empty event has nothing to register
 		}
-		if h.Event == codexNotifyEvent {
+		if IsCodexEvent(h.Event) {
 			continue // wired into ~/.codex/config.toml, not settings.json
 		}
 		if h.Event == statusLineEvent {
@@ -398,7 +403,7 @@ func UnregisterHooks(s *Settings, hooks []Hook) {
 		if h.Lib {
 			continue
 		}
-		if h.Event == codexNotifyEvent {
+		if IsCodexEvent(h.Event) {
 			continue // unwired from ~/.codex/config.toml, not settings.json
 		}
 		if h.Event == statusLineEvent {

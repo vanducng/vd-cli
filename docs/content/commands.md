@@ -385,7 +385,7 @@ If no skills are found locally (no `--root`/`VD_ROOT`/`.git` repo and no `~/.vd/
 - `codex` — installs local `skills/<name>/` directories into Codex discovery paths. Default scope is user, which writes symlinks to `$HOME/.agents/skills`. Use `--scope repo` to write `.agents/skills/<name>` in the current repo.
 - `claude` — runs `vd build claude`, registers this repo as a Claude Code marketplace, and installs the configured plugin bundle.
 - `claude --dev` — per-skill symlinks into `$HOME/.claude/skills` (mirrors the codex symlink flow) instead of the marketplace plugin install. Accepts skill-name arguments.
-- `hooks` — install Claude Code hooks from a local manifest (`<root>/hooks/hooks.toml`). See [vd hooks](#vd-hooks).
+- `hooks` — install Claude Code hooks and declared Codex context hooks from a local manifest (`<root>/hooks/hooks.toml`). See [vd hooks](#vd-hooks).
 
 **Signature:**
 ```
@@ -415,10 +415,10 @@ vd install all                           # picker: install every target
 vd install claude                        # install configured Claude Code plugin bundle
 vd install claude --dev research         # symlink selected skills into ~/.claude/skills
 vd install claude --dry-run              # print Claude plugin commands
-vd install hooks --root ~/skills         # install Claude hooks from a local manifest
+vd install hooks --root ~/skills         # install hooks from a local manifest
 ```
 
-**Side effects:** `codex` writes symlinks or copies under the destination skill directory. `claude` may mutate Claude Code marketplace and plugin installation state. `hooks` writes to `~/.claude/hooks/` and `~/.claude/settings.json` (see [vd hooks](#vd-hooks)).
+**Side effects:** `codex` writes symlinks or copies under the destination skill directory. `claude` may mutate Claude Code marketplace and plugin installation state. `hooks` writes to `~/.claude/hooks/` and `~/.claude/settings.json`; manifest entries with `event = "codex.UserPromptSubmit"` also write to `~/.codex/hooks/` and `~/.codex/hooks.json` (see [vd hooks](#vd-hooks)).
 
 **Exit codes:** `0` success, `1` invalid agent/scope, missing skill, existing destination without `--force`, or external Claude command failure.
 
@@ -426,7 +426,7 @@ vd install hooks --root ~/skills         # install Claude hooks from a local man
 
 ## vd hooks
 
-Install and manage Claude Code hooks from a **local manifest** — `<repo-root>/hooks/hooks.toml`. Since v3.0.0 vd ships **no** built-in hooks; it installs whatever your manifest declares, so you keep your hooks in your own repo (e.g. `~/skills`) and `vd` is just the installer.
+Install and manage hooks from a **local manifest** — `<repo-root>/hooks/hooks.toml`. Since v3.0.0 vd ships **no** built-in hooks; it installs whatever your manifest declares, so you keep your hooks in your own repo (e.g. `~/skills`) and `vd` is just the installer.
 
 ### Install
 
@@ -434,7 +434,7 @@ Install and manage Claude Code hooks from a **local manifest** — `<repo-root>/
 vd install hooks [--root <repo>] [--dry-run]
 ```
 
-Reads `<root>/hooks/hooks.toml`, copies each listed file into `~/.claude/hooks/` (backing up a differing existing file first), and registers the non-`lib` entries in `~/.claude/settings.json`. Run it from the repo holding your manifest, or point at it with `--root`:
+Reads `<root>/hooks/hooks.toml`, copies each listed file into `~/.claude/hooks/` (backing up a differing existing file first), and registers the non-`lib` Claude entries in `~/.claude/settings.json`. Manifest entries with `event = "codex.UserPromptSubmit"` are copied to `~/.codex/hooks/` with their `lib` files and registered in `~/.codex/hooks.json`. Run it from the repo holding your manifest, or point at it with `--root`:
 
 ```sh
 vd install hooks --root ~/skills            # install the hooks defined in ~/skills/hooks/
@@ -464,7 +464,8 @@ lib  = true                                # copied only, never registered (supp
 ```
 
 - **Runtimes:** `node`, `python3`, or empty (run the file directly via its shebang).
-- **Events:** the standard Claude events (`SessionStart`, `Stop`, `Notification`, `PreToolUse`, `PostToolUse`, `SubagentStart`, `SubagentStop`, `UserPromptSubmit`, `PreCompact`, …) plus two pseudo-events: `statusLine` (Claude status line) and **`codex.notify`** (wires the hook into Codex's `notify` program). Unknown events **and** unknown TOML fields are rejected.
+- **Events:** the standard Claude events (`SessionStart`, `Stop`, `Notification`, `PreToolUse`, `PostToolUse`, `SubagentStart`, `SubagentStop`, `UserPromptSubmit`, `PreCompact`, …) plus pseudo-events: `statusLine` (Claude status line), **`codex.UserPromptSubmit`** (Codex prompt context), and **`codex.notify`** (Codex `notify` program). Unknown events **and** unknown TOML fields are rejected.
+- **Codex context (`codex.UserPromptSubmit`):** registers the hook in `~/.codex/hooks.json` and copies the hook plus manifest `lib` files to `~/.codex/hooks/`. Use it for the VD context injector, e.g. `file = "dev-rules-reminder.cjs"`, `runtime = "node"`, `event = "codex.UserPromptSubmit"`.
 - **Codex (`codex.notify`):** an entry with `event = "codex.notify"` installs the file like any other hook (into `~/.claude/hooks/`) but registers it in `~/.codex/config.toml` as the `notify` program (absolute path — Codex execs directly, no `$HOME` expansion). One file serves both agents. Any prior `notify` is replaced and reported, so you can chain it via your notifier's env (e.g. `CODEX_NOTIFY_FORWARD`). Example: `file = "agent-notify.py"`, `runtime = "python3"`, `event = "codex.notify"`, `args = ["codex"]`.
 - **Registered command:** `<runtime> "$HOME/.claude/hooks/<file>" <args…>` — `$HOME` stays literal; args with shell metacharacters are quoted.
 - The manifest is the only hook source: `[hooks].source` in `skills.toml` accepts only `local`.
@@ -472,11 +473,11 @@ lib  = true                                # copied only, never registered (supp
 ### Uninstall / rollback
 
 ```
-vd hooks uninstall [--dry-run]    # remove manifest files from ~/.claude/hooks and unregister from settings.json
+vd hooks uninstall [--dry-run]    # remove manifest files from ~/.claude/hooks and unregister settings
 vd hooks rollback  [--dry-run]    # restore the most recent backup made by 'vd install hooks'
 ```
 
-Only files in your manifest are removed; any other hooks in `settings.json` are left untouched. `settings.json` is backed up before the first change.
+Only files in your manifest are removed; any other hooks in `settings.json` and `~/.codex/hooks.json` are left untouched. `settings.json` and changed hook JSON files are backed up before the first change.
 
 ### Updating a hook
 
@@ -492,6 +493,28 @@ vd install hooks --root ~/skills
 ```
 
 Secrets stay in the environment, never in the repo or the manifest.
+
+---
+
+## vd context
+
+Print the same VD path/naming context emitted by the prompt hook. This is useful for checking `.vd.json`, workbench layout, and session plan resolution without submitting a prompt to an agent.
+
+**Signature:**
+```
+vd context print [--cwd <dir>] [--session-id <id>] [--json] [--hook-path <file>]
+```
+
+**Examples:**
+```sh
+vd context print
+vd context print --cwd /path/to/repo --session-id "$VD_SESSION_ID"
+vd context print --json --cwd /path/to/repo
+```
+
+**Side effects:** none. It runs `dev-rules-reminder.cjs` from `~/.codex/hooks/`, `~/.claude/hooks/`, or the local vd hooks directory and prints the resolved context.
+
+**Exit codes:** `0` success, `1` missing hook, bad cwd, invalid hook JSON, or Node execution failure.
 
 ---
 

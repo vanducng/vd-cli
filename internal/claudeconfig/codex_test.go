@@ -270,3 +270,70 @@ func TestCodexNotifyCommand(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexHookCommand(t *testing.T) {
+	got := CodexHookCommand(
+		Hook{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "codex.UserPromptSubmit"},
+		"/home/u/.codex/hooks",
+	)
+	want := "node '/home/u/.codex/hooks/dev-rules-reminder.cjs'"
+	if got != want {
+		t.Fatalf("CodexHookCommand = %q, want %q", got, want)
+	}
+}
+
+func TestRegisterCodexHooksWritesPromptSubmit(t *testing.T) {
+	s := &Settings{Hooks: map[string][]HookEntry{
+		"UserPromptSubmit": {
+			{
+				Hooks: []HookItem{
+					{Type: "command", Command: "node /other/dev-rules-reminder.cjs"},
+				},
+			},
+		},
+	}}
+	manifestHooks := []Hook{
+		{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "UserPromptSubmit"},
+		{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "codex.UserPromptSubmit"},
+		{File: "lib/config.cjs", Lib: true},
+	}
+
+	RegisterCodexHooks(s, manifestHooks, "/home/u/.codex/hooks")
+
+	entries := s.Hooks["UserPromptSubmit"]
+	if len(entries) != 1 || len(entries[0].Hooks) != 1 {
+		t.Fatalf("UserPromptSubmit entries = %+v", entries)
+	}
+	got := entries[0].Hooks[0].Command
+	want := "node '/home/u/.codex/hooks/dev-rules-reminder.cjs'"
+	if got != want {
+		t.Fatalf("command = %q, want %q", got, want)
+	}
+	if _, exists := s.Hooks["codex.UserPromptSubmit"]; exists {
+		t.Fatalf("codex-prefixed event should not be written: %+v", s.Hooks)
+	}
+}
+
+func TestUnregisterCodexHooksRemovesPromptSubmit(t *testing.T) {
+	s := &Settings{Hooks: map[string][]HookEntry{
+		"UserPromptSubmit": {
+			{
+				Hooks: []HookItem{
+					{Type: "command", Command: "node /home/u/.codex/hooks/dev-rules-reminder.cjs"},
+					{Type: "command", Command: "node /other/user-hook.cjs"},
+				},
+			},
+		},
+	}}
+	UnregisterCodexHooks(s, []Hook{
+		{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "codex.UserPromptSubmit"},
+	})
+
+	entries := s.Hooks["UserPromptSubmit"]
+	if len(entries) != 1 || len(entries[0].Hooks) != 1 {
+		t.Fatalf("UserPromptSubmit entries = %+v", entries)
+	}
+	if entries[0].Hooks[0].Command != "node /other/user-hook.cjs" {
+		t.Fatalf("foreign hook was not preserved: %+v", entries)
+	}
+}
