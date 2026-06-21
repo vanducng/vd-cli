@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.3.0](https://github.com/vanducng/vd-cli/compare/v3.2.1...v3.3.0) (2026-06-21)
+
+
+### Features
+
+* **hooks:** added Codex context hook support ([#47](https://github.com/vanducng/vd-cli/issues/47)) ([9544e02](https://github.com/vanducng/vd-cli/commit/9544e020ab0533a2695a1d98f2af37b4827407ec))
+
 ## [3.2.1](https://github.com/vanducng/vd-cli/compare/v3.2.0...v3.2.1) (2026-06-20)
 
 
