@@ -19,6 +19,11 @@ type contextPrintOptions struct {
 	hookPath  string
 }
 
+const (
+	contextHookFile = "dev-rules-reminder.cjs"
+	sessionIDEnvVar = "VD_SESSION_ID"
+)
+
 func newContextCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "context <subcommand>",
@@ -70,7 +75,7 @@ func runContextPrint(cmd *cobra.Command, opts contextPrintOptions) error {
 
 	sessionID := opts.sessionID
 	if sessionID == "" {
-		sessionID = os.Getenv("VD_SESSION_ID")
+		sessionID = os.Getenv(sessionIDEnvVar)
 	}
 
 	hookPath, err := resolveContextHookPath(opts.hookPath)
@@ -105,8 +110,8 @@ func resolveContextHookPath(override string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err == nil {
 		for _, candidate := range []string{
-			filepath.Join(home, ".codex", "hooks", "dev-rules-reminder.cjs"),
-			filepath.Join(home, ".claude", "hooks", "dev-rules-reminder.cjs"),
+			filepath.Join(home, ".codex", "hooks", contextHookFile),
+			filepath.Join(home, ".claude", "hooks", contextHookFile),
 		} {
 			if path, err := validateHookPath(candidate); err == nil {
 				return path, nil
@@ -114,11 +119,11 @@ func resolveContextHookPath(override string) (string, error) {
 		}
 	}
 	if root, err := resolveRepoRoot(flagRoot); err == nil {
-		if path, err := validateHookPath(filepath.Join(root, "hooks", "dev-rules-reminder.cjs")); err == nil {
+		if path, err := validateHookPath(filepath.Join(root, "hooks", contextHookFile)); err == nil {
 			return path, nil
 		}
 	}
-	return "", fmt.Errorf("dev-rules-reminder.cjs not found in ~/.codex/hooks, ~/.claude/hooks, or the vd repo hooks dir")
+	return "", fmt.Errorf("%s not found in ~/.codex/hooks, ~/.claude/hooks, or the vd repo hooks dir", contextHookFile)
 }
 
 func validateHookPath(path string) (string, error) {
@@ -149,7 +154,11 @@ func runContextHook(cwd, sessionID, hookPath string) ([]byte, error) {
 		return nil, err
 	}
 
-	ext := exec.Command("node", hookPath)
+	nodeBin, err := exec.LookPath("node")
+	if err != nil {
+		return nil, fmt.Errorf("node not found in PATH: %w", err)
+	}
+	ext := exec.Command(nodeBin, hookPath)
 	ext.Dir = cwd
 	ext.Stdin = bytes.NewReader(append(data, '\n'))
 	var stdout, stderr bytes.Buffer

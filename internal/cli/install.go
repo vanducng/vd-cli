@@ -353,7 +353,8 @@ func wireCodexNotify(cmd *cobra.Command, manifestHooks []claudeconfig.Hook, dest
 }
 
 func dryRunCodexHooks(cmd *cobra.Command, manifestHooks []claudeconfig.Hook) error {
-	if len(codexHookFiles(manifestHooks)) == 0 {
+	files := codexHookFiles(manifestHooks)
+	if len(files) == 0 {
 		return nil
 	}
 	codexDest, err := claudeconfig.CodexHooksDest()
@@ -429,10 +430,11 @@ func codexHookFiles(manifestHooks []claudeconfig.Hook) []string {
 	}
 
 	files := make([]string, 0, len(needed))
+	seen := make(map[string]bool, len(needed))
 	for _, h := range manifestHooks {
-		if needed[h.File] {
+		if needed[h.File] && !seen[h.File] {
+			seen[h.File] = true
 			files = append(files, h.File)
-			delete(needed, h.File)
 		}
 	}
 	return files
