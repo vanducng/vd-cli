@@ -37,6 +37,18 @@ if not log.handlers:
         pass  # never let logging break the server
 
 
+class _DropNotifValidationWarning(logging.Filter):
+    """Drop the mcp SDK's root-logger 'Failed to validate notification' warning:
+    Codex emits custom codex/event notifications the SDK can't validate against
+    its newer task schema — informational + non-fatal, but noisy on every turn."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "Failed to validate notification" not in record.getMessage()
+
+
+logging.getLogger().addFilter(_DropNotifValidationWarning())
+
+
 def _max_threads(default: int = 4) -> int:
     cfg = Path.home() / ".codex" / "config.toml"
     try:
