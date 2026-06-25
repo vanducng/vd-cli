@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-workflow/run_workflow.v1",
+  "title": "run_workflow spec (v1)",
+  "type": "object",
+  "required": ["steps"],
+  "additionalProperties": false,
+  "properties": {
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "prompt"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "prompt": { "type": "string", "minLength": 1 },
+          "agent": { "type": "string", "description": "name of a ~/.codex/agents/*.toml role; its developer_instructions are injected as a prompt override (#26363 workaround)" },
+          "parallel_group": { "type": "string", "description": "steps sharing a group run concurrently (one group per v1)" }
+        }
+      }
+    }
+  }
+}

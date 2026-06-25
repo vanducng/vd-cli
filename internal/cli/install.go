@@ -162,11 +162,19 @@ func runInstallCodex(cmd *cobra.Command, repoRoot string, skills []string, opts 
 	if err != nil {
 		return err
 	}
+	// Deploy Codex subagent definitions (agents/*.toml -> ~/.codex/agents).
+	agents, agErr := agentinstall.DeployCodexAgents(repoRoot, agentinstall.CodexOptions{DryRun: opts.dryRun})
+	if agErr != nil {
+		return agErr
+	}
 	if flagQuiet {
 		return nil
 	}
 	for _, result := range results {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s codex skill %s -> %s\n", result.Action, result.Name, result.Dest)
+	}
+	for _, a := range agents {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s %s -> %s\n", a.Action, a.Name, a.Dest)
 	}
 	if !opts.dryRun {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "restart Codex to pick up newly installed skills")
