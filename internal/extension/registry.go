@@ -33,7 +33,7 @@ func Discover(repoRoot string) ([]Extension, error) {
 		}
 		e, loadErr := LoadExtension(manifest)
 		if loadErr != nil {
-			return nil, fmt.Errorf("load extension %s: %w", dir, loadErr)
+			return nil, fmt.Errorf("load extension manifest %s: %w", manifest, loadErr)
 		}
 		if seen[e.Name] {
 			return nil, fmt.Errorf("duplicate extension name %q (in %s)", e.Name, dir)
