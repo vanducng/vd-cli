@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.6.1](https://github.com/vanducng/vd-cli/compare/v3.6.0...v3.6.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* **codex-workflow:** suppress noisy mcp notification-validation warning ([#57](https://github.com/vanducng/vd-cli/issues/57)) ([2c1d4dc](https://github.com/vanducng/vd-cli/commit/2c1d4dcb7d9fd50dba8dac835a9786f88132e34f))
+
 ## [3.6.0](https://github.com/vanducng/vd-cli/compare/v3.5.0...v3.6.0) (2026-06-25)
 
 
