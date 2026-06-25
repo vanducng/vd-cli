@@ -73,7 +73,13 @@ run_workflow({
 
 ### Works from Codex *and* Claude (no recursion)
 
-`run_workflow` drives `codex mcp-server` internally. If the nested Codex re-loaded codex-workflow it would spawn itself forever — so the orchestrator launches the nested server with `-c mcp_servers={}`, dropping all downstream MCP servers. Net effect: you can call `run_workflow` from a **Codex** session to fan out subagents, or from **Claude** to orchestrate Codex — both safe. Caveat: a workflow step's agent runs with Codex's *core* tools only (no downstream MCP servers); selective passthrough is a future enhancement.
+`run_workflow` drives `codex mcp-server` internally. If the nested Codex re-loaded codex-workflow it would spawn itself forever — so the orchestrator launches the nested server with downstream MCP servers dropped (`-c mcp_servers=…`). Net effect: you can call `run_workflow` from a **Codex** session to fan out subagents, or from **Claude** to orchestrate Codex — both safe.
+
+**Selective MCP passthrough:** by default a step's agent runs with Codex's *core* tools only. To let steps use specific MCP servers, list them at the top of the spec — `codex-workflow` is always excluded (recursion guard):
+
+```jsonc
+run_workflow({ "mcp_servers": ["miudb"], "steps": [ { "id": "q", "prompt": "Query orders via miudb." } ] })
+```
 
 ## Transparency — logs for agents
 
@@ -84,6 +90,7 @@ Read them with the framework command so an agent can inspect and improve the ext
 ```bash
 vd mcp logs codex-workflow            # full log
 vd mcp logs codex-workflow --tail 20  # recent activity
+vd mcp logs codex-workflow -f         # stream live (Ctrl-C to stop)
 ```
 
 This is the convention for **all** vd extensions: log to `~/.vd/logs/<name>.log`, surfaced by `vd mcp logs <name>`.
