@@ -68,6 +68,7 @@ Run 'vd --help' on any subcommand for details.`,
 	root.AddCommand(newBuildCmd())
 	root.AddCommand(newInstallCmd())
 	root.AddCommand(newHooksCmd())
+	root.AddCommand(newMcpCmd())
 	root.AddCommand(newContextCmd())
 	root.AddCommand(newWebCmd())
 	root.AddCommand(newTUICmd())

@@ -1,0 +1,322 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/vanducng/vd-cli/v2/internal/claudeconfig"
+	"github.com/vanducng/vd-cli/v2/internal/extension"
+)
+
+const extensionsDirEnv = "VD_EXTENSIONS_DIR"
+
+// resolveExtensionsDir locates the vd-cli root that holds extensions/.
+// Precedence: --extensions-dir flag, VD_EXTENSIONS_DIR env, a cwd ancestor that
+// contains an extensions/ directory.
+func resolveExtensionsDir(override string) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+	if env := os.Getenv(extensionsDirEnv); env != "" {
+		return env, nil
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for dir := cwd; ; {
+		if fi, statErr := os.Stat(filepath.Join(dir, "extensions")); statErr == nil && fi.IsDir() {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("cannot locate extensions/ — set %s or run from the vd-cli repo", extensionsDirEnv)
+		}
+		dir = parent
+	}
+}
+
+func newMcpCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "mcp <subcommand>",
+		Short: "Manage vd extensions (MCP servers/services) across Codex and Claude",
+		Long: `Manage vd-cli extensions — self-contained MCP servers under extensions/<name>/.
+
+vd is the manager: it registers extensions into Codex (~/.codex/config.toml
+[mcp_servers]) and Claude (~/.claude.json user / .mcp.json project). MCP scope
+{project,user,global} affects the Claude target only; Codex uses its single
+user-level config.toml.`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return fmt.Errorf("unknown subcommand %q (valid: list, install, enable, disable, doctor)", args[0])
+		},
+	}
+	cmd.AddCommand(newMcpListCmd(), newMcpInstallCmd(), newMcpEnableCmd(), newMcpDisableCmd(), newMcpDoctorCmd())
+	return cmd
+}
+
+var flagExtensionsDir string
+
+func discoverExtensions() ([]extension.Extension, error) {
+	root, err := resolveExtensionsDir(flagExtensionsDir)
+	if err != nil {
+		return nil, err
+	}
+	return extension.Discover(root)
+}
+
+// claudePathForScope returns the Claude config file to patch for the scope.
+func claudePathForScope(scope string) (string, error) {
+	if scope == "project" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		return claudeconfig.ClaudeProjectConfigPath(cwd), nil
+	}
+	return claudeconfig.ClaudeUserConfigPath() // user | global
+}
+
+func newMcpListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List extensions and their registration targets",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			exts, err := discoverExtensions()
+			if err != nil {
+				return err
+			}
+			if len(exts) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "no extensions found")
+				return nil
+			}
+			for _, e := range exts {
+				state := "enabled"
+				if !e.Enabled {
+					state = "disabled"
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-8s %s  targets=%s scope=%s\n",
+					e.Name, state, e.Transport, strings.Join(e.Targets, ","), e.Scope)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&flagExtensionsDir, "extensions-dir", "", "Override the dir containing extensions/ (else $VD_EXTENSIONS_DIR or cwd)")
+	return cmd
+}
+
+func selectExtensions(names []string, includeDisabled bool) ([]extension.Extension, error) {
+	all, err := discoverExtensions()
+	if err != nil {
+		return nil, err
+	}
+	byName := map[string]extension.Extension{}
+	for _, e := range all {
+		byName[e.Name] = e
+	}
+	if len(names) > 0 {
+		var out []extension.Extension
+		for _, n := range names {
+			e, ok := byName[n]
+			if !ok {
+				return nil, fmt.Errorf("extension %q not found", n)
+			}
+			out = append(out, e)
+		}
+		return out, nil
+	}
+	var out []extension.Extension
+	for _, e := range all {
+		if e.Enabled || includeDisabled {
+			out = append(out, e)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+func registerExtension(e extension.Extension, scope string, w *strings.Builder) error {
+	for _, target := range e.Targets {
+		switch target {
+		case "codex":
+			path, err := claudeconfig.CodexConfigPath()
+			if err != nil {
+				return err
+			}
+			if err := claudeconfig.RegisterCodexMCP(path, e); err != nil {
+				return fmt.Errorf("register %s in codex: %w", e.Name, err)
+			}
+			fmt.Fprintf(w, "  codex   → %s\n", path)
+		case "claude":
+			path, err := claudePathForScope(scope)
+			if err != nil {
+				return err
+			}
+			if err := claudeconfig.RegisterClaudeMCP(path, e); err != nil {
+				return fmt.Errorf("register %s in claude: %w", e.Name, err)
+			}
+			fmt.Fprintf(w, "  claude  → %s (%s)\n", path, scope)
+		}
+	}
+	return nil
+}
+
+func unregisterExtension(e extension.Extension, scope string, w *strings.Builder) error {
+	for _, target := range e.Targets {
+		switch target {
+		case "codex":
+			path, err := claudeconfig.CodexConfigPath()
+			if err != nil {
+				return err
+			}
+			if err := claudeconfig.UnregisterCodexMCP(path, e.Name); err != nil {
+				return err
+			}
+			fmt.Fprintf(w, "  codex   ✕ %s\n", path)
+		case "claude":
+			path, err := claudePathForScope(scope)
+			if err != nil {
+				return err
+			}
+			if err := claudeconfig.UnregisterClaudeMCP(path, e.Name); err != nil {
+				return err
+			}
+			fmt.Fprintf(w, "  claude  ✕ %s (%s)\n", path, scope)
+		}
+	}
+	return nil
+}
+
+func newMcpInstallCmd() *cobra.Command {
+	var scope string
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "install [name...]",
+		Short: "Register enabled extensions into Codex and Claude",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if scope != "project" && scope != "user" && scope != "global" {
+				return fmt.Errorf("invalid --scope %q (project|user|global)", scope)
+			}
+			exts, err := selectExtensions(args, false)
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			for _, e := range exts {
+				effScope := e.Scope
+				if cmd.Flags().Changed("scope") {
+					effScope = scope
+				}
+				var log strings.Builder
+				if dryRun {
+					for _, t := range e.Targets {
+						fmt.Fprintf(&log, "  would register → %s\n", t)
+					}
+				} else if err := registerExtension(e, effScope, &log); err != nil {
+					return err
+				}
+				fmt.Fprintf(out, "%s:\n%s", e.Name, log.String())
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&scope, "scope", "project", "Claude registration scope: project|user|global")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print planned registrations, write nothing")
+	cmd.Flags().StringVar(&flagExtensionsDir, "extensions-dir", "", "Override the dir containing extensions/")
+	return cmd
+}
+
+func newMcpEnableCmd() *cobra.Command {
+	var scope string
+	cmd := &cobra.Command{
+		Use:   "enable <name>",
+		Short: "Register an extension (alias for install <name>)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			exts, err := selectExtensions(args, true)
+			if err != nil {
+				return err
+			}
+			var log strings.Builder
+			if err := registerExtension(exts[0], scope, &log); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s enabled:\n%s", exts[0].Name, log.String())
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&scope, "scope", "project", "Claude scope: project|user|global")
+	cmd.Flags().StringVar(&flagExtensionsDir, "extensions-dir", "", "Override the dir containing extensions/")
+	return cmd
+}
+
+func newMcpDisableCmd() *cobra.Command {
+	var scope string
+	cmd := &cobra.Command{
+		Use:   "disable <name>",
+		Short: "Unregister an extension from Codex and Claude",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			exts, err := selectExtensions(args, true)
+			if err != nil {
+				return err
+			}
+			var log strings.Builder
+			if err := unregisterExtension(exts[0], scope, &log); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s disabled:\n%s", exts[0].Name, log.String())
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&scope, "scope", "project", "Claude scope: project|user|global")
+	cmd.Flags().StringVar(&flagExtensionsDir, "extensions-dir", "", "Override the dir containing extensions/")
+	return cmd
+}
+
+func newMcpDoctorCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "doctor",
+		Short: "Check extensions: env preflight + launch reachability (basic)",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			exts, err := discoverExtensions()
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			for _, e := range exts {
+				fmt.Fprintf(out, "%s (%s):\n", e.Name, e.Transport)
+				for _, name := range e.Env {
+					if os.Getenv(name) == "" {
+						fmt.Fprintf(out, "  ⚠ env %s is not set\n", name)
+					} else {
+						fmt.Fprintf(out, "  ✓ env %s set\n", name)
+					}
+				}
+				switch e.Transport {
+				case "stdio":
+					if _, lookErr := exec.LookPath(e.Command); lookErr != nil {
+						fmt.Fprintf(out, "  ✕ command %q not found on PATH\n", e.Command)
+					} else {
+						fmt.Fprintf(out, "  ✓ command %q found\n", e.Command)
+					}
+				case "http":
+					if e.URL == "" {
+						fmt.Fprintln(out, "  ✕ url not set")
+					} else {
+						fmt.Fprintf(out, "  ✓ url %s\n", e.URL)
+					}
+				}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&flagExtensionsDir, "extensions-dir", "", "Override the dir containing extensions/")
+	return cmd
+}
