@@ -40,10 +40,15 @@ if not log.handlers:
 class _DropNotifValidationWarning(logging.Filter):
     """Drop the mcp SDK's root-logger 'Failed to validate notification' warning:
     Codex emits custom codex/event notifications the SDK can't validate against
-    its newer task schema — informational + non-fatal, but noisy on every turn."""
+    its newer task schema — informational + non-fatal, but noisy on every turn.
+
+    Scoped to records emitted from mcp's shared session module so it can never
+    suppress an unrelated message that happens to share the substring.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return "Failed to validate notification" not in record.getMessage()
+        from_mcp_session = "mcp/shared/session" in (record.pathname or "")
+        return not (from_mcp_session and "Failed to validate notification" in record.getMessage())
 
 
 logging.getLogger().addFilter(_DropNotifValidationWarning())
