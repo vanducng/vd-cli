@@ -21,3 +21,6 @@ docs/dist/
 
 # browser-trace e2e artifacts
 .o11y/
+
+# machine-specific MCP registration written by `vd mcp install`
+.mcp.json
