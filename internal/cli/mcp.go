@@ -128,8 +128,11 @@ func newMcpLogsCmd() *cobra.Command {
 func listExtensionLogs(out io.Writer) error {
 	dir := mcpLogDir()
 	entries, err := os.ReadDir(dir)
-	if err != nil || len(entries) == 0 {
-		return fmt.Errorf("no extension logs in %s yet — run an extension first", dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no extension logs in %s yet — run an extension first", dir)
+		}
+		return fmt.Errorf("read log dir %s: %w", dir, err)
 	}
 	var names []string
 	for _, e := range entries {
