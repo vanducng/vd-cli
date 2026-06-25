@@ -70,3 +70,20 @@ run_workflow({
 
 - `agent` (optional) = a `~/.codex/agents/<name>.toml` role (`code-reviewer`, `planner`, `tester`, …) — its `developer_instructions` are injected (#26363 workaround).
 - Sequential by default; same `parallel_group` runs concurrently (cap = `[agents].max_threads`).
+
+### Works from Codex *and* Claude (no recursion)
+
+`run_workflow` drives `codex mcp-server` internally. If the nested Codex re-loaded codex-workflow it would spawn itself forever — so the orchestrator launches the nested server with `-c mcp_servers={}`, dropping all downstream MCP servers. Net effect: you can call `run_workflow` from a **Codex** session to fan out subagents, or from **Claude** to orchestrate Codex — both safe. Caveat: a workflow step's agent runs with Codex's *core* tools only (no downstream MCP servers); selective passthrough is a future enhancement.
+
+## Transparency — logs for agents
+
+The server logs every run to **`~/.vd/logs/codex-workflow.log`** (override with `$VD_LOG_DIR`): `run_workflow start`, per-step `start`/`done`/`fail` with status + duration, and a summary. Logs go **only** to the file (never stdout — that would corrupt the stdio MCP stream).
+
+Read them with the framework command so an agent can inspect and improve the extension continuously:
+
+```bash
+vd mcp logs codex-workflow            # full log
+vd mcp logs codex-workflow --tail 20  # recent activity
+```
+
+This is the convention for **all** vd extensions: log to `~/.vd/logs/<name>.log`, surfaced by `vd mcp logs <name>`.
