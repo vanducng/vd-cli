@@ -57,7 +57,45 @@ user-level config.toml.`,
 			return fmt.Errorf("unknown subcommand %q (valid: list, install, enable, disable, doctor)", args[0])
 		},
 	}
-	cmd.AddCommand(newMcpListCmd(), newMcpInstallCmd(), newMcpEnableCmd(), newMcpDisableCmd(), newMcpDoctorCmd())
+	cmd.AddCommand(newMcpListCmd(), newMcpInstallCmd(), newMcpEnableCmd(), newMcpDisableCmd(), newMcpDoctorCmd(), newMcpLogsCmd())
+	return cmd
+}
+
+// mcpLogDir is the shared log directory for vd extensions. Extensions log to
+// <dir>/<name>.log so they're transparent and improvable; `vd mcp logs` reads it.
+// Matches the convention used by the extension runtimes (env VD_LOG_DIR).
+func mcpLogDir() string {
+	if d := os.Getenv("VD_LOG_DIR"); d != "" {
+		return d
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".vd", "logs")
+}
+
+func newMcpLogsCmd() *cobra.Command {
+	var tail int
+	cmd := &cobra.Command{
+		Use:   "logs <name>",
+		Short: "Show an extension's log (~/.vd/logs/<name>.log) — for inspection + continuous improvement",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := filepath.Join(mcpLogDir(), args[0]+".log")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf("no log yet at %s (the extension hasn't run, or doesn't log)", path)
+				}
+				return err
+			}
+			lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+			if tail > 0 && len(lines) > tail {
+				lines = lines[len(lines)-tail:]
+			}
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), strings.Join(lines, "\n"))
+			return nil
+		},
+	}
+	cmd.Flags().IntVar(&tail, "tail", 0, "Show only the last N lines (0 = all)")
 	return cmd
 }
 
