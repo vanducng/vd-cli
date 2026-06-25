@@ -62,8 +62,8 @@ func DeployCodexAgents(repoRoot string, opts CodexOptions) ([]AgentsResult, erro
 
 	results := make([]AgentsResult, 0, len(names))
 	for _, name := range names {
-		if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
-			return nil, fmt.Errorf("unsafe agent file name %q", name)
+		if err := assertSimpleName(name); err != nil {
+			return nil, err
 		}
 		src := filepath.Join(agentsDir, name)
 		dst := filepath.Join(destRoot, name)
