@@ -121,28 +121,41 @@ func newMcpLogsCmd() *cobra.Command {
 }
 
 // followLog streams bytes appended to path after offset until the context is
-// canceled (Ctrl-C). Truncation/rotation is not handled (YAGNI).
+// canceled (Ctrl-C). Handles truncation/rotation by restarting from the top.
 func followLog(ctx context.Context, out io.Writer, path string, offset int64) error {
+	// The root command uses plain Execute() (no signal-aware context), so install
+	// our own SIGINT handler here so Ctrl-C stops --follow cleanly.
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
 	f, err := os.Open(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("open log %s: %w", path, err)
 	}
 	defer func() { _ = f.Close() }()
 	if _, err := f.Seek(offset, io.SeekStart); err != nil {
-		return err
+		return fmt.Errorf("seek log %s: %w", path, err)
 	}
 	buf := make([]byte, 8192)
 	ticker := time.NewTicker(400 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		for {
-			n, _ := f.Read(buf)
-			if n == 0 {
+			n, rerr := f.Read(buf)
+			if n > 0 {
+				_, _ = out.Write(buf[:n])
+			}
+			if rerr == io.EOF {
 				break
 			}
-			_, _ = out.Write(buf[:n])
+			if rerr != nil {
+				return fmt.Errorf("read log %s: %w", path, rerr)
+			}
+		}
+		// If the file shrank below our cursor (rotation/truncation), restart.
+		if fi, statErr := f.Stat(); statErr == nil {
+			if pos, _ := f.Seek(0, io.SeekCurrent); fi.Size() < pos {
+				_, _ = f.Seek(0, io.SeekStart)
+			}
 		}
 		select {
 		case <-ctx.Done():
