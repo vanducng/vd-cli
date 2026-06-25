@@ -71,6 +71,34 @@ func TestMcpLogsCmd(t *testing.T) {
 	}
 }
 
+func TestMcpLogsList(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("VD_LOG_DIR", dir)
+
+	// no logs yet → error
+	cmd := newMcpLogsCmd()
+	cmd.SetArgs([]string{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("expected error when no logs exist")
+	}
+
+	// with logs → lists names
+	os.WriteFile(filepath.Join(dir, "codex-workflow.log"), []byte("x\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "other.log"), []byte("y\n"), 0o644)
+	cmd = newMcpLogsCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "codex-workflow") || !strings.Contains(out.String(), "other") {
+		t.Fatalf("list missing names: %q", out.String())
+	}
+}
+
 func TestFollowLog(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "x.log")
 	os.WriteFile(p, []byte("a\nb\nc\n"), 0o644)
