@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.4.0](https://github.com/vanducng/vd-cli/compare/v3.3.0...v3.4.0) (2026-06-25)
+
+
+### Features
+
+* Codex dynamic-workflow capability — MCP extensions + run_workflow ([#49](https://github.com/vanducng/vd-cli/issues/49)) ([a015861](https://github.com/vanducng/vd-cli/commit/a015861cbc538cfa7d5ce1d85d3f9714b0e5ddb5))
+
 ## [3.3.0](https://github.com/vanducng/vd-cli/compare/v3.2.1...v3.3.0) (2026-06-21)
 
 
