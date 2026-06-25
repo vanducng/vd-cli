@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.6.0](https://github.com/vanducng/vd-cli/compare/v3.5.0...v3.6.0) (2026-06-25)
+
+
+### Features
+
+* **mcp:** 'vd mcp logs' lists available logs when no name given ([#55](https://github.com/vanducng/vd-cli/issues/55)) ([d40f58a](https://github.com/vanducng/vd-cli/commit/d40f58a9fa427598356d3cf26845d3b62ccb2073))
+
 ## [3.5.0](https://github.com/vanducng/vd-cli/compare/v3.4.1...v3.5.0) (2026-06-25)
 
 
