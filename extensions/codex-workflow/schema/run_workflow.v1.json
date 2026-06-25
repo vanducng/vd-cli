@@ -6,6 +6,11 @@
   "required": ["steps"],
   "additionalProperties": false,
   "properties": {
+    "mcp_servers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "names of Codex MCP servers (from ~/.codex/config.toml) to make available to step agents in the nested codex. Default none (lean). codex-workflow is always excluded (recursion guard)."
+    },
     "steps": {
       "type": "array",
       "minItems": 1,

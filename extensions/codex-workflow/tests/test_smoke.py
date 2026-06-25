@@ -1,9 +1,31 @@
 import asyncio
 import os
+import tomllib
 
 import pytest
 
-from codex_workflow.orchestrator import _batches, run_workflow_spec
+from codex_workflow.orchestrator import (
+    _batches,
+    _nested_mcp_override,
+    _toml_inline,
+    run_workflow_spec,
+)
+
+
+def test_toml_inline_roundtrips():
+    val = _toml_inline({"mcp-atlassian": {"command": "uvx", "args": ["a", "b"], "startup_timeout_sec": 120}})
+    parsed = tomllib.loads(f"x = {val}")["x"]
+    assert parsed["mcp-atlassian"]["command"] == "uvx"
+    assert parsed["mcp-atlassian"]["args"] == ["a", "b"]
+
+
+def test_nested_override_default_and_recursion_guard():
+    assert _nested_mcp_override(None) == "{}"
+    assert _nested_mcp_override([]) == "{}"
+    # codex-workflow is always excluded (recursion guard) → empty even if requested
+    assert _nested_mcp_override(["codex-workflow"]) == "{}"
+    # an unconfigured name is skipped → empty
+    assert _nested_mcp_override(["definitely-not-a-real-server-xyz"]) == "{}"
 
 
 def test_batches_grouping():

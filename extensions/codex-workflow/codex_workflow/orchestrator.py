@@ -45,6 +45,47 @@ def _max_threads(default: int = 4) -> int:
         return default
 
 
+def _toml_inline(v) -> str:
+    """Minimal TOML inline serializer for the mcp_servers subset (str/int/bool/
+    list/dict). Keys are quoted so server names with dashes are safe."""
+    if isinstance(v, str):
+        return '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return str(v)
+    if isinstance(v, list):
+        return "[" + ", ".join(_toml_inline(x) for x in v) + "]"
+    if isinstance(v, dict):
+        return "{" + ", ".join(f'"{k}" = {_toml_inline(x)}' for k, x in v.items()) + "}"
+    return '""'
+
+
+def _nested_mcp_override(requested: list[str] | None) -> str:
+    """TOML value for the nested codex's `-c mcp_servers=...`.
+
+    Default `{}` drops all downstream servers (lean + recursion-safe). When
+    `requested` names servers, only those are passed through from the user's
+    Codex config — `codex-workflow` is ALWAYS excluded so the orchestrator can
+    never re-spawn itself.
+    """
+    if not requested:
+        return "{}"
+    try:
+        servers = tomllib.loads((Path.home() / ".codex" / "config.toml").read_text()).get("mcp_servers", {})
+    except Exception:
+        servers = {}
+    subset = {}
+    for name in requested:
+        if name == "codex-workflow":
+            continue
+        if name in servers:
+            subset[name] = servers[name]
+        else:
+            log.warning("requested mcp_server %r not in ~/.codex/config.toml — skipped", name)
+    return _toml_inline(subset)
+
+
 def _agent_instructions(name: str) -> str | None:
     """developer_instructions of a ~/.codex/agents/<name>.toml role, if present.
 
@@ -110,13 +151,14 @@ async def run_workflow_spec(spec: dict) -> dict:
     _js_validate(instance=spec, schema=_SCHEMA)
     cap = _max_threads()
     sem = asyncio.Semaphore(cap)
-    log.info("run_workflow start steps=%d cap=%d", len(spec["steps"]), cap)
+    override = _nested_mcp_override(spec.get("mcp_servers"))
+    log.info("run_workflow start steps=%d cap=%d mcp=%s", len(spec["steps"]), cap, spec.get("mcp_servers") or "none")
 
     # Recursion guard: the nested `codex mcp-server` must NOT re-load codex-workflow
-    # (it would spawn us again → runaway). `-c mcp_servers={}` drops all downstream
-    # MCP servers in the nested codex, so a workflow step's agent runs with codex's
-    # core tools only. This is what makes the `codex` target safe.
-    params = StdioServerParameters(command="codex", args=["mcp-server", "-c", "mcp_servers={}"])
+    # (it would spawn us again → runaway). The override drops codex-workflow (and,
+    # by default, all other downstream servers); opt in to specific servers via the
+    # spec's `mcp_servers`. This is what makes the `codex` target safe.
+    params = StdioServerParameters(command="codex", args=["mcp-server", "-c", f"mcp_servers={override}"])
     results: list[dict] = []
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:

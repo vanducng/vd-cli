@@ -2,10 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMcpLogDir(t *testing.T) {
@@ -66,6 +68,20 @@ func TestMcpLogsCmd(t *testing.T) {
 		if err := cmd.Execute(); err == nil {
 			t.Fatalf("expected rejection of %q", bad)
 		}
+	}
+}
+
+func TestFollowLog(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "x.log")
+	os.WriteFile(p, []byte("a\nb\nc\n"), 0o644)
+	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
+	defer cancel()
+	var buf bytes.Buffer
+	if err := followLog(ctx, &buf, p, 2); err != nil { // start after "a\n"
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "b") || !strings.Contains(buf.String(), "c") {
+		t.Fatalf("did not stream appended lines: %q", buf.String())
 	}
 }
 

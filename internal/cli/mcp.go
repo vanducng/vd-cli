@@ -1,12 +1,16 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -77,6 +81,7 @@ func mcpLogDir() string {
 
 func newMcpLogsCmd() *cobra.Command {
 	var tail int
+	var follow bool
 	cmd := &cobra.Command{
 		Use:   "logs <name>",
 		Short: "Show an extension's log (~/.vd/logs/<name>.log) — for inspection + continuous improvement",
@@ -98,12 +103,53 @@ func newMcpLogsCmd() *cobra.Command {
 			if tail > 0 && len(lines) > tail {
 				lines = lines[len(lines)-tail:]
 			}
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), strings.Join(lines, "\n"))
-			return nil
+			out := cmd.OutOrStdout()
+			_, _ = fmt.Fprintln(out, strings.Join(lines, "\n"))
+			if !follow {
+				return nil
+			}
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			return followLog(ctx, out, path, int64(len(data)))
 		},
 	}
 	cmd.Flags().IntVar(&tail, "tail", 0, "Show only the last N lines (0 = all)")
+	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Stream new lines as they're written (Ctrl-C to stop)")
 	return cmd
+}
+
+// followLog streams bytes appended to path after offset until the context is
+// canceled (Ctrl-C). Truncation/rotation is not handled (YAGNI).
+func followLog(ctx context.Context, out io.Writer, path string, offset int64) error {
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+	defer stop()
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := f.Seek(offset, io.SeekStart); err != nil {
+		return err
+	}
+	buf := make([]byte, 8192)
+	ticker := time.NewTicker(400 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		for {
+			n, _ := f.Read(buf)
+			if n == 0 {
+				break
+			}
+			_, _ = out.Write(buf[:n])
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
+	}
 }
 
 var flagExtensionsDir string
