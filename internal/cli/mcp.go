@@ -93,7 +93,7 @@ func newMcpListCmd() *cobra.Command {
 				return err
 			}
 			if len(exts) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "no extensions found")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "no extensions found")
 				return nil
 			}
 			for _, e := range exts {
@@ -101,7 +101,7 @@ func newMcpListCmd() *cobra.Command {
 				if !e.Enabled {
 					state = "disabled"
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-8s %s  targets=%s scope=%s\n",
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-8s %s  targets=%s scope=%s\n",
 					e.Name, state, e.Transport, strings.Join(e.Targets, ","), e.Scope)
 			}
 			return nil
@@ -221,7 +221,7 @@ func newMcpInstallCmd() *cobra.Command {
 				} else if err := registerExtension(e, effScope, &log); err != nil {
 					return err
 				}
-				fmt.Fprintf(out, "%s:\n%s", e.Name, log.String())
+				_, _ = fmt.Fprintf(out, "%s:\n%s", e.Name, log.String())
 			}
 			return nil
 		},
@@ -247,7 +247,7 @@ func newMcpEnableCmd() *cobra.Command {
 			if err := registerExtension(exts[0], scope, &log); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s enabled:\n%s", exts[0].Name, log.String())
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s enabled:\n%s", exts[0].Name, log.String())
 			return nil
 		},
 	}
@@ -271,7 +271,7 @@ func newMcpDisableCmd() *cobra.Command {
 			if err := unregisterExtension(exts[0], scope, &log); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s disabled:\n%s", exts[0].Name, log.String())
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s disabled:\n%s", exts[0].Name, log.String())
 			return nil
 		},
 	}
@@ -291,26 +291,26 @@ func newMcpDoctorCmd() *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			for _, e := range exts {
-				fmt.Fprintf(out, "%s (%s):\n", e.Name, e.Transport)
+				_, _ = fmt.Fprintf(out, "%s (%s):\n", e.Name, e.Transport)
 				for _, name := range e.Env {
 					if os.Getenv(name) == "" {
-						fmt.Fprintf(out, "  ⚠ env %s is not set\n", name)
+						_, _ = fmt.Fprintf(out, "  ⚠ env %s is not set\n", name)
 					} else {
-						fmt.Fprintf(out, "  ✓ env %s set\n", name)
+						_, _ = fmt.Fprintf(out, "  ✓ env %s set\n", name)
 					}
 				}
 				switch e.Transport {
 				case "stdio":
 					if _, lookErr := exec.LookPath(e.Command); lookErr != nil {
-						fmt.Fprintf(out, "  ✕ command %q not found on PATH\n", e.Command)
+						_, _ = fmt.Fprintf(out, "  ✕ command %q not found on PATH\n", e.Command)
 					} else {
-						fmt.Fprintf(out, "  ✓ command %q found\n", e.Command)
+						_, _ = fmt.Fprintf(out, "  ✓ command %q found\n", e.Command)
 					}
 				case "http":
 					if e.URL == "" {
-						fmt.Fprintln(out, "  ✕ url not set")
+						_, _ = fmt.Fprintln(out, "  ✕ url not set")
 					} else {
-						fmt.Fprintf(out, "  ✓ url %s\n", e.URL)
+						_, _ = fmt.Fprintf(out, "  ✓ url %s\n", e.URL)
 					}
 				}
 			}

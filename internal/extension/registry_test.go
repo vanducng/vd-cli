@@ -17,12 +17,6 @@ func writeExt(t *testing.T, root, name, body string) {
 	}
 }
 
-const validBody = `name = "%s"
-transport = "stdio"
-command = "uv"
-targets = ["codex"]
-enabled = true`
-
 func TestDiscover(t *testing.T) {
 	root := t.TempDir()
 	writeExt(t, root, "bravo", "name = \"bravo\"\ntransport = \"stdio\"\ncommand = \"uv\"\ntargets = [\"codex\"]")
