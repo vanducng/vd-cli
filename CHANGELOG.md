@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.4.1](https://github.com/vanducng/vd-cli/compare/v3.4.0...v3.4.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* **codex-workflow:** kill recursive spawn + transparent extension logs ([#51](https://github.com/vanducng/vd-cli/issues/51)) ([d4bf998](https://github.com/vanducng/vd-cli/commit/d4bf9980bde46c189b82414c03aa447e531f5ae0))
+
 ## [3.4.0](https://github.com/vanducng/vd-cli/compare/v3.3.0...v3.4.0) (2026-06-25)
 
 
