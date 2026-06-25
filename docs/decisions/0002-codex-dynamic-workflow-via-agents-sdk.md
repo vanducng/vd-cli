@@ -29,6 +29,18 @@ Two supporting changes, independent of the orchestrator:
 1. **Agent TOMLs become source-controlled + deployed.** Move the 14 `~/.codex/agents/*.toml` to `~/skills/agents/` and extend `internal/install/codex.go` so `vd install codex` deploys them to `~/.codex/agents/`. (Today they are untracked machine state.)
 2. **`[agents]` config block** added to `~/.codex/config.toml` (dotfiles source): `max_threads = 4`, `max_depth = 1`, `job_max_runtime_seconds = 900`.
 
+## Refinement (2026-06-25, during implementation)
+
+v1 ships a **deterministic sequencer**, not an Agents-SDK manager. `run_workflow`
+dispatches each step directly to Codex's `codex` MCP tool (`codex mcp-server`),
+so all model work runs through the user's **Codex login** — **no second
+`OPENAI_API_KEY`, no extra LLM bill, no SDK lock-in for the orchestration layer**.
+It remains Option C (an MCP server over `codex mcp-server`); only the internal
+manager (the openai-agents SDK) is dropped. Steps run sequentially; consecutive
+steps sharing a `parallel_group` run concurrently, capped by `[agents].max_threads`.
+The Agents-SDK manager + OpenAI Traces (original (a)) can be layered on later if
+dynamic manager reasoning or trace audit becomes a hard requirement.
+
 ## Consequences
 
 - **Accepted lock-in:** a Python runtime + `openai-agents` dependency + OpenAI-SDK coupling. This is a conscious tradeoff — chosen for official support, MCP longevity, and decoupling from vd-cli development, over the "no new runtime / no lock-in" of a custom Go driver.
