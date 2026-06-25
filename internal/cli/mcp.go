@@ -54,7 +54,7 @@ vd is the manager: it registers extensions into Codex (~/.codex/config.toml
 user-level config.toml.`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("unknown subcommand %q (valid: list, install, enable, disable, doctor)", args[0])
+			return fmt.Errorf("unknown subcommand %q (valid: list, install, enable, disable, doctor, logs)", args[0])
 		},
 	}
 	cmd.AddCommand(newMcpListCmd(), newMcpInstallCmd(), newMcpEnableCmd(), newMcpDisableCmd(), newMcpDoctorCmd(), newMcpLogsCmd())
@@ -68,7 +68,10 @@ func mcpLogDir() string {
 	if d := os.Getenv("VD_LOG_DIR"); d != "" {
 		return d
 	}
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		home = os.TempDir() // never resolve to a relative path
+	}
 	return filepath.Join(home, ".vd", "logs")
 }
 
@@ -79,7 +82,11 @@ func newMcpLogsCmd() *cobra.Command {
 		Short: "Show an extension's log (~/.vd/logs/<name>.log) — for inspection + continuous improvement",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := filepath.Join(mcpLogDir(), args[0]+".log")
+			name := args[0]
+			if name != filepath.Base(name) || strings.Contains(name, "..") {
+				return fmt.Errorf("invalid extension name %q", name) // no path traversal
+			}
+			path := filepath.Join(mcpLogDir(), name+".log")
 			data, err := os.ReadFile(path)
 			if err != nil {
 				if os.IsNotExist(err) {

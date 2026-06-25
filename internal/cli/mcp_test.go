@@ -56,6 +56,17 @@ func TestMcpLogsCmd(t *testing.T) {
 	if err := cmd.Execute(); err == nil {
 		t.Fatal("expected error for missing log")
 	}
+
+	// path traversal rejected
+	for _, bad := range []string{"../../etc/passwd", "a/b", ".."} {
+		cmd = newMcpLogsCmd()
+		cmd.SetArgs([]string{bad})
+		cmd.SetOut(&bytes.Buffer{})
+		cmd.SetErr(&bytes.Buffer{})
+		if err := cmd.Execute(); err == nil {
+			t.Fatalf("expected rejection of %q", bad)
+		}
+	}
 }
 
 func TestResolveExtensionsDir_Env(t *testing.T) {
