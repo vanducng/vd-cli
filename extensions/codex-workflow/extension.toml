@@ -3,6 +3,9 @@ description = "Deterministic multi-agent workflow orchestrator over codex mcp-se
 transport = "stdio"
 command = "uv"
 args = ["run", "--directory", "{dir}", "codex-workflow-server"]
+# Both targets are safe: the orchestrator spawns the nested `codex mcp-server`
+# with `-c mcp_servers={}`, so Codex never re-loads codex-workflow (no recursion).
+# Workflow-step agents in the nested codex run with codex's core tools only.
 env = []
 targets = ["codex", "claude"]
 scope = "project"

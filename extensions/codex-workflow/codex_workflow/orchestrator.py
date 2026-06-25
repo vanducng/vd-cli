@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
+import time
 import tomllib
 from pathlib import Path
 
@@ -18,6 +20,21 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 _SCHEMA = json.loads((Path(__file__).resolve().parent.parent / "schema" / "run_workflow.v1.json").read_text())
+
+# Agent-friendly, transparent log so the extension can be observed + improved.
+# Convention: vd extensions log to ~/.vd/logs/<name>.log; surfaced by `vd mcp logs`.
+_LOG_DIR = Path(os.environ.get("VD_LOG_DIR", Path.home() / ".vd" / "logs"))
+log = logging.getLogger("codex-workflow")
+if not log.handlers:
+    try:
+        _LOG_DIR.mkdir(parents=True, exist_ok=True)
+        _h = logging.FileHandler(_LOG_DIR / "codex-workflow.log")
+        _h.setFormatter(logging.Formatter("%(asctime)s %(levelname)-5s %(message)s"))
+        log.addHandler(_h)
+        log.setLevel(logging.INFO)
+        log.propagate = False  # stdio MCP server: logs go ONLY to the file, never stdout/stderr
+    except OSError:
+        pass  # never let logging break the server
 
 
 def _max_threads(default: int = 4) -> int:
@@ -59,16 +76,21 @@ def _result_text(call_result) -> str:
 
 
 async def _run_step(session: ClientSession, step: dict) -> dict:
+    sid = step["id"]
+    t0 = time.monotonic()
+    log.info("step start id=%s agent=%s", sid, step.get("agent") or "-")
     try:
         res = await session.call_tool(
             "codex",
             {"prompt": _step_prompt(step), "approval-policy": "never", "sandbox": "workspace-write"},
         )
-        if getattr(res, "isError", False):
-            return {"id": step["id"], "status": "error", "output": _result_text(res) or "tool error"}
-        return {"id": step["id"], "status": "ok", "output": _result_text(res)}
+        status = "error" if getattr(res, "isError", False) else "ok"
+        out = _result_text(res) or ("tool error" if status == "error" else "")
+        log.info("step done  id=%s status=%s dur=%.1fs out=%dch", sid, status, time.monotonic() - t0, len(out))
+        return {"id": sid, "status": status, "output": out}
     except Exception as exc:  # surface terminal errors per-step, don't abort the run
-        return {"id": step["id"], "status": "error", "output": f"{type(exc).__name__}: {exc}"}
+        log.error("step fail  id=%s %s: %s", sid, type(exc).__name__, exc)
+        return {"id": sid, "status": "error", "output": f"{type(exc).__name__}: {exc}"}
 
 
 def _batches(steps: list[dict]) -> list[list[dict]]:
@@ -88,8 +110,13 @@ async def run_workflow_spec(spec: dict) -> dict:
     _js_validate(instance=spec, schema=_SCHEMA)
     cap = _max_threads()
     sem = asyncio.Semaphore(cap)
+    log.info("run_workflow start steps=%d cap=%d", len(spec["steps"]), cap)
 
-    params = StdioServerParameters(command="codex", args=["mcp-server"])
+    # Recursion guard: the nested `codex mcp-server` must NOT re-load codex-workflow
+    # (it would spawn us again → runaway). `-c mcp_servers={}` drops all downstream
+    # MCP servers in the nested codex, so a workflow step's agent runs with codex's
+    # core tools only. This is what makes the `codex` target safe.
+    params = StdioServerParameters(command="codex", args=["mcp-server", "-c", "mcp_servers={}"])
     results: list[dict] = []
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -105,4 +132,6 @@ async def run_workflow_spec(spec: dict) -> dict:
                 else:
                     results.extend(await asyncio.gather(*(guarded(s) for s in batch)))
 
+    ok = sum(1 for r in results if r["status"] == "ok")
+    log.info("run_workflow done %d/%d ok", ok, len(results))
     return {"results": results}
