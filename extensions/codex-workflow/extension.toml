@@ -1,0 +1,10 @@
+name = "codex-workflow"
+description = "Deterministic multi-agent workflow orchestrator over codex mcp-server (exposes the run_workflow tool)."
+transport = "stdio"
+command = "uv"
+args = ["run", "--directory", "{dir}", "codex-workflow-server"]
+env = ["OPENAI_API_KEY"]
+targets = ["codex", "claude"]
+scope = "project"
+startup_timeout_sec = 120
+enabled = true
