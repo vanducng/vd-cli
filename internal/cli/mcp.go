@@ -83,10 +83,13 @@ func newMcpLogsCmd() *cobra.Command {
 	var tail int
 	var follow bool
 	cmd := &cobra.Command{
-		Use:   "logs <name>",
+		Use:   "logs [name]",
 		Short: "Show an extension's log (~/.vd/logs/<name>.log) — for inspection + continuous improvement",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return listExtensionLogs(cmd.OutOrStdout())
+			}
 			name := args[0]
 			if name != filepath.Base(name) || strings.Contains(name, "..") {
 				return fmt.Errorf("invalid extension name %q", name) // no path traversal
@@ -118,6 +121,28 @@ func newMcpLogsCmd() *cobra.Command {
 	cmd.Flags().IntVar(&tail, "tail", 0, "Show only the last N lines (0 = all)")
 	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Stream new lines as they're written (Ctrl-C to stop)")
 	return cmd
+}
+
+// listExtensionLogs prints the extensions that have a log, so `vd mcp logs`
+// with no name tells the caller what they can inspect.
+func listExtensionLogs(out io.Writer) error {
+	dir := mcpLogDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) == 0 {
+		return fmt.Errorf("no extension logs in %s yet — run an extension first", dir)
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".log") {
+			names = append(names, strings.TrimSuffix(e.Name(), ".log"))
+		}
+	}
+	if len(names) == 0 {
+		return fmt.Errorf("no extension logs in %s yet — run an extension first", dir)
+	}
+	sort.Strings(names)
+	_, _ = fmt.Fprintf(out, "extensions with logs (pass one, e.g. `vd mcp logs %s`):\n  %s\n", names[0], strings.Join(names, "\n  "))
+	return nil
 }
 
 // followLog streams bytes appended to path after offset until the context is
