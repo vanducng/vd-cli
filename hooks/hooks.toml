@@ -61,3 +61,30 @@ lib = true
 [[hook]]
 file = "lib/state.cjs"
 lib = true
+
+# Telegram notifier (Python) — pings on turn-complete and approval.
+[[hook]]
+file = "agent-notify.py"
+runtime = "python3"
+event = "Stop"
+args = ["claude", "stop"]
+
+[[hook]]
+file = "agent-notify.py"
+runtime = "python3"
+event = "Notification"
+args = ["claude", "notification"]
+
+# Pre-merge guard — blocks `gh pr merge` while the PR has unresolved review threads.
+[[hook]]
+file = "pr-merge-guard.py"
+runtime = "python3"
+event = "PreToolUse"
+matcher = "Bash"
+
+# Also fire the notifier on Codex turns (wires ~/.codex/config.toml notify).
+[[hook]]
+file = "agent-notify.py"
+runtime = "python3"
+event = "codex.notify"
+args = ["codex"]
