@@ -146,7 +146,8 @@ const normalizePath = stripTrailing;
  * Anchored to the MAIN worktree so artifacts written from inside a linked
  * worktree land in the main repo's umbrella (and survive `git worktree remove`).
  * Returns absolute path to <mainRoot>/<umbrella>; under a stray $HOME repo with
- * no nested git boundary, falls back to <workingDir>/<umbrella>.
+ * no nested git boundary, falls back to <workingDir>/<umbrella>. With NO git root
+ * at all (brand-new project not yet `git init`'d), also anchors at <workingDir>.
  */
 function resolveUmbrellaRoot(config, baseDir) {
   const umbrella = config?.paths?.umbrella;
@@ -158,6 +159,10 @@ function resolveUmbrellaRoot(config, baseDir) {
   const gitBaseDir = realpathSafe(baseDir || process.cwd());
   // Prefer a fresh lookup for gitBaseDir before the config-load cwd fallback.
   let gitRoot = getMainWorktreeRoot(gitBaseDir) || getGitRoot(gitBaseDir) || config._gitRoot;
+  // No git root anywhere (brand-new project not yet `git init`'d, or a non-git tool
+  // session): anchor the umbrella at the working dir so artifacts still land in
+  // .workbench/ instead of silently scattering to the legacy plans/ layout at cwd.
+  if (!gitRoot) gitRoot = gitBaseDir;
   if (!gitRoot) return null;
   gitRoot = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot));
   // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
