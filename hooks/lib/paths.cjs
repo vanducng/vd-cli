@@ -163,7 +163,6 @@ function resolveUmbrellaRoot(config, baseDir) {
   // session): anchor the umbrella at the working dir so artifacts still land in
   // .workbench/ instead of silently scattering to the legacy plans/ layout at cwd.
   if (!gitRoot) gitRoot = gitBaseDir;
-  if (!gitRoot) return null;
   gitRoot = realpathSafe(path.isAbsolute(gitRoot) ? gitRoot : path.resolve(gitBaseDir, gitRoot));
   // Stray-ancestor guard: a coincidental repo rooted at $HOME (e.g. an accidental
   // `git init ~`) would otherwise swallow every project below it and scatter
