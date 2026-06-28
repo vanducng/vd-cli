@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.6.2](https://github.com/vanducng/vd-cli/compare/v3.6.1...v3.6.2) (2026-06-28)
+
+
+### Bug Fixes
+
+* **hooks:** anchor umbrella at cwd when no git root ([#60](https://github.com/vanducng/vd-cli/issues/60)) ([b70f4a8](https://github.com/vanducng/vd-cli/commit/b70f4a877aa7c1df5474982bad5601f307e7ee1a))
+
 ## [3.6.1](https://github.com/vanducng/vd-cli/compare/v3.6.0...v3.6.1) (2026-06-25)
 
 
