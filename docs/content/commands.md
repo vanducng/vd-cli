@@ -512,9 +512,9 @@ vd context print --cwd /path/to/repo --session-id "$VD_SESSION_ID"
 vd context print --json --cwd /path/to/repo
 ```
 
-**Side effects:** none. It runs `dev-rules-reminder.cjs` from `~/.codex/hooks/`, `~/.claude/hooks/`, or the local vd hooks directory and prints the resolved context.
+**Side effects:** none. It runs the `dev-rules-reminder` hook from `~/.codex/hooks/`, `~/.claude/hooks/`, or the local vd hooks directory and prints the resolved context. Each directory is scanned preferring the Python hook (`dev-rules-reminder.py`, run via `python3`) over the legacy Node hook (`dev-rules-reminder.cjs`, run via `node`), so a machine that upgrades vd before re-running `vd install hooks` still works.
 
-**Exit codes:** `0` success, `1` missing hook, bad cwd, invalid hook JSON, or Node execution failure.
+**Exit codes:** `0` success, `1` missing hook, bad cwd, invalid hook JSON, or hook execution failure (the runtime — `python3` or `node` — not found or the hook erroring).
 
 ---
 
