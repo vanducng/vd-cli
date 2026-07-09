@@ -169,9 +169,10 @@ func UnwireCodexNotify(path, programPath string) error {
 	return atomicWrite(path, out)
 }
 
-// codexProgramPath returns the program element of a notify command — the runtime
-// when one is present (argv[0] is python3/node, argv[1] is the script), else the
-// first element. Used to detect whether an existing notify line is ours.
+// codexProgramPath returns the program element of a notify command — the script
+// path when a runtime prefix is present (argv[0] python3/node → argv[1]; argv[0:2]
+// "uv run" → argv[2]), else the first element. Used to detect whether an existing
+// notify line is ours.
 func codexProgramPath(command []string) string {
 	if len(command) == 0 {
 		return ""
@@ -180,6 +181,10 @@ func codexProgramPath(command []string) string {
 	case "python3", "node":
 		if len(command) > 1 {
 			return command[1]
+		}
+	case "uv":
+		if len(command) > 2 && command[1] == "run" {
+			return command[2]
 		}
 	}
 	return command[0]

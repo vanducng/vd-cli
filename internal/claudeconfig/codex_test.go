@@ -246,6 +246,11 @@ func TestCodexNotifyCommand(t *testing.T) {
 			want: []string{"python3", "/home/u/.claude/hooks/agent-notify.py", "codex"},
 		},
 		{
+			name: "uv runtime prepends uv run before abs path",
+			hook: Hook{File: "agent-notify.py", Runtime: "uv", Event: "codex.notify", Args: []string{"codex"}},
+			want: []string{"uv", "run", "/home/u/.claude/hooks/agent-notify.py", "codex"},
+		},
+		{
 			name: "empty runtime puts abs path first",
 			hook: Hook{File: "notify.sh", Event: "codex.notify"},
 			want: []string{"/home/u/.claude/hooks/notify.sh"},
@@ -272,13 +277,26 @@ func TestCodexNotifyCommand(t *testing.T) {
 }
 
 func TestCodexHookCommand(t *testing.T) {
-	got := CodexHookCommand(
-		Hook{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "codex.UserPromptSubmit"},
-		"/home/u/.codex/hooks",
-	)
-	want := "node '/home/u/.codex/hooks/dev-rules-reminder.cjs'"
-	if got != want {
-		t.Fatalf("CodexHookCommand = %q, want %q", got, want)
+	cases := []struct {
+		name string
+		hook Hook
+		want string
+	}{
+		{
+			name: "node runtime",
+			hook: Hook{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "codex.UserPromptSubmit"},
+			want: "node '/home/u/.codex/hooks/dev-rules-reminder.cjs'",
+		},
+		{
+			name: "uv runtime expands to uv run",
+			hook: Hook{File: "dev-rules-reminder.py", Runtime: "uv", Event: "codex.UserPromptSubmit"},
+			want: "uv run '/home/u/.codex/hooks/dev-rules-reminder.py'",
+		},
+	}
+	for _, c := range cases {
+		if got := CodexHookCommand(c.hook, "/home/u/.codex/hooks"); got != c.want {
+			t.Errorf("%s: CodexHookCommand = %q, want %q", c.name, got, c.want)
+		}
 	}
 }
 
