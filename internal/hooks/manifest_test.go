@@ -72,6 +72,22 @@ func TestLoadManifestMissingFile(t *testing.T) {
 	}
 }
 
+func TestLoadManifestAcceptsUvRuntime(t *testing.T) {
+	path := writeManifest(t, `
+[[hook]]
+file = "session-init.py"
+runtime = "uv"
+event = "SessionStart"
+`)
+	hooks, err := LoadManifest(path)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+	if len(hooks) != 1 || hooks[0].Runtime != "uv" {
+		t.Errorf("uv hook parsed wrong: %+v", hooks)
+	}
+}
+
 func TestLoadManifestRejectsBadRuntime(t *testing.T) {
 	path := writeManifest(t, `
 [[hook]]

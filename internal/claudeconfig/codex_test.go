@@ -246,6 +246,11 @@ func TestCodexNotifyCommand(t *testing.T) {
 			want: []string{"python3", "/home/u/.claude/hooks/agent-notify.py", "codex"},
 		},
 		{
+			name: "uv runtime prepends uv run before abs path",
+			hook: Hook{File: "agent-notify.py", Runtime: "uv", Event: "codex.notify", Args: []string{"codex"}},
+			want: []string{"uv", "run", "/home/u/.claude/hooks/agent-notify.py", "codex"},
+		},
+		{
 			name: "empty runtime puts abs path first",
 			hook: Hook{File: "notify.sh", Event: "codex.notify"},
 			want: []string{"/home/u/.claude/hooks/notify.sh"},
@@ -272,13 +277,26 @@ func TestCodexNotifyCommand(t *testing.T) {
 }
 
 func TestCodexHookCommand(t *testing.T) {
-	got := CodexHookCommand(
-		Hook{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "codex.UserPromptSubmit"},
-		"/home/u/.codex/hooks",
-	)
-	want := "node '/home/u/.codex/hooks/dev-rules-reminder.cjs'"
-	if got != want {
-		t.Fatalf("CodexHookCommand = %q, want %q", got, want)
+	cases := []struct {
+		name string
+		hook Hook
+		want string
+	}{
+		{
+			name: "node runtime",
+			hook: Hook{File: "dev-rules-reminder.cjs", Runtime: "node", Event: "codex.UserPromptSubmit"},
+			want: "node '/home/u/.codex/hooks/dev-rules-reminder.cjs'",
+		},
+		{
+			name: "uv runtime expands to uv run",
+			hook: Hook{File: "dev-rules-reminder.py", Runtime: "uv", Event: "codex.UserPromptSubmit"},
+			want: "uv run '/home/u/.codex/hooks/dev-rules-reminder.py'",
+		},
+	}
+	for _, c := range cases {
+		if got := CodexHookCommand(c.hook, "/home/u/.codex/hooks"); got != c.want {
+			t.Errorf("%s: CodexHookCommand = %q, want %q", c.name, got, c.want)
+		}
 	}
 }
 
@@ -335,5 +353,33 @@ func TestUnregisterCodexHooksRemovesPromptSubmit(t *testing.T) {
 	}
 	if entries[0].Hooks[0].Command != "node /other/user-hook.cjs" {
 		t.Fatalf("foreign hook was not preserved: %+v", entries)
+	}
+}
+
+func TestWireCodexNotifyUvRuntimeMatchesExisting(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	orig := "model = \"x\"\nnotify = [\"uv\", \"run\", \"/abs/hooks/agent-notify.py\", \"codex\"]\n"
+	if err := os.WriteFile(path, []byte(orig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	prev, err := WireCodexNotify(path, []string{"uv", "run", "/abs/hooks/agent-notify.py", "codex"})
+	if err != nil {
+		t.Fatalf("WireCodexNotify: %v", err)
+	}
+	if prev != "" {
+		t.Errorf("replacedPrev = %q, want \"\" (existing line already targets our program via the uv branch)", prev)
+	}
+
+	prev, err = WireCodexNotify(path, []string{"uv", "run", "/abs/hooks/other-notify.py", "codex"})
+	if err != nil {
+		t.Fatalf("WireCodexNotify (different program): %v", err)
+	}
+	if !strings.Contains(prev, "agent-notify.py") {
+		t.Errorf("replacedPrev = %q, want the old uv notify line reported as replaced", prev)
+	}
+	s := readFile(t, path)
+	if !strings.Contains(s, `notify = ["uv", "run", "/abs/hooks/other-notify.py", "codex"]`) {
+		t.Errorf("notify not rewritten to the new uv command:\n%s", s)
 	}
 }

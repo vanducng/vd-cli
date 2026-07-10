@@ -20,9 +20,20 @@ type contextPrintOptions struct {
 }
 
 const (
-	contextHookFile = "dev-rules-reminder.cjs"
-	sessionIDEnvVar = "VD_SESSION_ID"
+	contextHookFilePy  = "dev-rules-reminder.py"
+	contextHookFileCjs = "dev-rules-reminder.cjs"
+	sessionIDEnvVar    = "VD_SESSION_ID"
 )
+
+// contextHookRuntime returns the interpreter for a resolved context hook: the
+// Python hook runs via python3, the legacy Node hook (or any other override)
+// via node.
+func contextHookRuntime(path string) string {
+	if strings.HasSuffix(path, ".py") {
+		return "python3"
+	}
+	return "node"
+}
 
 func newContextCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -50,7 +61,7 @@ func newContextPrintCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.cwd, "cwd", "", "Working directory to resolve project config from")
 	cmd.Flags().StringVar(&opts.sessionID, "session-id", "", "Session id used for plan path resolution")
 	cmd.Flags().BoolVar(&opts.jsonOut, "json", false, "Print hook JSON instead of plain context")
-	cmd.Flags().StringVar(&opts.hookPath, "hook-path", "", "Override dev-rules-reminder.cjs path")
+	cmd.Flags().StringVar(&opts.hookPath, "hook-path", "", "Override the dev-rules-reminder hook path (.py runs via python3, else node)")
 	return cmd
 }
 
@@ -78,12 +89,12 @@ func runContextPrint(cmd *cobra.Command, opts contextPrintOptions) error {
 		sessionID = os.Getenv(sessionIDEnvVar)
 	}
 
-	hookPath, err := resolveContextHookPath(opts.hookPath)
+	hookPath, runtime, err := resolveContextHook(opts.hookPath)
 	if err != nil {
 		return err
 	}
 
-	raw, err := runContextHook(cwd, sessionID, hookPath)
+	raw, err := runContextHook(cwd, sessionID, hookPath, runtime)
 	if err != nil {
 		return err
 	}
@@ -103,27 +114,50 @@ func runContextPrint(cmd *cobra.Command, opts contextPrintOptions) error {
 	return nil
 }
 
-func resolveContextHookPath(override string) (string, error) {
+// resolveContextHook finds the dev-rules-reminder hook and the interpreter to
+// run it with. An explicit override wins; otherwise each hooks dir (in
+// precedence order) is scanned preferring the Python hook over the legacy Node
+// one, so a machine that upgrades vd before re-running `vd install hooks` still
+// resolves the .cjs it already has.
+func resolveContextHook(override string) (path, runtime string, err error) {
 	if override != "" {
-		return validateHookPath(override)
+		p, verr := validateHookPath(override)
+		if verr != nil {
+			return "", "", verr
+		}
+		return p, contextHookRuntime(p), nil
 	}
-	home, err := os.UserHomeDir()
-	if err == nil {
-		for _, candidate := range []string{
-			filepath.Join(home, ".codex", "hooks", contextHookFile),
-			filepath.Join(home, ".claude", "hooks", contextHookFile),
-		} {
-			if path, err := validateHookPath(candidate); err == nil {
-				return path, nil
+
+	var dirs []string
+	if home, herr := os.UserHomeDir(); herr == nil {
+		dirs = append(dirs,
+			filepath.Join(home, ".codex", "hooks"),
+			filepath.Join(home, ".claude", "hooks"),
+		)
+	}
+	if root, rerr := resolveRepoRoot(flagRoot); rerr == nil {
+		dirs = append(dirs, filepath.Join(root, "hooks"))
+	}
+
+	if p, rt, ok := findContextHookIn(dirs); ok {
+		return p, rt, nil
+	}
+	return "", "", fmt.Errorf("dev-rules-reminder.{py,cjs} not found in ~/.codex/hooks, ~/.claude/hooks, or the vd repo hooks dir")
+}
+
+// findContextHookIn returns the first dev-rules-reminder hook found across dirs
+// (in order) with its runtime, preferring the Python hook over the Node one
+// within each dir.
+func findContextHookIn(dirs []string) (path, runtime string, ok bool) {
+	for _, dir := range dirs {
+		for _, name := range []string{contextHookFilePy, contextHookFileCjs} {
+			candidate := filepath.Join(dir, name)
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				return candidate, contextHookRuntime(candidate), true
 			}
 		}
 	}
-	if root, err := resolveRepoRoot(flagRoot); err == nil {
-		if path, err := validateHookPath(filepath.Join(root, "hooks", contextHookFile)); err == nil {
-			return path, nil
-		}
-	}
-	return "", fmt.Errorf("%s not found in ~/.codex/hooks, ~/.claude/hooks, or the vd repo hooks dir", contextHookFile)
+	return "", "", false
 }
 
 func validateHookPath(path string) (string, error) {
@@ -141,7 +175,7 @@ func validateHookPath(path string) (string, error) {
 	return abs, nil
 }
 
-func runContextHook(cwd, sessionID, hookPath string) ([]byte, error) {
+func runContextHook(cwd, sessionID, hookPath, runtime string) ([]byte, error) {
 	payload := map[string]string{
 		"cwd":             cwd,
 		"hook_event_name": "UserPromptSubmit",
@@ -154,11 +188,11 @@ func runContextHook(cwd, sessionID, hookPath string) ([]byte, error) {
 		return nil, err
 	}
 
-	nodeBin, err := exec.LookPath("node")
+	bin, err := exec.LookPath(runtime)
 	if err != nil {
-		return nil, fmt.Errorf("node not found in PATH: %w", err)
+		return nil, fmt.Errorf("%s not found in PATH: %w", runtime, err)
 	}
-	ext := exec.Command(nodeBin, hookPath)
+	ext := exec.Command(bin, hookPath)
 	ext.Dir = cwd
 	ext.Stdin = bytes.NewReader(append(data, '\n'))
 	var stdout, stderr bytes.Buffer

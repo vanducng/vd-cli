@@ -447,8 +447,8 @@ One `[[hook]]` table per hook:
 
 ```toml
 [[hook]]
-file    = "session-init.cjs"               # path under hooks/ (no ".." or absolute paths)
-runtime = "node"                           # node | python3 | "" (direct exec via shebang)
+file    = "session-init.py"                # path under hooks/ (no ".." or absolute paths)
+runtime = "python3"                        # python3 | uv | node | "" (direct exec via shebang)
 event   = "SessionStart"                   # a Claude event, or "statusLine"
 matcher = "startup|resume|clear|compact"   # optional
 
@@ -459,15 +459,15 @@ event   = "Stop"
 args    = ["claude", "stop"]               # extra argv appended after the file
 
 [[hook]]
-file = "lib/config.cjs"
+file = "lib/config.py"
 lib  = true                                # copied only, never registered (support file)
 ```
 
-- **Runtimes:** `node`, `python3`, or empty (run the file directly via its shebang).
+- **Runtimes:** `python3` (stdlib), `uv` (registered as `uv run "<file>"` — for hooks with PEP 723 inline deps; requires [uv](https://github.com/astral-sh/uv) on `PATH`, so only depend on it if a hook uses it), `node`, or empty (run the file directly via its shebang).
 - **Events:** the standard Claude events (`SessionStart`, `Stop`, `Notification`, `PreToolUse`, `PostToolUse`, `SubagentStart`, `SubagentStop`, `UserPromptSubmit`, `PreCompact`, …) plus pseudo-events: `statusLine` (Claude status line), **`codex.UserPromptSubmit`** (Codex prompt context), and **`codex.notify`** (Codex `notify` program). Unknown events **and** unknown TOML fields are rejected.
-- **Codex context (`codex.UserPromptSubmit`):** registers the hook in `~/.codex/hooks.json` and copies the hook plus manifest `lib` files to `~/.codex/hooks/`. Use it for the VD context injector, e.g. `file = "dev-rules-reminder.cjs"`, `runtime = "node"`, `event = "codex.UserPromptSubmit"`.
+- **Codex context (`codex.UserPromptSubmit`):** registers the hook in `~/.codex/hooks.json` and copies the hook plus manifest `lib` files to `~/.codex/hooks/`. Use it for the VD context injector, e.g. `file = "dev-rules-reminder.py"`, `runtime = "python3"`, `event = "codex.UserPromptSubmit"`.
 - **Codex (`codex.notify`):** an entry with `event = "codex.notify"` installs the file like any other hook (into `~/.claude/hooks/`) but registers it in `~/.codex/config.toml` as the `notify` program (absolute path — Codex execs directly, no `$HOME` expansion). One file serves both agents. Any prior `notify` is replaced and reported, so you can chain it via your notifier's env (e.g. `CODEX_NOTIFY_FORWARD`). Example: `file = "agent-notify.py"`, `runtime = "python3"`, `event = "codex.notify"`, `args = ["codex"]`.
-- **Registered command:** `<runtime> "$HOME/.claude/hooks/<file>" <args…>` — `$HOME` stays literal; args with shell metacharacters are quoted.
+- **Registered command:** `<runtime> "$HOME/.claude/hooks/<file>" <args…>` — `$HOME` stays literal; args with shell metacharacters are quoted. `runtime = "uv"` expands to the two-token prefix `uv run`.
 - The manifest is the only hook source: `[hooks].source` in `skills.toml` accepts only `local`.
 
 ### Uninstall / rollback
@@ -512,9 +512,9 @@ vd context print --cwd /path/to/repo --session-id "$VD_SESSION_ID"
 vd context print --json --cwd /path/to/repo
 ```
 
-**Side effects:** none. It runs `dev-rules-reminder.cjs` from `~/.codex/hooks/`, `~/.claude/hooks/`, or the local vd hooks directory and prints the resolved context.
+**Side effects:** none. It runs the `dev-rules-reminder` hook from `~/.codex/hooks/`, `~/.claude/hooks/`, or the local vd hooks directory and prints the resolved context. Each directory is scanned preferring the Python hook (`dev-rules-reminder.py`, run via `python3`) over the legacy Node hook (`dev-rules-reminder.cjs`, run via `node`), so a machine that upgrades vd before re-running `vd install hooks` still works.
 
-**Exit codes:** `0` success, `1` missing hook, bad cwd, invalid hook JSON, or Node execution failure.
+**Exit codes:** `0` success, `1` missing hook, bad cwd, invalid hook JSON, or hook execution failure (the runtime — `python3` or `node` — not found or the hook erroring).
 
 ---
 

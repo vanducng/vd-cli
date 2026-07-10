@@ -36,7 +36,7 @@ type tomlManifest struct {
 
 // LoadManifest parses the hooks manifest TOML at path into a hook list.
 // A missing file yields a clear error. Each non-lib hook requires a non-empty
-// event; runtime must be one of "", "node", "python3".
+// event; runtime must be one of "", "node", "python3", "uv".
 func LoadManifest(path string) ([]claudeconfig.Hook, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -66,9 +66,9 @@ func LoadManifest(path string) ([]claudeconfig.Hook, error) {
 			return nil, fmt.Errorf("%s: hook %q has an unsafe file path", path, h.File)
 		}
 		switch h.Runtime {
-		case "", "node", "python3":
+		case "", "node", "python3", "uv":
 		default:
-			return nil, fmt.Errorf("%s: hook %q has invalid runtime %q (valid: node, python3, or empty)", path, h.File, h.Runtime)
+			return nil, fmt.Errorf("%s: hook %q has invalid runtime %q (valid: node, python3, uv, or empty)", path, h.File, h.Runtime)
 		}
 		if !h.Lib {
 			if h.Event == "" {

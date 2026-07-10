@@ -19,6 +19,16 @@ func TestHookCommand(t *testing.T) {
 			want: `node "$HOME/.claude/hooks/session-init.cjs"`,
 		},
 		{
+			name: "uv runtime expands to uv run",
+			hook: Hook{File: "session-init.py", Runtime: "uv"},
+			want: `uv run "$HOME/.claude/hooks/session-init.py"`,
+		},
+		{
+			name: "uv runtime with args",
+			hook: Hook{File: "agent-notify.py", Runtime: "uv", Args: []string{"claude", "stop"}},
+			want: `uv run "$HOME/.claude/hooks/agent-notify.py" claude stop`,
+		},
+		{
 			name: "empty runtime omits prefix",
 			hook: Hook{File: "x.sh"},
 			want: `"$HOME/.claude/hooks/x.sh"`,
