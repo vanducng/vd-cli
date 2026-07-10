@@ -355,3 +355,31 @@ func TestUnregisterCodexHooksRemovesPromptSubmit(t *testing.T) {
 		t.Fatalf("foreign hook was not preserved: %+v", entries)
 	}
 }
+
+func TestWireCodexNotifyUvRuntimeMatchesExisting(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	orig := "model = \"x\"\nnotify = [\"uv\", \"run\", \"/abs/hooks/agent-notify.py\", \"codex\"]\n"
+	if err := os.WriteFile(path, []byte(orig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	prev, err := WireCodexNotify(path, []string{"uv", "run", "/abs/hooks/agent-notify.py", "codex"})
+	if err != nil {
+		t.Fatalf("WireCodexNotify: %v", err)
+	}
+	if prev != "" {
+		t.Errorf("replacedPrev = %q, want \"\" (existing line already targets our program via the uv branch)", prev)
+	}
+
+	prev, err = WireCodexNotify(path, []string{"uv", "run", "/abs/hooks/other-notify.py", "codex"})
+	if err != nil {
+		t.Fatalf("WireCodexNotify (different program): %v", err)
+	}
+	if !strings.Contains(prev, "agent-notify.py") {
+		t.Errorf("replacedPrev = %q, want the old uv notify line reported as replaced", prev)
+	}
+	s := readFile(t, path)
+	if !strings.Contains(s, `notify = ["uv", "run", "/abs/hooks/other-notify.py", "codex"]`) {
+		t.Errorf("notify not rewritten to the new uv command:\n%s", s)
+	}
+}
