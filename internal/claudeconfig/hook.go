@@ -50,7 +50,7 @@ func runtimeArgv(runtime string) []string {
 
 // HookCommand builds the settings.json command string for h:
 //
-//	<runtime> "$HOME/.claude/hooks/<File>" <Args...>
+//	<runtime-prefix> "$HOME/.claude/hooks/<File>" <Args...>
 //
 // $HOME stays literal — the Claude hook runner shell-expands it, avoiding a
 // personal absolute path in the user's config. The runtime prefix is omitted
