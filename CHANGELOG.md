@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.7.0](https://github.com/vanducng/vd-cli/compare/v3.6.2...v3.7.0) (2026-07-10)
+
+
+### Features
+
+* **hooks:** accepted uv runtime and dropped the bundled Node hook set ([#63](https://github.com/vanducng/vd-cli/issues/63)) ([98d7b9c](https://github.com/vanducng/vd-cli/commit/98d7b9c1d6f342e7dbcec4786c7a29939901bb01))
+
 ## [3.6.2](https://github.com/vanducng/vd-cli/compare/v3.6.1...v3.6.2) (2026-06-28)
 
 
