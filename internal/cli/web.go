@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vanducng/vd-cli/v2/internal/inventory"
+	"github.com/vanducng/vd-cli/v2/internal/obs"
 	"github.com/vanducng/vd-cli/v2/internal/ui/web"
 )
 
@@ -59,7 +60,13 @@ func runWeb(cmd *cobra.Command, host string, port int, noBrowser bool) error {
 	if err != nil {
 		return err
 	}
-	srv, err := web.NewServer(inventory.NewService(root, claudeHome))
+	obsSvc, err := obs.NewService("")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = obsSvc.Close() }()
+
+	srv, err := web.NewServer(inventory.NewService(root, claudeHome), obsSvc)
 	if err != nil {
 		return err
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
 	"github.com/vanducng/vd-cli/v2/internal/inventory"
+	"github.com/vanducng/vd-cli/v2/internal/obs"
 	webui "github.com/vanducng/vd-cli/v2/internal/ui/web"
 )
 
@@ -23,7 +24,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	srv, err := webui.NewServer(inventory.NewService(repoRoot(), claudeHome))
+	obsSvc, err := obs.NewService("")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() { _ = obsSvc.Close() }()
+
+	srv, err := webui.NewServer(inventory.NewService(repoRoot(), claudeHome), obsSvc)
 	if err != nil {
 		log.Fatal(err)
 	}

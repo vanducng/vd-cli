@@ -25,3 +25,6 @@ docs/dist/
 
 # machine-specific MCP registration written by `vd mcp install`
 .mcp.json
+
+# desktop module build output
+desktop/desktop
