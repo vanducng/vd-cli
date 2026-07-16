@@ -1,0 +1,108 @@
+// Package pricing converts token counts to USD from a vendored subset of
+// LiteLLM's table.
+//
+// It is the only cost path in the tree: session rows, `vd obs usage` totals and
+// the HTTP API all bill through Table.Cost, so a rate fix lands everywhere at once.
+package pricing
+
+import (
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/vanducng/vd-cli/v2/internal/obs/model"
+)
+
+//go:embed prices.json
+var embedded []byte
+
+// Price is one model's per-token USD rates, keeping LiteLLM's field names so the
+// vendored file stays diffable against upstream. A zero rate is not charged:
+// OpenAI bills nothing to write its cache, so those entries carry no write rate.
+type Price struct {
+	Input      float64 `json:"input_cost_per_token"`
+	Output     float64 `json:"output_cost_per_token"`
+	CacheRead  float64 `json:"cache_read_input_token_cost"`
+	CacheWrite float64 `json:"cache_creation_input_token_cost"`
+}
+
+// Table prices models. Load one and hold it on the service — a package-level
+// table could not be overridden per test.
+type Table struct {
+	prices map[string]Price
+}
+
+// Load merges ~/.vd/obs/prices.json over the embedded table, per model, so a
+// stale vendored rate is fixable without a rebuild. A missing override is normal.
+func Load() (*Table, error) {
+	prices := map[string]Price{}
+	if err := json.Unmarshal(embedded, &prices); err != nil {
+		return nil, fmt.Errorf("parse embedded prices: %w", err)
+	}
+	path, err := overridePath()
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return &Table{prices: prices}, nil
+		}
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	override := map[string]Price{}
+	if err := json.Unmarshal(b, &override); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	for id, p := range override {
+		prices[id] = p
+	}
+	return &Table{prices: prices}, nil
+}
+
+func overridePath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home: %w", err)
+	}
+	return filepath.Join(home, ".vd", "obs", "prices.json"), nil
+}
+
+// Cost is what u bills at for the given model, and whether that model is priced
+// at all. An unknown model reports false rather than 0, which would render as a
+// free session instead of an unpriced one.
+func (t *Table) Cost(id string, u model.TokenUsage) (float64, bool) {
+	p, ok := t.lookup(id)
+	if !ok {
+		return 0, false
+	}
+	// ReasoningOutput is already inside Output; adding it bills thinking twice.
+	return float64(u.Input)*p.Input +
+		float64(u.Output)*p.Output +
+		float64(u.CacheRead)*p.CacheRead +
+		float64(u.CacheWrite)*p.CacheWrite, true
+}
+
+// lookup falls back to the longest matching prefix because ids carry date and
+// variant suffixes: claude-sonnet-4-5-20250929 bills at the claude-sonnet-4-5
+// rate, while gpt-5.6-terra must beat the shorter gpt-5.6.
+func (t *Table) lookup(id string) (Price, bool) {
+	if p, ok := t.prices[id]; ok {
+		return p, true
+	}
+	best := ""
+	for k := range t.prices {
+		if len(k) > len(best) && strings.HasPrefix(id, k) {
+			best = k
+		}
+	}
+	if best == "" {
+		return Price{}, false
+	}
+	return t.prices[best], true
+}
