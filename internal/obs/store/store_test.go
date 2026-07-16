@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -297,18 +299,32 @@ func TestLikeMetacharactersDoNotWidenFilters(t *testing.T) {
 	}
 }
 
-func TestEmptyListMarshalsToArrayNotNull(t *testing.T) {
-	s := openTestDB(t)
-	list, err := s.ListSessions(context.Background(), model.SessionFilter{})
-	if err != nil {
-		t.Fatal(err)
+// The never-null contract must hold for a nil slice, not only the empty-but-
+// non-nil slice ListSessions happens to return — otherwise deleting the
+// MarshalJSON methods leaves this green.
+func TestNilSlicesMarshalAsArraysNotNull(t *testing.T) {
+	cases := map[string]struct {
+		v    any
+		want string
+	}{
+		"SessionList": {model.SessionList{Sessions: nil}, `"sessions":[]`},
+		"SessionDetail": {model.SessionDetail{
+			SessionSummary: model.SessionSummary{Session: model.Session{ID: "s1"}},
+			Turns:          nil,
+		}, `"turns":[]`},
+		"Turn":        {model.Turn{ID: "t1"}, `"toolspans":[]`},
+		"UsageReport": {model.UsageReport{Rows: nil, UnpricedModels: nil}, `"rows":[]`},
 	}
-	b, err := json.Marshal(model.SessionList{Sessions: list})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := string(b); got[:24] != `{"sessions":[],"total":0` {
-		t.Fatalf("empty list must marshal as [], got %s", got)
+	// Only slices must never be null; nil *float64 cost fields legitimately
+	// marshal to null (nil = unpriced, rendered as "?").
+	for name, c := range cases {
+		b, err := json.Marshal(c.v)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !strings.Contains(string(b), c.want) {
+			t.Errorf("%s: nil slice marshaled to null; want %s in %s", name, c.want, b)
+		}
 	}
 }
 
@@ -331,6 +347,87 @@ func TestResolveIDRejectsShortAndAmbiguousPrefixes(t *testing.T) {
 	// UUIDv7 codex ids all share a leading timestamp, so this is the common case
 	if _, err := s.resolveID(ctx, "019abc", ""); err != ErrPrefixTooShort {
 		t.Fatalf("6-char prefix: got %v, want ErrPrefixTooShort", err)
+	}
+}
+
+// A prefix >= MinPrefixLen matching two sessions is the branch the short-prefix
+// cases above never reach.
+func TestResolveIDAmbiguousLongPrefix(t *testing.T) {
+	s := openTestDB(t)
+	now := time.Now()
+	seedSession(t, s, "019abcdef-1111-aaaa", model.AgentCodex, now, model.TokenUsage{})
+	seedSession(t, s, "019abcdef-2222-bbbb", model.AgentCodex, now, model.TokenUsage{})
+	ctx := context.Background()
+
+	if _, err := s.resolveID(ctx, "019abcdef-", ""); err != ErrAmbiguousPrefix {
+		t.Fatalf("long shared prefix: got %v, want ErrAmbiguousPrefix", err)
+	}
+	// agent scoping disambiguates when only one of the two matches
+	seedSession(t, s, "019abcdef-3333-cccc", model.AgentClaude, now, model.TokenUsage{})
+	if _, err := s.resolveID(ctx, "019abcdef-3333", model.AgentClaude); err != nil {
+		t.Fatalf("agent-scoped unique prefix: %v", err)
+	}
+}
+
+// The GetSession -> listTurns -> attachSpans fan-in is the largest read path;
+// seedSession writes bare turns, so exercise spans, hooks, skills, payload
+// truncation and rollup nil-vs-set here.
+func TestGetSessionAttachesSpansHooksSkillsAndTruncates(t *testing.T) {
+	s := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now()
+	bigInput := strings.Repeat("x", MaxPayloadBytes*2)
+	roll := model.TokenUsage{Input: 900, Output: 100}
+
+	rec := model.Record{
+		Session: model.Session{ID: "sess-full", Agent: model.AgentClaude, StartedAt: now},
+		Turns: []model.Turn{{
+			ID: "sess-full:t1", SessionID: "sess-full", Index: 0, Model: "claude-fable-5",
+			StartedAt: now, Tokens: model.TokenUsage{Input: 10, Output: 5},
+			PromptText: bigInput, ResponseText: "ok",
+		}},
+		ToolSpans: []model.ToolSpan{
+			{ID: "sp1", TurnID: "sess-full:t1", Name: "Bash", Kind: "builtin", OK: true, Input: bigInput},
+			{ID: "sp2", TurnID: "sess-full:t1", Name: "Task", Kind: "subagent", OK: true,
+				SubagentSessionID: "kid", SubagentName: "reviewer", RollupTokens: &roll},
+		},
+		HookExecs: []model.HookExec{{TurnID: "sess-full:t1", HookName: "guard", Event: "PreToolUse", DurationMs: 12}},
+		Skills:    []model.Skill{{TurnID: "sess-full:t1", Name: "debug", Args: "--x"}},
+	}
+	if err := s.IngestFile(ctx, rec, Watermark{}); err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := s.GetSession(ctx, "sess-full", "", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Turns) != 1 {
+		t.Fatalf("turns = %d, want 1", len(d.Turns))
+	}
+	tn := d.Turns[0]
+	if len(tn.ToolSpans) != 2 || len(tn.HookExecs) != 1 || len(tn.Skills) != 1 {
+		t.Fatalf("attach fan-in wrong: spans=%d hooks=%d skills=%d", len(tn.ToolSpans), len(tn.HookExecs), len(tn.Skills))
+	}
+	if len(tn.PromptText) > MaxPayloadBytes {
+		t.Errorf("prompt not truncated: %d bytes", len(tn.PromptText))
+	}
+	var plain, sub *model.ToolSpan
+	for i := range tn.ToolSpans {
+		if tn.ToolSpans[i].Name == "Task" {
+			sub = &tn.ToolSpans[i]
+		} else {
+			plain = &tn.ToolSpans[i]
+		}
+	}
+	if plain.RollupTokens != nil {
+		t.Errorf("non-subagent span carries rollup tokens: %+v", plain.RollupTokens)
+	}
+	if sub.RollupTokens == nil || *sub.RollupTokens != roll {
+		t.Errorf("subagent rollup lost: %+v", sub.RollupTokens)
+	}
+	if len(sub.Input) > MaxPayloadBytes {
+		t.Errorf("span input not truncated: %d bytes", len(sub.Input))
 	}
 }
 
@@ -367,5 +464,22 @@ func TestTruncateMidKeepsHeadAndTail(t *testing.T) {
 	}
 	if short := truncateMid("tiny", 100); short != "tiny" {
 		t.Fatalf("short payload altered: %q", short)
+	}
+}
+
+// A corrupt cache file must not brick startup: New deletes and rebuilds it,
+// because every row is recoverable from the transcripts.
+func TestNewSelfHealsCorruptFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "obs.sqlite")
+	if err := os.WriteFile(path, []byte("this is not a sqlite database"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(Config{Path: path})
+	if err != nil {
+		t.Fatalf("New did not self-heal a corrupt cache: %v", err)
+	}
+	defer s.Close()
+	if _, err := s.CountSessions(context.Background(), model.SessionFilter{}); err != nil {
+		t.Fatalf("rebuilt cache unusable: %v", err)
 	}
 }

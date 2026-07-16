@@ -138,7 +138,10 @@ func namespaceTurnIDs(rec *model.Record) {
 func ParseClaude(r io.Reader, st *ScanState) (model.Record, int64, error) {
 	p := &claudeParser{st: st, turnIdx: -1, spans: map[string]int{}}
 	p.rec.Session.Agent = model.AgentClaude
-	off, err := ScanLines(r, 0, p.line)
+	off, oversized, err := ScanLines(r, 0, p.line)
+	for i := 0; i < oversized; i++ {
+		p.st.NoteUnknown("oversized_line")
+	}
 	p.closeTurn()
 	p.finish()
 	st.Offset = off

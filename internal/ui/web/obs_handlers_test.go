@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -86,6 +87,25 @@ func TestObsValidParamsReachTheService(t *testing.T) {
 	for _, p := range ok {
 		if w := get(t, h, p); w.Code != http.StatusServiceUnavailable {
 			t.Errorf("GET %s = %d, want 503 (params should have parsed)", p, w.Code)
+		}
+	}
+}
+
+// Non-GET verbs to /api must 404, not fall through to the SPA and return 200
+// index.html — the deny-list is method-agnostic.
+func TestNonGetAPIPathsAre404NotSPA(t *testing.T) {
+	h := obsTestServer(t)
+	cases := []struct{ method, path string }{
+		{http.MethodPost, "/api/obs/sessions"},
+		{http.MethodDelete, "/api/obs/sessions/abc12345"},
+		{http.MethodPost, "/api/typo"},
+		{http.MethodPut, "/api/health"},
+	}
+	for _, c := range cases {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(c.method, c.path, nil))
+		if w.Code != http.StatusNotFound {
+			t.Errorf("%s %s = %d, want 404 (body %.20q)", c.method, c.path, w.Code, w.Body.String())
 		}
 	}
 }

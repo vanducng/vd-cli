@@ -85,27 +85,6 @@ func checkAgentFlag(a string) error {
 	return fmt.Errorf("unknown --agent %q: want claude-code or codex", a)
 }
 
-func parseSinceFlag(v string) (time.Time, error) {
-	if v == "" {
-		return time.Time{}, nil
-	}
-	if t, err := time.Parse(time.RFC3339, v); err == nil {
-		return t, nil
-	}
-	var n int
-	var unit rune
-	if _, err := fmt.Sscanf(v, "%d%c", &n, &unit); err != nil || n < 0 {
-		return time.Time{}, fmt.Errorf("bad --since %q: want 7d, 24h, or RFC3339", v)
-	}
-	switch unit {
-	case 'd':
-		return time.Now().AddDate(0, 0, -n), nil
-	case 'h':
-		return time.Now().Add(-time.Duration(n) * time.Hour), nil
-	}
-	return time.Time{}, fmt.Errorf("bad --since %q: want 7d, 24h, or RFC3339", v)
-}
-
 func newObsSessionsCmd() *cobra.Command {
 	var f obsFlags
 	var project string
@@ -117,7 +96,7 @@ func newObsSessionsCmd() *cobra.Command {
 		Short: "List recent sessions across both agents",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			since, err := parseSinceFlag(f.since)
+			since, err := store.ParseSince(f.since)
 			if err != nil {
 				return err
 			}
@@ -198,14 +177,16 @@ func newObsUsageCmd() *cobra.Command {
 		Short: "Report tokens and estimated cost by day or month",
 		Args:  cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			if daily && monthly {
+			// --daily defaults to true, so test what the user actually set, not the
+			// value: otherwise `--monthly` alone reads as "both" and errors.
+			if c.Flags().Changed("daily") && monthly {
 				return fmt.Errorf("--daily and --monthly are mutually exclusive")
 			}
 			group := store.UsageGroupDaily
 			if monthly {
 				group = store.UsageGroupMonthly
 			}
-			since, err := parseSinceFlag(f.since)
+			since, err := store.ParseSince(f.since)
 			if err != nil {
 				return err
 			}

@@ -46,7 +46,10 @@ func ParseCodex(r io.Reader, st *ScanState) (model.Record, int64, error) {
 		calls:  map[string]*model.ToolSpan{},
 		callAt: map[string]time.Time{},
 	}
-	off, err := ScanLines(r, 0, p.line)
+	off, oversized, err := ScanLines(r, 0, p.line)
+	for i := 0; i < oversized; i++ {
+		p.st.NoteUnknown("oversized_line")
+	}
 	st.Offset = off
 	rec := p.record()
 	namespaceTurnIDs(&rec)
@@ -200,6 +203,9 @@ func (p *codexParser) eventMsg(rec codexRecord) {
 		if pl.Info.Last != nil {
 			cur := codexUsage(*pl.Info.Last)
 			var tot model.TokenUsage
+			// Older rollouts carry no total; tot stays zero, so two distinct
+			// consecutive requests with an identical last are indistinguishable
+			// from a re-emit and the second is dropped. Unavoidable without total.
 			if pl.Info.Total != nil {
 				tot = codexUsage(*pl.Info.Total)
 			}
@@ -211,7 +217,9 @@ func (p *codexParser) eventMsg(rec codexRecord) {
 		}
 	case "task_complete":
 		t := p.turnFor(pl.TurnID)
-		t.duration = pl.DurationMs
+		if pl.DurationMs > 0 {
+			t.duration = pl.DurationMs
+		}
 		t.response = pl.LastAgentMessage
 	case "turn_aborted":
 		p.turnFor(pl.TurnID).duration = pl.DurationMs

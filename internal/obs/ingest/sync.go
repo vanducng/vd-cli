@@ -30,6 +30,7 @@ type SyncStats struct {
 	Turns          int
 	UnknownRecords int
 	Skipped        int
+	Errored        int
 	Elapsed        time.Duration
 }
 
@@ -113,17 +114,21 @@ func Sync(ctx context.Context, st *store.Store, opts SyncOptions) (SyncStats, er
 
 		rec, off, err := job.parse()
 		if err != nil {
-			return stats, fmt.Errorf("parse %s: %w", job.path, err)
+			// One unreadable file (perm denied, deleted mid-scan) must not abort the
+			// whole run — the rest of the corpus still ingests. Count it, keep going.
+			stats.Errored++
+			continue
 		}
+		stats.UnknownRecords += job.st.unknownTotal()
 		// A record with no session id would upsert a phantom row that ListSessions
-		// then returns, and implicit turn ids would collapse onto each other.
+		// then returns, and implicit turn ids would collapse onto each other. Its
+		// drift is already folded into UnknownRecords above.
 		if rec.Session.ID == "" {
 			continue
 		}
 		stats.FilesParsed++
 		stats.Sessions++
 		stats.Turns += len(rec.Turns)
-		stats.UnknownRecords += job.st.unknownTotal()
 
 		w := store.Watermark{Path: job.path, ByteOffset: off, MTime: mtime, Size: size}
 		if err := st.IngestFile(ctx, rec, w); err != nil {
@@ -181,10 +186,22 @@ func claudeRoots() ([]string, error) {
 		return nil, err
 	}
 	var roots []string
+	seen := map[string]bool{}
 	for _, r := range []string{primary, filepath.Join(home, ".config", "claude")} {
-		if _, err := os.Stat(filepath.Join(r, "projects")); err == nil {
-			roots = append(roots, r)
+		if _, err := os.Stat(filepath.Join(r, "projects")); err != nil {
+			continue
 		}
+		// Resolve symlinks so ~/.config/claude pointing at ~/.claude is not
+		// enumerated twice (distinct path strings never share a watermark).
+		canon := r
+		if c, err := filepath.EvalSymlinks(r); err == nil {
+			canon = c
+		}
+		if seen[canon] {
+			continue
+		}
+		seen[canon] = true
+		roots = append(roots, r)
 	}
 	return roots, nil
 }

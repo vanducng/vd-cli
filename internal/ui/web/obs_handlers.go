@@ -2,10 +2,9 @@ package web
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/vanducng/vd-cli/v2/internal/obs"
 	"github.com/vanducng/vd-cli/v2/internal/obs/ingest"
@@ -36,7 +35,11 @@ func (h *obsHandler) ready(w http.ResponseWriter) bool {
 }
 
 func (h *obsHandler) sync(r *http.Request) {
-	_, _ = h.svc.Sync(r.Context(), ingest.SyncOptions{})
+	// A failed sync serves whatever the cache already has rather than erroring the
+	// read — but log it, so silent staleness is at least observable server-side.
+	if _, err := h.svc.Sync(r.Context(), ingest.SyncOptions{}); err != nil {
+		log.Printf("obs: background sync failed, serving cached data: %v", err)
+	}
 }
 
 func (h *obsHandler) sessions(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +124,7 @@ func parseSessionFilter(r *http.Request) (model.SessionFilter, error) {
 	if f.Sort != "" && f.Sort != store.SortNewest && f.Sort != store.SortOldest {
 		return f, errors.New("sort must be newest or oldest")
 	}
-	since, err := parseSince(q.Get("since"))
+	since, err := store.ParseSince(q.Get("since"))
 	if err != nil {
 		return f, err
 	}
@@ -146,7 +149,7 @@ func parseUsageFilter(r *http.Request) (model.UsageFilter, error) {
 	default:
 		return f, errors.New("group must be daily or monthly")
 	}
-	since, err := parseSince(q.Get("since"))
+	since, err := store.ParseSince(q.Get("since"))
 	if err != nil {
 		return f, err
 	}
@@ -160,29 +163,6 @@ func checkAgent(a string) error {
 		return nil
 	}
 	return errors.New("agent must be claude-code or codex")
-}
-
-// parseSince accepts RFC3339 or a Nd/Nh shorthand. An unparseable value is a 400:
-// silently ignoring it would return unfiltered data as if the filter applied.
-func parseSince(v string) (time.Time, error) {
-	if v == "" {
-		return time.Time{}, nil
-	}
-	if t, err := time.Parse(time.RFC3339, v); err == nil {
-		return t, nil
-	}
-	unit := v[len(v)-1]
-	n, err := strconv.Atoi(strings.TrimSuffix(v, string(unit)))
-	if err != nil || n < 0 {
-		return time.Time{}, errors.New("since must be RFC3339 or a duration like 7d")
-	}
-	switch unit {
-	case 'd':
-		return time.Now().AddDate(0, 0, -n), nil
-	case 'h':
-		return time.Now().Add(-time.Duration(n) * time.Hour), nil
-	}
-	return time.Time{}, errors.New("since must be RFC3339 or a duration like 7d")
 }
 
 func intParam(r *http.Request, name string) (int, error) {

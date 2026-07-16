@@ -49,27 +49,32 @@ func (s *ScanState) FirstSeen(key string) bool {
 // ScanLines feeds each complete line from r to fn, returning the offset of the
 // last byte committed. A trailing line without "\n" is left uncommitted: the file
 // is being appended to right now, and half a JSON record is not a record.
-func ScanLines(r io.Reader, start int64, fn func(line []byte) error) (int64, error) {
+// The second return is the count of oversized lines skipped, so the caller can
+// record drift rather than lose them silently — the module's contract is that
+// unhandled data shows up as a number, never as a gap.
+func ScanLines(r io.Reader, start int64, fn func(line []byte) error) (int64, int, error) {
 	br := bufio.NewReaderSize(r, 64<<10)
 	offset := start
+	oversized := 0
 	for {
 		line, err := br.ReadString('\n')
 		if len(line) > 0 && strings.HasSuffix(line, "\n") {
 			if len(line) > maxLineBytes {
+				oversized++
 				offset += int64(len(line))
 				continue
 			}
 			if cbErr := fn([]byte(strings.TrimRight(line, "\r\n"))); cbErr != nil {
-				return offset, cbErr
+				return offset, oversized, cbErr
 			}
 			offset += int64(len(line))
 			continue
 		}
 		if err == io.EOF {
-			return offset, nil
+			return offset, oversized, nil
 		}
 		if err != nil {
-			return offset, err
+			return offset, oversized, err
 		}
 	}
 }

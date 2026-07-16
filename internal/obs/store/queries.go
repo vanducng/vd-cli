@@ -162,6 +162,9 @@ func (s *Store) resolveID(ctx context.Context, idOrPrefix, agent string) (string
 		}
 		found = append(found, id)
 	}
+	if err := rows.Err(); err != nil {
+		return "", fmt.Errorf("resolve session prefix: %w", err)
+	}
 	switch len(found) {
 	case 0:
 		return "", ErrSessionNotFound
@@ -342,7 +345,11 @@ func (s *Store) Usage(ctx context.Context, f model.UsageFilter) ([]UsageRaw, err
 		format = "%Y-%m"
 	}
 
-	conds := []string{"1=1"}
+	// Turns with an unparseable timestamp store started_at=0; without this guard
+	// they bucket to 1970 (or 1969 in a negative-offset zone via localtime). A
+	// time-bucketed usage report is the wrong place to surface them — their tokens
+	// still appear in per-session totals, which are not time-bucketed.
+	conds := []string{"t.started_at > 0"}
 	var args []any
 	args = append(args, format)
 	if f.Agent != "" {
@@ -376,4 +383,15 @@ func (s *Store) Usage(ctx context.Context, f model.UsageFilter) ([]UsageRaw, err
 		out = append(out, u)
 	}
 	return out, rows.Err()
+}
+
+// SessionModel returns a session's model by id, for pricing a subagent rollup at
+// the subagent's own model rather than its parent's.
+func (s *Store) SessionModel(ctx context.Context, id string) (string, bool) {
+	var m string
+	err := s.db.QueryRowContext(ctx, "SELECT model FROM sessions WHERE id = ?", id).Scan(&m)
+	if err != nil || m == "" {
+		return "", false
+	}
+	return m, true
 }

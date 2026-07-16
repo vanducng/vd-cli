@@ -45,23 +45,21 @@ func Load() (*Table, error) {
 	if err := json.Unmarshal(embedded, &prices); err != nil {
 		return nil, fmt.Errorf("parse embedded prices: %w", err)
 	}
-	path, err := overridePath()
-	if err != nil {
-		return nil, err
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return &Table{prices: prices}, nil
+	// The embedded table is self-sufficient. A missing home, an unreadable
+	// override, or malformed override JSON must never fail Load — that would brick
+	// desktop/web startup over an optional convenience file. Fall back to embedded.
+	if path, err := overridePath(); err == nil {
+		if b, err := os.ReadFile(path); err == nil {
+			override := map[string]Price{}
+			if json.Unmarshal(b, &override) == nil {
+				for id, p := range override {
+					prices[id] = p
+				}
+			}
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			// unreadable (perms) — ignore, embedded still valid
+			_ = err
 		}
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	override := map[string]Price{}
-	if err := json.Unmarshal(b, &override); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-	for id, p := range override {
-		prices[id] = p
 	}
 	return &Table{prices: prices}, nil
 }

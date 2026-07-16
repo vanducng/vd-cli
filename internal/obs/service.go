@@ -29,6 +29,7 @@ type Service struct {
 
 	mu       sync.Mutex
 	syncedAt time.Time
+	syncing  bool
 }
 
 // NewService opens the cache at dbPath (empty for the default location).
@@ -48,19 +49,29 @@ func NewService(dbPath string) (*Service, error) {
 // Close releases the database handle.
 func (s *Service) Close() error { return s.st.Close() }
 
-// Sync brings the cache up to date, skipping work if it just ran.
+// Sync brings the cache up to date. It is single-flight and non-blocking: the
+// lock guards only the bookkeeping, never the multi-second ingest. A caller that
+// arrives while a sync is running (or within the debounce) returns immediately
+// with current data rather than queueing — otherwise a fresh `vd web` would block
+// every parallel first-load request behind one 50s cold sync.
 func (s *Service) Sync(ctx context.Context, opts ingest.SyncOptions) (ingest.SyncStats, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !opts.Full && time.Since(s.syncedAt) < syncDebounce {
+	if s.syncing || (!opts.Full && time.Since(s.syncedAt) < syncDebounce) {
+		s.mu.Unlock()
 		return ingest.SyncStats{}, nil
 	}
+	s.syncing = true
+	s.mu.Unlock()
+
 	stats, err := ingest.Sync(ctx, s.st, opts)
-	if err != nil {
-		return stats, err
+
+	s.mu.Lock()
+	s.syncing = false
+	if err == nil {
+		s.syncedAt = time.Now()
 	}
-	s.syncedAt = time.Now()
-	return stats, nil
+	s.mu.Unlock()
+	return stats, err
 }
 
 // Sessions lists sessions with cost applied.
@@ -96,7 +107,14 @@ func (s *Service) Session(ctx context.Context, idOrPrefix, agent string, turns, 
 			if sp.RollupTokens == nil {
 				continue
 			}
-			if c, ok := s.price.Cost(d.Model, *sp.RollupTokens); ok {
+			// Price the rollup at the SUBAGENT's model, not the parent's — a
+			// mixed-model team (opus parent, haiku subagent) is off by multiples
+			// otherwise. Left nil ("?") if the subagent's model is unknown.
+			m, ok := s.st.SessionModel(ctx, sp.SubagentSessionID)
+			if !ok {
+				continue
+			}
+			if c, ok := s.price.Cost(m, *sp.RollupTokens); ok {
 				sp.RollupCostUSD = &c
 			}
 		}

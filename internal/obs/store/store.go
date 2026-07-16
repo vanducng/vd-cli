@@ -52,10 +52,31 @@ func New(cfg Config) (*Store, error) {
 		return nil, fmt.Errorf("create obs dir: %w", err)
 	}
 
+	db, err := openAt(cfg.Path)
+	if err == nil {
+		return &Store{db: db}, nil
+	}
+	// The cache is fully rebuildable from transcripts, so a corrupt file must not
+	// brick startup: delete it (and its WAL sidecars) and rebuild once. A real
+	// path/permission problem fails the retry too and surfaces normally.
+	if cfg.Path == ":memory:" {
+		return nil, err
+	}
+	for _, p := range []string{cfg.Path, cfg.Path + "-wal", cfg.Path + "-shm"} {
+		_ = os.Remove(p)
+	}
+	db, err2 := openAt(cfg.Path)
+	if err2 != nil {
+		return nil, fmt.Errorf("obs cache unusable (removed and rebuild also failed): %w", err2)
+	}
+	return &Store{db: db}, nil
+}
+
+func openAt(path string) (*sql.DB, error) {
 	// modernc applies _pragma= on every pooled connection open, and orders
 	// busy_timeout first itself. Setting these by hand per-connection is what
 	// goclaw's connector does, and it swallows pragma errors doing it.
-	dsn := "file:" + cfg.Path +
+	dsn := "file:" + path +
 		"?_txlock=immediate" +
 		"&_pragma=busy_timeout(15000)" +
 		"&_pragma=synchronous(NORMAL)" +
@@ -75,7 +96,7 @@ func New(cfg Config) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	return &Store{db: db}, nil
+	return db, nil
 }
 
 // enableWAL sets journal_mode once per database rather than per connection:

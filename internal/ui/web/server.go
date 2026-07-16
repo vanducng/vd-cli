@@ -41,7 +41,10 @@ func (s *Server) Handler() http.Handler {
 	// Reserved prefix: without this the SPA catch-all answers every unmatched
 	// /api/* path with index.html and a 200, so a typo — or a whole unwired API —
 	// looks like a working page.
-	mux.Handle("GET /api/", http.NotFoundHandler())
+	// Method-agnostic: a specific `GET /api/obs/...` still wins for GET, but every
+	// other verb and every unmatched /api path 404s instead of falling through to
+	// the SPA and returning 200 index.html.
+	mux.Handle("/api/", http.NotFoundHandler())
 	mux.Handle("/", s.spaHandler())
 	return mux
 }

@@ -62,11 +62,12 @@ func TestCostMatchesHandCalculation(t *testing.T) {
 			want:  0.01 + 0.02 + 0.05 + 0.025,
 		},
 		{
-			// 1000*5e-06 + 1000*3e-05 + 50000*5e-07 + 4000*6.25e-06
-			name:  "gpt-5.6-sol",
+			// OpenAI bills nothing to write cache, so CacheWrite contributes 0:
+			// 1000*5e-06 + 1000*3e-05 + 50000*5e-07
+			name:  "gpt-5.6-sol (no cache-write charge)",
 			model: "gpt-5.6-sol",
 			usage: model.TokenUsage{Input: 1000, Output: 1000, CacheRead: 50000, CacheWrite: 4000},
-			want:  0.005 + 0.03 + 0.025 + 0.025,
+			want:  0.005 + 0.03 + 0.025,
 		},
 	}
 
