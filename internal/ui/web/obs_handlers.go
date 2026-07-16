@@ -58,12 +58,12 @@ func (h *obsHandler) sessions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *obsHandler) session(w http.ResponseWriter, r *http.Request) {
-	turns, err := intParam(r, "turns", 0)
+	turns, err := intParam(r, "turns")
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	offset, err := intParam(r, "offset", 0)
+	offset, err := intParam(r, "offset")
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
@@ -126,10 +126,10 @@ func parseSessionFilter(r *http.Request) (model.SessionFilter, error) {
 		return f, err
 	}
 	f.Since = since
-	if f.Limit, err = intParam(r, "limit", 0); err != nil {
+	if f.Limit, err = intParam(r, "limit"); err != nil {
 		return f, err
 	}
-	if f.Offset, err = intParam(r, "offset", 0); err != nil {
+	if f.Offset, err = intParam(r, "offset"); err != nil {
 		return f, err
 	}
 	return f, nil
@@ -185,10 +185,10 @@ func parseSince(v string) (time.Time, error) {
 	return time.Time{}, errors.New("since must be RFC3339 or a duration like 7d")
 }
 
-func intParam(r *http.Request, name string, def int) (int, error) {
+func intParam(r *http.Request, name string) (int, error) {
 	v := r.URL.Query().Get(name)
 	if v == "" {
-		return def, nil
+		return 0, nil
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil || n < 0 {
