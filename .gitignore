@@ -2,7 +2,8 @@
 /vd
 /vd.exe
 /dist/
-/plans/
+/.workbench/
+/.vd.json
 
 # Coverage
 *.out
