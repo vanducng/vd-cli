@@ -71,7 +71,7 @@ func (f *obsFlags) open(ctx context.Context) (*obs.Service, error) {
 		return nil, err
 	}
 	if !f.jsonOu && stats.FilesScanned > 0 {
-		fmt.Fprintf(os.Stderr, "  sync  %d files parsed · %d cached · %d unknown records       %s\n\n",
+		_, _ = fmt.Fprintf(os.Stderr, "  sync  %d files parsed · %d cached · %d unknown records       %s\n\n",
 			stats.FilesParsed, stats.Skipped, stats.UnknownRecords, stats.Elapsed.Round(time.Millisecond))
 	}
 	return svc, nil
@@ -242,84 +242,84 @@ const estNote = "  est $ = API-equivalent from token counts, not a subscription 
 
 func renderSessions(w io.Writer, list *model.SessionList) {
 	if len(list.Sessions) == 0 {
-		fmt.Fprintln(w, "  no sessions found")
+		_, _ = fmt.Fprintln(w, "  no sessions found")
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "  STARTED\tAGENT\tTITLE\tMODEL\tTURNS\tTOKENS\tEST $")
+	_, _ = fmt.Fprintln(tw, "  STARTED\tAGENT\tTITLE\tMODEL\tTURNS\tTOKENS\tEST $")
 	for _, s := range list.Sessions {
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%d\t%s\t%s\n",
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%d\t%s\t%s\n",
 			s.StartedAt.Local().Format("01-02 15:04"), shortAgent(s.Agent), trunc(s.Title, 24),
 			trunc(shortModel(s.Model), 10), s.TurnCount, humanTokens(s.Tokens.Total()), money(s.CostUSD))
 	}
-	fmt.Fprintf(tw, "  \t\t%d of %d\t\t\t\t\n", len(list.Sessions), list.Total)
+	_, _ = fmt.Fprintf(tw, "  \t\t%d of %d\t\t\t\t\n", len(list.Sessions), list.Total)
 	_ = tw.Flush()
-	fmt.Fprintln(w, estNote)
+	_, _ = fmt.Fprintln(w, estNote)
 }
 
 func renderSession(w io.Writer, d *model.SessionDetail) {
-	fmt.Fprintf(w, "  session  %s\tagent   %s\n", d.ID, d.Agent)
-	fmt.Fprintf(w, "  cwd      %s\tbranch  %s\n", d.CWD, orDash(d.GitBranch))
-	fmt.Fprintf(w, "  model    %s\tcli     %s\n", orDash(d.Model), orDash(d.CLIVersion))
+	_, _ = fmt.Fprintf(w, "  session  %s\tagent   %s\n", d.ID, d.Agent)
+	_, _ = fmt.Fprintf(w, "  cwd      %s\tbranch  %s\n", d.CWD, orDash(d.GitBranch))
+	_, _ = fmt.Fprintf(w, "  model    %s\tcli     %s\n", orDash(d.Model), orDash(d.CLIVersion))
 	cache := "-"
 	if d.CacheHitRate != nil {
 		cache = fmt.Sprintf("%.0f%% cache hit", *d.CacheHitRate*100)
 	}
-	fmt.Fprintf(w, "  totals   %d turns · %s tok · %s est · %s\n",
+	_, _ = fmt.Fprintf(w, "  totals   %d turns · %s tok · %s est · %s\n",
 		d.TurnCount, humanTokens(d.Tokens.Total()), money(d.CostUSD), cache)
 
 	for _, t := range d.Turns {
-		fmt.Fprintf(w, "\n  ── turn %d ── %s  %s  %s tok  %s\n", t.Index+1,
+		_, _ = fmt.Fprintf(w, "\n  ── turn %d ── %s  %s  %s tok  %s\n", t.Index+1,
 			t.StartedAt.Local().Format("15:04:05"), dur(t.DurationMs),
 			humanTokens(t.Tokens.Total()), money(t.CostUSD))
 		if p := firstLine(t.PromptText); p != "" {
-			fmt.Fprintf(w, "     prompt  %q\n", trunc(p, 60))
+			_, _ = fmt.Fprintf(w, "     prompt  %q\n", trunc(p, 60))
 		}
 		if len(t.HookExecs) > 0 {
-			fmt.Fprintf(w, "     hooks   %s\n", joinHooks(t.HookExecs))
+			_, _ = fmt.Fprintf(w, "     hooks   %s\n", joinHooks(t.HookExecs))
 		}
 		if len(t.ToolSpans) > 0 {
-			fmt.Fprintf(w, "     tools   %s\n", joinSpans(t.ToolSpans))
+			_, _ = fmt.Fprintf(w, "     tools   %s\n", joinSpans(t.ToolSpans))
 		}
 		for _, s := range t.Skills {
-			fmt.Fprintf(w, "     skill   %s\n", s.Name)
+			_, _ = fmt.Fprintf(w, "     skill   %s\n", s.Name)
 		}
 		for _, sp := range t.ToolSpans {
 			if sp.SubagentName == "" || sp.RollupTokens == nil {
 				continue
 			}
-			fmt.Fprintf(w, "     agent   %s → %s tok  %s  (subagent rollup)\n",
+			_, _ = fmt.Fprintf(w, "     agent   %s → %s tok  %s  (subagent rollup)\n",
 				sp.SubagentName, humanTokens(sp.RollupTokens.Total()), money(sp.RollupCostUSD))
 		}
 	}
 	if d.TurnCount > len(d.Turns) {
-		fmt.Fprintf(w, "\n  ... %d more turns    (--turns N to limit · --json for full detail)\n",
+		_, _ = fmt.Fprintf(w, "\n  ... %d more turns    (--turns N to limit · --json for full detail)\n",
 			d.TurnCount-len(d.Turns))
 	}
 }
 
 func renderUsage(w io.Writer, rep *model.UsageReport) {
 	if len(rep.Rows) == 0 {
-		fmt.Fprintln(w, "  no usage in range")
+		_, _ = fmt.Fprintln(w, "  no usage in range")
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "  DATE\tAGENT\tMODEL\tINPUT\tOUTPUT\tCACHE R\tCACHE W\tEST $")
+	_, _ = fmt.Fprintln(tw, "  DATE\tAGENT\tMODEL\tINPUT\tOUTPUT\tCACHE R\tCACHE W\tEST $")
 	for _, r := range rep.Rows {
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Date, shortAgent(r.Agent),
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Date, shortAgent(r.Agent),
 			trunc(shortModel(r.Model), 12), humanTokens(r.Tokens.Input), humanTokens(r.Tokens.Output),
 			humanTokens(r.Tokens.CacheRead), humanTokens(r.Tokens.CacheWrite), money(r.CostUSD))
 	}
-	fmt.Fprintf(tw, "  \t\tTOTAL\t%s\t%s\t%s\t%s\t%s\n", humanTokens(rep.Totals.Input),
+	_, _ = fmt.Fprintf(tw, "  \t\tTOTAL\t%s\t%s\t%s\t%s\t%s\n", humanTokens(rep.Totals.Input),
 		humanTokens(rep.Totals.Output), humanTokens(rep.Totals.CacheRead),
 		humanTokens(rep.Totals.CacheWrite), money(rep.TotalCostUSD))
 	_ = tw.Flush()
 
 	if len(rep.UnpricedModels) > 0 {
-		fmt.Fprintf(w, "\n  ! %d unpriced model(s): %s   (add to ~/.vd/obs/prices.json)\n",
+		_, _ = fmt.Fprintf(w, "\n  ! %d unpriced model(s): %s   (add to ~/.vd/obs/prices.json)\n",
 			len(rep.UnpricedModels), strings.Join(rep.UnpricedModels, ", "))
 	}
-	fmt.Fprintln(w, estNote)
+	_, _ = fmt.Fprintln(w, estNote)
 }
 
 // money renders an unpriced model as "?" — never 0, which reads as free.
@@ -391,7 +391,7 @@ func joinHooks(h []model.HookExec) string {
 	return strings.Join(parts, " · ")
 }
 
-// joinSpans summarises rather than lists: a real turn runs dozens of tools and a
+// joinSpans summarizes rather than lists: a real turn runs dozens of tools and a
 // full enumeration wraps off the terminal. Errors are always named — that is what
 // you are scanning for.
 func joinSpans(s []model.ToolSpan) string {
