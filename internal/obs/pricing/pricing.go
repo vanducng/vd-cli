@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/vanducng/vd-cli/v2/internal/obs/model"
@@ -91,13 +92,19 @@ func (t *Table) Cost(id string, u model.TokenUsage) (float64, bool) {
 // lookup falls back to the longest matching prefix because ids carry date and
 // variant suffixes: claude-sonnet-4-5-20250929 bills at the claude-sonnet-4-5
 // rate, while gpt-5.6-terra must beat the shorter gpt-5.6.
+// suffixOK accepts only a version/date tail after a prefix match. Without it,
+// longest-prefix silently prices an unknown variant at its family's rate — a
+// future gpt-5.6-nano would bill as gpt-5.6 and never appear in UnpricedModels,
+// which is the "never guess a price" rule inverted.
+var suffixOK = regexp.MustCompile(`^-(\d{4}-\d{2}-\d{2}|\d{6,8}|latest|preview|v\d+(\.\d+)*)$`)
+
 func (t *Table) lookup(id string) (Price, bool) {
 	if p, ok := t.prices[id]; ok {
 		return p, true
 	}
 	best := ""
 	for k := range t.prices {
-		if len(k) > len(best) && strings.HasPrefix(id, k) {
+		if len(k) > len(best) && strings.HasPrefix(id, k) && suffixOK.MatchString(id[len(k):]) {
 			best = k
 		}
 	}

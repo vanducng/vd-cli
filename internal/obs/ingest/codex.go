@@ -34,11 +34,11 @@ func EnumerateCodex(root string) ([]string, error) {
 	return paths, nil
 }
 
-// ParseCodex reads a rollout from r into a Record, resuming at st.Offset and
-// advancing it past the last complete line. r must already be positioned at
-// st.Offset. A resumed parse sees no session_meta and so returns a Record with
-// an empty Session and only the turns touched since the offset; the store merges
-// it onto the existing rows by their native ids.
+// ParseCodex reads a whole rollout from r into a Record, returning the offset of
+// the last complete line. r must be positioned at the start of the file: a
+// mid-file resume would re-emit a turn carrying only post-offset tokens, and the
+// store's upsert replaces rather than merges, so stored totals would shrink.
+// Sync skips unchanged files instead.
 func ParseCodex(r io.Reader, st *ScanState) (model.Record, int64, error) {
 	p := &codexParser{
 		st:     st,
@@ -46,7 +46,7 @@ func ParseCodex(r io.Reader, st *ScanState) (model.Record, int64, error) {
 		calls:  map[string]*model.ToolSpan{},
 		callAt: map[string]time.Time{},
 	}
-	off, err := ScanLines(r, st.Offset, p.line)
+	off, err := ScanLines(r, 0, p.line)
 	st.Offset = off
 	return p.record(), off, err
 }
@@ -115,15 +115,17 @@ type codexTurn struct {
 }
 
 type codexParser struct {
-	st     *ScanState
-	sess   model.Session
-	turns  []*codexTurn
-	byID   map[string]*codexTurn
-	cur    *codexTurn
-	spans  []*model.ToolSpan
-	calls  map[string]*model.ToolSpan
-	callAt map[string]time.Time
-	last   time.Time
+	st         *ScanState
+	sess       model.Session
+	turns      []*codexTurn
+	byID       map[string]*codexTurn
+	cur        *codexTurn
+	spans      []*model.ToolSpan
+	calls      map[string]*model.ToolSpan
+	callAt     map[string]time.Time
+	last       time.Time
+	lastTokens model.TokenUsage
+	sawTokens  bool
 }
 
 func (p *codexParser) line(b []byte) error {
@@ -188,8 +190,15 @@ func (p *codexParser) eventMsg(rec codexRecord) {
 	case "user_message":
 		p.userMessage(pl.Message)
 	case "token_count":
+		// Codex re-emits token_count for the same API request with an identical
+		// last_token_usage and an unchanged total; billing every event doubles it.
 		if pl.Info.Last != nil {
-			p.turnFor("").tokens.Add(codexUsage(*pl.Info.Last))
+			cur := codexUsage(*pl.Info.Last)
+			if cur == p.lastTokens && p.sawTokens {
+				return
+			}
+			p.lastTokens, p.sawTokens = cur, true
+			p.turnFor("").tokens.Add(cur)
 		}
 	case "task_complete":
 		t := p.turnFor(pl.TurnID)

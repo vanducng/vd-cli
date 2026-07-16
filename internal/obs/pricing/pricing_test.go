@@ -204,3 +204,17 @@ func TestMissingOverrideIsNotAnError(t *testing.T) {
 		t.Error("embedded table unusable without an override file")
 	}
 }
+
+// Longest-prefix exists for dated ids; it must not price an unknown variant at its
+// family's rate and report it as priced.
+func TestUnknownVariantIsNotPricedByPrefix(t *testing.T) {
+	tab, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"claude-sonnet-4-5-turbo", "gpt-5.6-nano"} {
+		if _, ok := tab.Cost(id, model.TokenUsage{Input: 1000}); ok {
+			t.Errorf("%s priced by prefix: an unknown variant must report unpriced, not guess its family's rate", id)
+		}
+	}
+}

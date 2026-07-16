@@ -375,18 +375,31 @@ func TestClaudePartialTrailingLineNotCommitted(t *testing.T) {
 		t.Errorf("st.Offset = %d, want %d", st.Offset, off)
 	}
 
-	rest, off2, err := ParseClaude(bytes.NewReader(data[off:]), st)
+	// The file is not resumed mid-way: a resumed parse would re-emit a turn holding
+	// only post-offset tokens, and the store's upsert replaces rather than merges.
+	// Sync reparses a changed file whole, so that is what this asserts.
+	full, off2, err := ParseClaude(bytes.NewReader(data), &ScanState{})
 	if err != nil {
-		t.Fatalf("parse resume: %v", err)
+		t.Fatalf("reparse whole file: %v", err)
 	}
 	if off2 != int64(len(data)) {
-		t.Errorf("resumed offset = %d, want %d", off2, len(data))
+		t.Errorf("reparsed offset = %d, want %d", off2, len(data))
 	}
-	if rest.Session.Title != "Add health endpoint and test" {
-		t.Errorf("resumed Title = %q: the completed line was not picked up", rest.Session.Title)
+	if full.Session.Title != "Add health endpoint and test" {
+		t.Errorf("reparsed Title = %q: the completed line was not picked up", full.Session.Title)
 	}
-	if got := billed(rest); got != (model.TokenUsage{}) {
-		t.Errorf("resumed tokens = %+v, want zero: usage was already billed in the head", got)
+	// A whole-file parse must never bill less than a parse of one of its prefixes.
+	head := billed(first)
+	whole := billed(full)
+	if whole.Total() < head.Total() {
+		t.Errorf("whole-file tokens %+v bill less than the head prefix %+v", whole, head)
+	}
+	again, _, err := ParseClaude(bytes.NewReader(data), &ScanState{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if billed(again) != whole {
+		t.Errorf("reparse is not deterministic: %+v vs %+v", billed(again), whole)
 	}
 }
 

@@ -58,19 +58,14 @@ func EnumerateClaude(root string) (top []string, subagents []string, err error) 
 	return top, subagents, nil
 }
 
-// ParseClaudeFile parses the transcript at path, resuming from st.Offset. WorkflowID
-// exists only in the path — no record carries it.
+// ParseClaudeFile parses the whole transcript at path. WorkflowID exists only in
+// the path — no record carries it.
 func ParseClaudeFile(path string, st *ScanState) (model.Record, int64, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return model.Record{}, st.Offset, fmt.Errorf("open transcript %s: %w", path, err)
+		return model.Record{}, 0, fmt.Errorf("open transcript %s: %w", path, err)
 	}
 	defer func() { _ = f.Close() }()
-	if st.Offset > 0 {
-		if _, err := f.Seek(st.Offset, io.SeekStart); err != nil {
-			return model.Record{}, st.Offset, fmt.Errorf("seek transcript %s: %w", path, err)
-		}
-	}
 	rec, off, err := ParseClaude(f, st)
 	sess := &rec.Session
 	if sess.WorkflowID == "" {
@@ -91,13 +86,17 @@ func ParseClaudeFile(path string, st *ScanState) (model.Record, int64, error) {
 	return rec, off, err
 }
 
-// ParseClaude reads one transcript from st.Offset into a record, committing only
-// complete lines. Malformed lines and unmodelled record types are skipped and counted
-// on st, so schema drift surfaces as a number rather than as missing data.
+// ParseClaude reads a whole transcript into a record, committing only complete
+// lines. Malformed lines and unmodelled record types are skipped and counted on st,
+// so schema drift surfaces as a number rather than as missing data.
+//
+// r must start at the beginning of the file. Resuming mid-file would re-emit a turn
+// holding only post-offset tokens, and the store's upsert replaces rather than
+// merges — stored totals would shrink. Sync skips unchanged files instead.
 func ParseClaude(r io.Reader, st *ScanState) (model.Record, int64, error) {
 	p := &claudeParser{st: st, turnIdx: -1, spans: map[string]int{}}
 	p.rec.Session.Agent = model.AgentClaude
-	off, err := ScanLines(r, st.Offset, p.line)
+	off, err := ScanLines(r, 0, p.line)
 	p.closeTurn()
 	p.finish()
 	st.Offset = off

@@ -456,21 +456,28 @@ func TestCodexResumePartialLine(t *testing.T) {
 		t.Errorf("DurationMs = %d, want 0: the truncated task_complete is not a record yet", got)
 	}
 
-	resumed, off2, err := ParseCodex(bytes.NewReader(data[off:]), st)
+	// Changed files are reparsed whole rather than resumed mid-way: a resumed parse
+	// re-emits a turn holding only post-offset tokens, and the store's upsert
+	// replaces rather than merges, so stored totals would shrink.
+	full, off2, err := ParseCodex(bytes.NewReader(data), &ScanState{})
 	if err != nil {
-		t.Fatalf("ParseCodex(resume): %v", err)
+		t.Fatalf("ParseCodex(whole): %v", err)
 	}
 	if off2 != int64(len(data)) {
-		t.Errorf("offset after resume = %d, want %d", off2, len(data))
+		t.Errorf("offset after whole parse = %d, want %d", off2, len(data))
 	}
-	if len(resumed.Turns) != 1 {
-		t.Fatalf("resumed len(Turns) = %d, want 1 (only the completed turn)", len(resumed.Turns))
+	if full.Session.ID == "" {
+		t.Error("whole parse must carry the session id: an empty id upserts a phantom session row")
 	}
-	if resumed.Turns[0].ID != "turn-bbbb" {
-		t.Errorf("resumed turn ID = %q, want turn-bbbb so the store merges it", resumed.Turns[0].ID)
+	if len(full.Turns) != 2 {
+		t.Fatalf("whole len(Turns) = %d, want 2", len(full.Turns))
 	}
-	if got := resumed.Turns[0].DurationMs; got != 2500 {
-		t.Errorf("resumed DurationMs = %d, want 2500", got)
+	if got := full.Turns[1].DurationMs; got != 2500 {
+		t.Errorf("whole DurationMs = %d, want 2500", got)
+	}
+	// The head's partial view must never bill more than the whole file.
+	if headTok, wholeTok := billed(first), billed(full); wholeTok.Total() < headTok.Total() {
+		t.Errorf("whole-file tokens %+v bill less than the head prefix %+v", wholeTok, headTok)
 	}
 }
 
@@ -559,5 +566,20 @@ func TestEnumerateCodexMissingRoot(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Errorf("got %v, want none", got)
+	}
+}
+
+// Codex re-emits token_count for one API request with an identical last_token_usage;
+// billing every event doubles the bill. Real rollouts contain these pairs.
+func TestCodexDuplicateTokenCountBilledOnce(t *testing.T) {
+	rec, _, err := ParseCodex(bytes.NewReader(mustRead(t, "testdata/codex/dup_tokens.jsonl")), &ScanState{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := billed(rec)
+	// codex input_tokens includes cached, so uncached Input = 100-40.
+	want := model.TokenUsage{Input: 60, Output: 20, CacheRead: 40, ReasoningOutput: 5}
+	if got != want {
+		t.Errorf("tokens = %+v, want %+v: the duplicate token_count was billed twice", got, want)
 	}
 }
