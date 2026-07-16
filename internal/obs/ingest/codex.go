@@ -48,7 +48,9 @@ func ParseCodex(r io.Reader, st *ScanState) (model.Record, int64, error) {
 	}
 	off, err := ScanLines(r, 0, p.line)
 	st.Offset = off
-	return p.record(), off, err
+	rec := p.record()
+	namespaceTurnIDs(&rec)
+	return rec, off, err
 }
 
 type codexTokens struct {
@@ -86,7 +88,8 @@ type codexPayload struct {
 	Message string `json:"message"`
 
 	Info struct {
-		Last *codexTokens `json:"last_token_usage"`
+		Last  *codexTokens `json:"last_token_usage"`
+		Total *codexTokens `json:"total_token_usage"`
 	} `json:"info"`
 
 	DurationMs       int64  `json:"duration_ms"`
@@ -125,6 +128,7 @@ type codexParser struct {
 	callAt     map[string]time.Time
 	last       time.Time
 	lastTokens model.TokenUsage
+	lastTotal  model.TokenUsage
 	sawTokens  bool
 }
 
@@ -190,14 +194,19 @@ func (p *codexParser) eventMsg(rec codexRecord) {
 	case "user_message":
 		p.userMessage(pl.Message)
 	case "token_count":
-		// Codex re-emits token_count for the same API request with an identical
-		// last_token_usage and an unchanged total; billing every event doubles it.
+		// Codex re-emits token_count for the same API request: identical last AND
+		// an unchanged total. Compare both — two DISTINCT consecutive requests can
+		// carry identical last while total advances, and dropping those under-bills.
 		if pl.Info.Last != nil {
 			cur := codexUsage(*pl.Info.Last)
-			if cur == p.lastTokens && p.sawTokens {
+			var tot model.TokenUsage
+			if pl.Info.Total != nil {
+				tot = codexUsage(*pl.Info.Total)
+			}
+			if p.sawTokens && cur == p.lastTokens && tot == p.lastTotal {
 				return
 			}
-			p.lastTokens, p.sawTokens = cur, true
+			p.lastTokens, p.lastTotal, p.sawTokens = cur, tot, true
 			p.turnFor("").tokens.Add(cur)
 		}
 	case "task_complete":

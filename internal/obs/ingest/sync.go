@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/vanducng/vd-cli/v2/internal/obs/model"
@@ -151,22 +152,41 @@ func (r *scanStateRef) unknownTotal() int {
 }
 
 func claudeJobs() ([]fileJob, error) {
-	root, err := ClaudeRoot()
+	roots, err := claudeRoots()
 	if err != nil {
 		return nil, err
 	}
-	if _, err := os.Stat(root); os.IsNotExist(err) {
-		return nil, nil
-	}
-	top, subs, err := EnumerateClaude(root)
-	if err != nil {
-		return nil, fmt.Errorf("enumerate claude: %w", err)
-	}
-	out := make([]fileJob, 0, len(top)+len(subs))
-	for _, p := range append(top, subs...) {
-		out = append(out, claudeJob(p))
+	var out []fileJob
+	for _, root := range roots {
+		top, subs, err := EnumerateClaude(root)
+		if err != nil {
+			return nil, fmt.Errorf("enumerate claude %s: %w", root, err)
+		}
+		for _, p := range append(top, subs...) {
+			out = append(out, claudeJob(p))
+		}
 	}
 	return out, nil
+}
+
+// claudeRoots returns every Claude home that exists: ~/.claude plus the XDG
+// location — Claude Code writes to both across versions, and ccusage reads both.
+func claudeRoots() ([]string, error) {
+	primary, err := ClaudeRoot()
+	if err != nil {
+		return nil, err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	var roots []string
+	for _, r := range []string{primary, filepath.Join(home, ".config", "claude")} {
+		if _, err := os.Stat(filepath.Join(r, "projects")); err == nil {
+			roots = append(roots, r)
+		}
+	}
+	return roots, nil
 }
 
 func claudeJob(path string) fileJob {

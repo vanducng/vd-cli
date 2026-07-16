@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -176,3 +177,57 @@ func TestSyncFullRebuildEqualsIncremental(t *testing.T) {
 		t.Errorf("full rebuild != incremental: %d/%d vs %d/%d", incSessions, incTokens, fullSessions, fullTokens)
 	}
 }
+
+// A parent and every subagent it spawns share one promptId. Un-namespaced turn
+// ids made them collide in the store, where the upsert let the last writer erase
+// the others' tokens — measured as a 50-70% assistant-heavy undercount.
+func TestSiblingSubagentsSharingPromptIDDoNotCollide(t *testing.T) {
+	home := t.TempDir()
+	proj := filepath.Join(home, ".claude", "projects", "-Users-dev-demo")
+	parentID := "11111111-1111-4111-8111-111111111111"
+	sub := filepath.Join(proj, parentID, "subagents")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+
+	const promptID = "69d4e5b1-1517-4bba-8abb-3f3ada8a279a"
+	line := func(sess string, tokens int) string {
+		return `{"type":"user","sessionId":"` + sess + `","promptId":"` + promptID + `","timestamp":"2026-07-15T10:00:00.000Z","message":{"content":"go"},"origin":{"kind":"human"}}
+{"type":"assistant","sessionId":"` + sess + `","promptId":"` + promptID + `","timestamp":"2026-07-15T10:00:05.000Z","message":{"id":"msg-` + sess[:8] + `","model":"claude-fable-5","usage":{"input_tokens":` + itoa(tokens) + `,"output_tokens":100}}}
+`
+	}
+	if err := os.WriteFile(filepath.Join(proj, parentID+".jsonl"), []byte(line(parentID, 1000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// two siblings: same promptId, no human records (subagent shape), distinct agent files
+	subLine := func(agent string, tokens int) string {
+		return `{"type":"assistant","sessionId":"` + parentID + `","agentId":"` + agent + `","promptId":"` + promptID + `","timestamp":"2026-07-15T10:00:10.000Z","message":{"id":"msg-` + agent + `","model":"claude-fable-5","usage":{"input_tokens":` + itoa(tokens) + `,"output_tokens":100}}}
+`
+	}
+	for i, ag := range []string{"a1b2c3d4e5f607181", "a1b2c3d4e5f607182"} {
+		p := filepath.Join(sub, "agent-"+ag+".jsonl")
+		if err := os.WriteFile(p, []byte(subLine(ag, 500+i)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	s := syncStore(t)
+	if _, err := Sync(context.Background(), s, SyncOptions{Agents: []string{model.AgentClaude}}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := s.Usage(context.Background(), model.UsageFilter{Group: "daily"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input int
+	for _, r := range rows {
+		input += r.Tokens.Input
+	}
+	// 1000 (parent) + 500 + 501 (siblings) — every writer's tokens survive
+	if input != 2001 {
+		t.Fatalf("input = %d, want 2001: sibling turns sharing a promptId overwrote each other", input)
+	}
+}
+
+func itoa(n int) string { return fmt.Sprintf("%d", n) }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vanducng/vd-cli/v2/internal/obs/model"
@@ -317,7 +318,7 @@ func TestClaudeToolSpansHooksAndSkills(t *testing.T) {
 			if span.Error != tc.wantError {
 				t.Errorf("Error = %q, want %q", span.Error, tc.wantError)
 			}
-			if span.TurnID != "prompt-tools" {
+			if span.TurnID != "bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb:prompt-tools" {
 				t.Errorf("TurnID = %q, want prompt-tools", span.TurnID)
 			}
 		})
@@ -327,14 +328,14 @@ func TestClaudeToolSpansHooksAndSkills(t *testing.T) {
 	}
 
 	wantHooks := []model.HookExec{{
-		TurnID: "prompt-tools", HookName: "PostToolUse:lint-guard",
+		TurnID: "bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb:prompt-tools", HookName: "PostToolUse:lint-guard",
 		Event: "PostToolUse", DurationMs: 37, ExitCode: 0,
 	}}
 	if len(rec.HookExecs) != 1 || rec.HookExecs[0] != wantHooks[0] {
 		t.Errorf("HookExecs = %+v, want %+v", rec.HookExecs, wantHooks)
 	}
 
-	wantSkills := []model.Skill{{TurnID: "prompt-tools", Name: "debug", Args: "--trace"}}
+	wantSkills := []model.Skill{{TurnID: "bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb:prompt-tools", Name: "debug", Args: "--trace"}}
 	if len(rec.Skills) != 1 || rec.Skills[0] != wantSkills[0] {
 		t.Errorf("Skills = %+v, want %+v", rec.Skills, wantSkills)
 	}
@@ -434,4 +435,25 @@ func mustRead(t *testing.T, path string) []byte {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return b
+}
+
+// Streaming rewrites usage as content blocks land: later records for one
+// message.id carry HIGHER output_tokens, and only the last is the true total.
+// First-wins under-billed output by ~46% on the real corpus.
+func TestClaudeStreamingUsageBillsFinalTotals(t *testing.T) {
+	jsonl := `{"type":"user","sessionId":"cccccccc-3333-4333-8333-cccccccccccc","promptId":"p1","timestamp":"2026-07-15T10:00:00.000Z","message":{"content":"go"},"origin":{"kind":"human"}}
+{"type":"assistant","sessionId":"cccccccc-3333-4333-8333-cccccccccccc","promptId":"p1","timestamp":"2026-07-15T10:00:01.000Z","message":{"id":"msg-grow","model":"claude-fable-5","usage":{"input_tokens":100,"output_tokens":10,"cache_read_input_tokens":500}}}
+{"type":"assistant","sessionId":"cccccccc-3333-4333-8333-cccccccccccc","promptId":"p1","timestamp":"2026-07-15T10:00:02.000Z","message":{"id":"msg-grow","model":"claude-fable-5","usage":{"input_tokens":100,"output_tokens":250,"cache_read_input_tokens":500}}}
+{"type":"assistant","sessionId":"cccccccc-3333-4333-8333-cccccccccccc","promptId":"p1","timestamp":"2026-07-15T10:00:03.000Z","message":{"id":"msg-grow","model":"claude-fable-5","usage":{"input_tokens":100,"output_tokens":400,"cache_read_input_tokens":500}}}
+`
+	rec, _, err := ParseClaude(strings.NewReader(jsonl), &ScanState{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := billed(rec)
+	// final totals once: not first-wins (10), not summed (660)
+	want := model.TokenUsage{Input: 100, Output: 400, CacheRead: 500}
+	if got != want {
+		t.Fatalf("tokens = %+v, want %+v (final streaming totals, billed once)", got, want)
+	}
 }

@@ -11,7 +11,12 @@ var schemaSQL string
 
 // schemaVersion is stamped into PRAGMA user_version. Bump it on any schema change:
 // obs.sqlite is a derived cache, so a mismatch drops and rebuilds rather than migrates.
-const schemaVersion = 1
+// schemaVersion doubles as the parser-semantics version: obs.sqlite is derived,
+// so a change in how transcripts are billed invalidates it exactly like a
+// column change does. v2: turns.id namespaced by session. v3: streaming usage
+// billed at final totals per message. v4: codex duplicate detection compares
+// last AND total, so distinct-but-identical-looking requests bill.
+const schemaVersion = 4
 
 func ensureSchema(db *sql.DB) error {
 	var have int

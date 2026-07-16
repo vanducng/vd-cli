@@ -74,8 +74,8 @@ func TestCodexTurnGrouping(t *testing.T) {
 		response string
 		duration int64
 	}{
-		{0, "turn-aaaa", "synthetic-large", "Add a health endpoint.", "Added the health endpoint.", 5000},
-		{1, "turn-bbbb", "synthetic-small", "Now add a test.", "Test added.", 2500},
+		{0, "019f0000-0000-7000-8000-000000000001:turn-aaaa", "synthetic-large", "Add a health endpoint.", "Added the health endpoint.", 5000},
+		{1, "019f0000-0000-7000-8000-000000000001:turn-bbbb", "synthetic-small", "Now add a test.", "Test added.", 2500},
 	}
 	for _, tt := range tests {
 		got := rec.Turns[tt.idx]
@@ -274,7 +274,7 @@ func TestCodexToolSpansJoinedByCallID(t *testing.T) {
 			if !sp.OK {
 				t.Errorf("OK = false, want true")
 			}
-			if sp.TurnID != "turn-cccc" {
+			if sp.TurnID != "019f0000-0000-7000-8000-000000000002:turn-cccc" {
 				t.Errorf("TurnID = %q, want turn-cccc", sp.TurnID)
 			}
 		})
@@ -577,9 +577,11 @@ func TestCodexDuplicateTokenCountBilledOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := billed(rec)
-	// codex input_tokens includes cached, so uncached Input = 100-40.
-	want := model.TokenUsage{Input: 60, Output: 20, CacheRead: 40, ReasoningOutput: 5}
+	// codex input_tokens includes cached, so uncached Input = 100-40. The fixture
+	// holds one true duplicate (identical last AND total -> dropped) plus one
+	// distinct request with identical last but advanced total -> billed. 2x60=120.
+	want := model.TokenUsage{Input: 120, Output: 40, CacheRead: 80, ReasoningOutput: 10}
 	if got != want {
-		t.Errorf("tokens = %+v, want %+v: the duplicate token_count was billed twice", got, want)
+		t.Errorf("tokens = %+v, want %+v: duplicate/distinct token_count misjudged", got, want)
 	}
 }

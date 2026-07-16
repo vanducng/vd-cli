@@ -83,7 +83,49 @@ func ParseClaudeFile(path string, st *ScanState) (model.Record, int64, error) {
 			}
 		}
 	}
+	namespaceTurnIDs(&rec)
 	return rec, off, err
+}
+
+// namespaceTurnIDs prefixes every turn id with the session's FINAL identity.
+// A parent and all subagents it spawns share one promptId, so an un-namespaced
+// turns.id collides across those files and the store's upsert lets the last
+// writer erase the others' tokens — measured as a 50-70% assistant-heavy
+// undercount on fan-out-heavy corpora. Must run after the subagent identity
+// swap above, or every sibling would share the parent's prefix and collide anyway.
+func namespaceTurnIDs(rec *model.Record) {
+	if rec.Session.ID == "" {
+		return
+	}
+	prefix := rec.Session.ID + ":"
+	remap := make(map[string]string, len(rec.Turns))
+	for i := range rec.Turns {
+		old := rec.Turns[i].ID
+		if strings.HasPrefix(old, prefix) {
+			continue
+		}
+		id := prefix + old
+		remap[old] = id
+		rec.Turns[i].ID = id
+	}
+	if len(remap) == 0 {
+		return
+	}
+	for i := range rec.ToolSpans {
+		if id, ok := remap[rec.ToolSpans[i].TurnID]; ok {
+			rec.ToolSpans[i].TurnID = id
+		}
+	}
+	for i := range rec.HookExecs {
+		if id, ok := remap[rec.HookExecs[i].TurnID]; ok {
+			rec.HookExecs[i].TurnID = id
+		}
+	}
+	for i := range rec.Skills {
+		if id, ok := remap[rec.Skills[i].TurnID]; ok {
+			rec.Skills[i].TurnID = id
+		}
+	}
 }
 
 // ParseClaude reads a whole transcript into a record, committing only complete
@@ -111,7 +153,38 @@ type claudeParser struct {
 	turnIdx   int
 	turnKey   string
 	spans     map[string]int
+	billed    map[string]model.TokenUsage
 	lastTS    time.Time
+}
+
+// billDelta adds only the growth of a message's usage to the turn. Fields are
+// clamped non-negative so an out-of-order smaller snapshot can never subtract.
+func (p *claudeParser) billDelta(t *model.Turn, msgID string, u model.TokenUsage) {
+	if p.billed == nil {
+		p.billed = map[string]model.TokenUsage{}
+	}
+	prev := p.billed[msgID]
+	d := model.TokenUsage{
+		Input:           maxInt(u.Input-prev.Input, 0),
+		Output:          maxInt(u.Output-prev.Output, 0),
+		CacheRead:       maxInt(u.CacheRead-prev.CacheRead, 0),
+		CacheWrite:      maxInt(u.CacheWrite-prev.CacheWrite, 0),
+		ReasoningOutput: maxInt(u.ReasoningOutput-prev.ReasoningOutput, 0),
+	}
+	t.Tokens.Add(d)
+	prev.Input = maxInt(prev.Input, u.Input)
+	prev.Output = maxInt(prev.Output, u.Output)
+	prev.CacheRead = maxInt(prev.CacheRead, u.CacheRead)
+	prev.CacheWrite = maxInt(prev.CacheWrite, u.CacheWrite)
+	prev.ReasoningOutput = maxInt(prev.ReasoningOutput, u.ReasoningOutput)
+	p.billed[msgID] = prev
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // cur indexes rather than holds a *model.Turn: appending to rec.Turns reallocates,
@@ -212,10 +285,13 @@ func (p *claudeParser) assistant(l *claudeLine) {
 		t.Model = l.Message.Model
 		p.rec.Session.Model = l.Message.Model
 	}
-	// One JSONL record per content block repeats the same usage object verbatim;
-	// summing them bills a 3-block reply three times.
-	if l.Message.Usage != nil && p.st.FirstSeen(l.Message.ID) {
-		t.Tokens.Add(l.Message.Usage.tokens())
+	// One JSONL record per content block repeats the usage object — but not
+	// verbatim: output_tokens GROWS as blocks stream, and only the last record
+	// carries the reply's true total (measured: 24% of message ids differ,
+	// first-wins under-bills output ~46%). Bill the monotonic delta per field so
+	// a message is counted once at its final size regardless of record order.
+	if l.Message.Usage != nil && l.Message.ID != "" {
+		p.billDelta(t, l.Message.ID, l.Message.Usage.tokens())
 	}
 	blocks := decodeBlocks(l.Message.Content)
 	for i := range blocks {

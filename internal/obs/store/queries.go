@@ -354,7 +354,7 @@ func (s *Store) Usage(ctx context.Context, f model.UsageFilter) ([]UsageRaw, err
 		args = append(args, timeToMs(f.Since))
 	}
 
-	q := `SELECT strftime(?, t.started_at/1000, 'unixepoch') AS bucket, s.agent, t.model,
+	q := `SELECT strftime(?, t.started_at/1000, 'unixepoch', 'localtime') AS bucket, s.agent, t.model,
 		SUM(t.input), SUM(t.output), SUM(t.cache_read), SUM(t.cache_write), SUM(t.reasoning)
 		FROM turns t JOIN sessions s ON s.id = t.session_id
 		WHERE ` + strings.Join(conds, " AND ") + `
