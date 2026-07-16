@@ -267,14 +267,19 @@ func (s *Store) attachSpans(ctx context.Context, turns []model.Turn, ids []strin
 	for rows.Next() {
 		var sp model.ToolSpan
 		var ok int
+		var roll model.TokenUsage
 		if err := rows.Scan(&sp.ID, &sp.TurnID, &sp.Name, &sp.Kind, &sp.DurationMs, &ok,
 			&sp.SubagentSessionID, &sp.SubagentName,
-			&sp.RollupTokens.Input, &sp.RollupTokens.Output,
-			&sp.RollupTokens.CacheRead, &sp.RollupTokens.CacheWrite,
+			&roll.Input, &roll.Output, &roll.CacheRead, &roll.CacheWrite,
 			&sp.Input, &sp.Output, &sp.Error); err != nil {
 			return fmt.Errorf("scan tool span: %w", err)
 		}
 		sp.OK = ok == 1
+		// Only a span that actually rolled up a subagent carries tokens; leaving the
+		// pointer nil is what keeps rolluptokens out of every other span's JSON.
+		if roll != (model.TokenUsage{}) {
+			sp.RollupTokens = &roll
+		}
 		if t := byTurn[sp.TurnID]; t != nil {
 			t.ToolSpans = append(t.ToolSpans, sp)
 		}
