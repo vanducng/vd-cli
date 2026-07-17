@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.12.0](https://github.com/vanducng/vd-cli/compare/v3.11.1...v3.12.0) (2026-07-17)
+
+
+### Features
+
+* **obs:** agent health — ranked error clusters with evidence and a self-heal contract ([#78](https://github.com/vanducng/vd-cli/issues/78)) ([326835c](https://github.com/vanducng/vd-cli/commit/326835cc049fee07a36dbfa24c90718404b35e6a))
+
 ## [3.11.1](https://github.com/vanducng/vd-cli/compare/v3.11.0...v3.11.1) (2026-07-17)
 
 
