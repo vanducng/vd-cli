@@ -60,9 +60,11 @@ func runWeb(cmd *cobra.Command, host string, port int, noBrowser bool) error {
 	if err != nil {
 		return err
 	}
+	invSvc := inventory.NewService(root, claudeHome)
+
 	// A broken obs cache must not take down the inventory portal: NewServer
 	// documents nil obs -> those routes answer 503.
-	obsSvc, obsErr := obs.NewService("")
+	obsSvc, obsErr := obs.NewService("", invSvc)
 	if obsErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: obs unavailable: %v\n", obsErr)
 		obsSvc = nil
@@ -73,7 +75,7 @@ func runWeb(cmd *cobra.Command, host string, port int, noBrowser bool) error {
 		}
 	}()
 
-	srv, err := web.NewServer(inventory.NewService(root, claudeHome), obsSvc)
+	srv, err := web.NewServer(invSvc, obsSvc)
 	if err != nil {
 		return err
 	}

@@ -21,6 +21,7 @@ func (h *obsHandler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/obs/sessions", h.sessions)
 	mux.HandleFunc("GET /api/obs/sessions/{id}", h.session)
 	mux.HandleFunc("GET /api/obs/usage", h.usage)
+	mux.HandleFunc("GET /api/obs/health", h.health)
 }
 
 // ready reports whether obs is wired. A nil service reaching a handler would
@@ -111,6 +112,38 @@ func (h *obsHandler) usage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, rep)
+}
+
+func (h *obsHandler) health(w http.ResponseWriter, r *http.Request) {
+	f, err := parseHealthFilter(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if !h.ready(w) {
+		return
+	}
+	h.refresh(r)
+	rep, err := h.svc.Health(r.Context(), f)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rep)
+}
+
+func parseHealthFilter(r *http.Request) (model.HealthFilter, error) {
+	q := r.URL.Query()
+	f := model.HealthFilter{Agent: q.Get("agent"), Project: q.Get("project")}
+	if err := checkAgent(f.Agent); err != nil {
+		return f, err
+	}
+	since, err := store.ParseSince(q.Get("since"))
+	if err != nil {
+		return f, err
+	}
+	f.Since = since
+	return f, nil
 }
 
 func parseSessionFilter(r *http.Request) (model.SessionFilter, error) {
