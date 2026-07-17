@@ -1,0 +1,1 @@
+import{j as n}from"./index-Cdwfhp8t.js";import{B as e}from"./top-bar-C6bgAv-u.js";const a={none:"ok",local:"amber",missing:"err",unknown:"err",untracked:"default"};function s({drift:r}){return r?n.jsx(e,{variant:a[r]??"default",children:r}):null}export{s as D};

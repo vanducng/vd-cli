@@ -6,7 +6,7 @@ import { Brand } from "@/components/layout/brand";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-  to: "/skills" | "/hooks" | "/doctor";
+  to: "/skills" | "/hooks" | "/doctor" | "/obs/sessions" | "/obs/usage";
   label: string;
   icon: typeof Package;
 }
@@ -17,11 +17,9 @@ const CONTROL_PLANE: NavItem[] = [
   { to: "/doctor", label: "Doctor", icon: Stethoscope },
 ];
 
-// No /obs/* routes exist yet (phase-04/05); render as disabled entries rather than
-// Links to a path the generated route tree doesn't know about.
-const OBSERVABILITY: { label: string; icon: typeof Activity }[] = [
-  { label: "Sessions", icon: Activity },
-  { label: "Usage", icon: BarChart3 },
+const OBSERVABILITY: NavItem[] = [
+  { to: "/obs/sessions", label: "Sessions", icon: Activity },
+  { to: "/obs/usage", label: "Usage", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
@@ -55,15 +53,18 @@ export function AppSidebar() {
         </div>
         <div className="mb-4">
           {!collapsed && <div className="mb-1 px-3 text-xs uppercase tracking-wide text-faint">Observability</div>}
-          {OBSERVABILITY.map(({ label, icon: Icon }) => (
-            <div
-              key={label}
-              className="flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-faint opacity-60"
-              title="Ships in a later phase"
+          {OBSERVABILITY.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className={cn(
+                "flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-muted-foreground hover:text-foreground",
+                pathname.startsWith(to) && "bg-panel-2 text-foreground",
+              )}
             >
               <Icon className="h-4 w-4 shrink-0" />
               {!collapsed && <span>{label}</span>}
-            </div>
+            </Link>
           ))}
         </div>
       </nav>

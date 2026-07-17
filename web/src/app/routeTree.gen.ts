@@ -9,38 +9,188 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SkillsRouteImport } from './routes/skills'
+import { Route as ObsRouteImport } from './routes/obs'
+import { Route as HooksRouteImport } from './routes/hooks'
+import { Route as DoctorRouteImport } from './routes/doctor'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SkillsIndexRouteImport } from './routes/skills.index'
+import { Route as ObsIndexRouteImport } from './routes/obs.index'
+import { Route as SkillsNameRouteImport } from './routes/skills.$name'
+import { Route as ObsUsageRouteImport } from './routes/obs.usage'
+import { Route as ObsSessionsRouteImport } from './routes/obs.sessions'
+import { Route as ObsSessionsIndexRouteImport } from './routes/obs.sessions.index'
 
+const SkillsRoute = SkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObsRoute = ObsRouteImport.update({
+  id: '/obs',
+  path: '/obs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HooksRoute = HooksRouteImport.update({
+  id: '/hooks',
+  path: '/hooks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DoctorRoute = DoctorRouteImport.update({
+  id: '/doctor',
+  path: '/doctor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SkillsIndexRoute = SkillsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SkillsRoute,
+} as any)
+const ObsIndexRoute = ObsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ObsRoute,
+} as any)
+const SkillsNameRoute = SkillsNameRouteImport.update({
+  id: '/$name',
+  path: '/$name',
+  getParentRoute: () => SkillsRoute,
+} as any)
+const ObsUsageRoute = ObsUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => ObsRoute,
+} as any)
+const ObsSessionsRoute = ObsSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => ObsRoute,
+} as any)
+const ObsSessionsIndexRoute = ObsSessionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ObsSessionsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/doctor': typeof DoctorRoute
+  '/hooks': typeof HooksRoute
+  '/obs': typeof ObsRouteWithChildren
+  '/skills': typeof SkillsRouteWithChildren
+  '/obs/sessions': typeof ObsSessionsRouteWithChildren
+  '/obs/usage': typeof ObsUsageRoute
+  '/skills/$name': typeof SkillsNameRoute
+  '/obs/': typeof ObsIndexRoute
+  '/skills/': typeof SkillsIndexRoute
+  '/obs/sessions/': typeof ObsSessionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/doctor': typeof DoctorRoute
+  '/hooks': typeof HooksRoute
+  '/obs/usage': typeof ObsUsageRoute
+  '/skills/$name': typeof SkillsNameRoute
+  '/obs': typeof ObsIndexRoute
+  '/skills': typeof SkillsIndexRoute
+  '/obs/sessions': typeof ObsSessionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/doctor': typeof DoctorRoute
+  '/hooks': typeof HooksRoute
+  '/obs': typeof ObsRouteWithChildren
+  '/skills': typeof SkillsRouteWithChildren
+  '/obs/sessions': typeof ObsSessionsRouteWithChildren
+  '/obs/usage': typeof ObsUsageRoute
+  '/skills/$name': typeof SkillsNameRoute
+  '/obs/': typeof ObsIndexRoute
+  '/skills/': typeof SkillsIndexRoute
+  '/obs/sessions/': typeof ObsSessionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/doctor'
+    | '/hooks'
+    | '/obs'
+    | '/skills'
+    | '/obs/sessions'
+    | '/obs/usage'
+    | '/skills/$name'
+    | '/obs/'
+    | '/skills/'
+    | '/obs/sessions/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/doctor'
+    | '/hooks'
+    | '/obs/usage'
+    | '/skills/$name'
+    | '/obs'
+    | '/skills'
+    | '/obs/sessions'
+  id:
+    | '__root__'
+    | '/'
+    | '/doctor'
+    | '/hooks'
+    | '/obs'
+    | '/skills'
+    | '/obs/sessions'
+    | '/obs/usage'
+    | '/skills/$name'
+    | '/obs/'
+    | '/skills/'
+    | '/obs/sessions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DoctorRoute: typeof DoctorRoute
+  HooksRoute: typeof HooksRoute
+  ObsRoute: typeof ObsRouteWithChildren
+  SkillsRoute: typeof SkillsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/skills': {
+      id: '/skills'
+      path: '/skills'
+      fullPath: '/skills'
+      preLoaderRoute: typeof SkillsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/obs': {
+      id: '/obs'
+      path: '/obs'
+      fullPath: '/obs'
+      preLoaderRoute: typeof ObsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hooks': {
+      id: '/hooks'
+      path: '/hooks'
+      fullPath: '/hooks'
+      preLoaderRoute: typeof HooksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/doctor': {
+      id: '/doctor'
+      path: '/doctor'
+      fullPath: '/doctor'
+      preLoaderRoute: typeof DoctorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +198,96 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/skills/': {
+      id: '/skills/'
+      path: '/'
+      fullPath: '/skills/'
+      preLoaderRoute: typeof SkillsIndexRouteImport
+      parentRoute: typeof SkillsRoute
+    }
+    '/obs/': {
+      id: '/obs/'
+      path: '/'
+      fullPath: '/obs/'
+      preLoaderRoute: typeof ObsIndexRouteImport
+      parentRoute: typeof ObsRoute
+    }
+    '/skills/$name': {
+      id: '/skills/$name'
+      path: '/$name'
+      fullPath: '/skills/$name'
+      preLoaderRoute: typeof SkillsNameRouteImport
+      parentRoute: typeof SkillsRoute
+    }
+    '/obs/usage': {
+      id: '/obs/usage'
+      path: '/usage'
+      fullPath: '/obs/usage'
+      preLoaderRoute: typeof ObsUsageRouteImport
+      parentRoute: typeof ObsRoute
+    }
+    '/obs/sessions': {
+      id: '/obs/sessions'
+      path: '/sessions'
+      fullPath: '/obs/sessions'
+      preLoaderRoute: typeof ObsSessionsRouteImport
+      parentRoute: typeof ObsRoute
+    }
+    '/obs/sessions/': {
+      id: '/obs/sessions/'
+      path: '/'
+      fullPath: '/obs/sessions/'
+      preLoaderRoute: typeof ObsSessionsIndexRouteImport
+      parentRoute: typeof ObsSessionsRoute
+    }
   }
 }
 
+interface ObsSessionsRouteChildren {
+  ObsSessionsIndexRoute: typeof ObsSessionsIndexRoute
+}
+
+const ObsSessionsRouteChildren: ObsSessionsRouteChildren = {
+  ObsSessionsIndexRoute: ObsSessionsIndexRoute,
+}
+
+const ObsSessionsRouteWithChildren = ObsSessionsRoute._addFileChildren(
+  ObsSessionsRouteChildren,
+)
+
+interface ObsRouteChildren {
+  ObsSessionsRoute: typeof ObsSessionsRouteWithChildren
+  ObsUsageRoute: typeof ObsUsageRoute
+  ObsIndexRoute: typeof ObsIndexRoute
+}
+
+const ObsRouteChildren: ObsRouteChildren = {
+  ObsSessionsRoute: ObsSessionsRouteWithChildren,
+  ObsUsageRoute: ObsUsageRoute,
+  ObsIndexRoute: ObsIndexRoute,
+}
+
+const ObsRouteWithChildren = ObsRoute._addFileChildren(ObsRouteChildren)
+
+interface SkillsRouteChildren {
+  SkillsNameRoute: typeof SkillsNameRoute
+  SkillsIndexRoute: typeof SkillsIndexRoute
+}
+
+const SkillsRouteChildren: SkillsRouteChildren = {
+  SkillsNameRoute: SkillsNameRoute,
+  SkillsIndexRoute: SkillsIndexRoute,
+}
+
+const SkillsRouteWithChildren =
+  SkillsRoute._addFileChildren(SkillsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DoctorRoute: DoctorRoute,
+  HooksRoute: HooksRoute,
+  ObsRoute: ObsRouteWithChildren,
+  SkillsRoute: SkillsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
