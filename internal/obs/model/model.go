@@ -195,6 +195,61 @@ type Skill struct {
 	Args   string `json:"args"`
 }
 
+// SkillSummary is one row of `vd obs skills`: a skill (or the "(none)" bucket for
+// unattributed activity) with the tool work charged to its invocation windows. A
+// window opens at an invocation's turn and closes at the next invocation in that
+// session, or session end; spans and turns inside it attribute to that skill.
+// Counting by session broadcast instead overcounts ~4.7x (measured) — never do it.
+type SkillSummary struct {
+	Name         string   `json:"name"`
+	Agents       []string `json:"agents"`
+	Invocations  int      `json:"invocations"`
+	Sessions     int      `json:"sessions"`
+	SoloSessions int      `json:"solosessions"`
+	ToolCalls    int      `json:"toolcalls"`
+	ToolErrors   int      `json:"toolerrors"`
+	ErrRate      *float64 `json:"errrate"`
+	Tokens       int      `json:"tokens"`
+}
+
+// SkillNone is the bucket name for tool activity that precedes any invocation or
+// happens in a session that invoked no skill. It sorts last in a report.
+const SkillNone = "(none)"
+
+// SkillReport is the whole `vd obs skills` answer, sorted errors-desc with the
+// "(none)" bucket forced last.
+type SkillReport struct {
+	Skills []SkillSummary `json:"skills"`
+}
+
+// MarshalJSON enforces the never-null rule for the skills list.
+func (r SkillReport) MarshalJSON() ([]byte, error) {
+	type report SkillReport
+	v := report(r)
+	if v.Skills == nil {
+		v.Skills = []SkillSummary{}
+	}
+	return json.Marshal(v)
+}
+
+// MarshalJSON keeps a skill's agents an array, never null.
+func (s SkillSummary) MarshalJSON() ([]byte, error) {
+	type summary SkillSummary
+	v := summary(s)
+	if v.Agents == nil {
+		v.Agents = []string{}
+	}
+	return json.Marshal(v)
+}
+
+// SkillFilter scopes a skills rollup. Fields mirror the HTTP query params: agent,
+// project, since. All three are session-level, so a session is wholly in or out.
+type SkillFilter struct {
+	Agent   string    `json:"agent"`
+	Project string    `json:"project"`
+	Since   time.Time `json:"since"`
+}
+
 // UsageRow is one grouped bucket of `vd obs usage`.
 type UsageRow struct {
 	Date    string     `json:"date"`

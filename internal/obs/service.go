@@ -176,6 +176,17 @@ func (s *Service) Usage(ctx context.Context, f model.UsageFilter) (*model.UsageR
 	return rep, nil
 }
 
+// Skills rolls up per-skill tool activity with per-invocation window attribution.
+// It has no cost or enrichment of its own — the correctness lives in the store's
+// window join — so this is a thin wrapper that packages the rows for both frontends.
+func (s *Service) Skills(ctx context.Context, f model.SkillFilter) (*model.SkillReport, error) {
+	rows, err := s.st.Skills(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	return &model.SkillReport{Skills: rows}, nil
+}
+
 // applyCost fills the money and cache-efficiency fields the store deliberately
 // knows nothing about. A model with no price entry leaves CostUSD nil, which
 // renders as "?" — never 0, which would read as free.
