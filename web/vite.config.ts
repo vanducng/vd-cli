@@ -1,11 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import path from "node:path";
 
-// Build the SPA into the Go embed dir. base: "./" keeps asset paths relative
-// so go:embed serves them under any host/port.
 export default defineConfig({
-  plugins: [react()],
-  base: "./",
+  plugins: [
+    tanstackRouter({
+      target: "react",
+      autoCodeSplitting: true,
+      routesDirectory: "./src/app/routes",
+      generatedRouteTree: "./src/app/routeTree.gen.ts",
+    }),
+    react(),
+  ],
+  base: "/",
+  resolve: {
+    alias: { "@": path.resolve(__dirname, "src") },
+  },
   server: {
     proxy: { "/api": "http://127.0.0.1:7777" },
   },

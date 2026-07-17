@@ -538,6 +538,16 @@ vd cache clean            # remove .vd-cache/
 
 ---
 
+## vd obs
+
+Local observability over Claude Code and Codex transcripts. Read-only. See the [observability guide](/observability) for the full picture.
+
+- `vd obs sessions [--agent claude-code|codex] [--project <p>] [--since 7d] [--limit N] [--offset N] [--json]` — list sessions across both agents.
+- `vd obs show <id-or-prefix> [--turns N] [--json]` — one session turn by turn.
+- `vd obs usage [--daily|--monthly] [--agent <a>] [--since 3d] [--json]` — tokens and API-equivalent cost by day or month, per model.
+
+Costs are estimates from token counts, not a subscription bill; unpriced models render `?`. Cache at `~/.vd/obs/obs.sqlite` (override with `VD_OBS_DB`); price overrides in `~/.vd/obs/prices.json`.
+
 ## vd web
 
 Launch a localhost-only web UI to review the assets vd manages. It serves a read-only inventory of the skills tracked in `skills.toml` (with drift status) and the assets discovered across every coding agent — **Claude Code** (`~/.claude`), **Codex** (`~/.agents`), and **Cursor** (`~/.cursor`) — each tagged by agent. The inventory is a filterable browser: stat bar, type / agent / scope chips, search, sort, and a Cards/Table toggle. Plus the registered Claude hooks and a `vd doctor` view. Nothing is written; mutating actions stay in the CLI.

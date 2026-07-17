@@ -93,6 +93,9 @@ func (s *Server) handleDoctor(w http.ResponseWriter, _ *http.Request) {
 }
 
 // spaHandler serves embedded assets, falling back to index.html for client routes.
+// A miss under assets/ (content-hashed, so a miss means stale/wrong bundle) 404s
+// instead of falling back to index.html — otherwise the browser gets HTML where it
+// expected JS/CSS ("Unexpected token '<'") instead of a clear 404.
 func (s *Server) spaHandler() http.Handler {
 	fileServer := http.FileServer(http.FS(s.static))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,8 +104,19 @@ func (s *Server) spaHandler() http.Handler {
 			p = "index.html"
 		}
 		if _, err := fs.Stat(s.static, p); err != nil {
+			if strings.HasPrefix(p, "assets/") {
+				http.NotFound(w, r)
+				return
+			}
 			s.serveIndex(w) // unknown path → SPA entry for client-side routing
 			return
+		}
+		// embed.FS reports zero ModTime, so http.FileServer emits neither
+		// Last-Modified nor ETag — Cache-Control is the only cache control available.
+		if strings.HasPrefix(p, "assets/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable") // content-hashed: safe to cache forever
+		} else {
+			w.Header().Set("Cache-Control", "no-cache") // index.html and any other root file
 		}
 		fileServer.ServeHTTP(w, r)
 	})
@@ -115,6 +129,7 @@ func (s *Server) serveIndex(w http.ResponseWriter) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
 	_, _ = w.Write(data)
 }
 

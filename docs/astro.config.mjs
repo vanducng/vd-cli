@@ -36,7 +36,7 @@ export default defineConfig({
       lastUpdated: true,
       sidebar: [
         { label: 'Overview', link: '/' },
-        { label: 'Guide', items: ['usage'] },
+        { label: 'Guide', items: ['usage', 'observability'] },
         { label: 'Reference', items: ['commands', 'config-schema'] },
         { label: 'Help', items: ['migration', 'faq'] },
         {
