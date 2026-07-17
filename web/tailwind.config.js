@@ -51,6 +51,7 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
         ok: "hsl(var(--ok))",
+        warn: "hsl(var(--warn))",
         err: "hsl(var(--err))",
         info: "hsl(var(--info))",
         claude: "hsl(var(--claude))",
