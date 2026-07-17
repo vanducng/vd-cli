@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 
-import { Badge } from "@/components/ui/badge";
 import { formatUsd } from "@/features/obs/lib/format";
 import { totalTokens, type ToolSpan } from "@/features/obs/schemas";
 
@@ -32,8 +31,8 @@ export function SubagentRollup({ spans, workflowId }: SubagentRollupProps) {
 
 function RollupBadge({ span }: { span: ToolSpan }) {
   const content = (
-    <span className="inline-flex items-center gap-2 rounded-pill border border-border bg-panel-2 px-3 py-0.5 text-sm">
-      <Badge>{span.subagentname}</Badge>
+    <span className="inline-flex items-center gap-2 rounded-pill border border-codex/40 bg-codex/10 px-3 py-1 font-mono text-xs text-codex">
+      <b className="font-bold">{span.subagentname}</b>
       {span.rolluptokens ? (
         <span className="tabular-nums text-muted-foreground">
           {totalTokens(span.rolluptokens).toLocaleString()} tok
@@ -44,6 +43,7 @@ function RollupBadge({ span }: { span: ToolSpan }) {
       {span.rollupcostusd != null && (
         <span className="tabular-nums text-muted-foreground">{formatUsd(span.rollupcostusd)}</span>
       )}
+      {span.subagentsessionid && <span aria-hidden>↗</span>}
     </span>
   );
 

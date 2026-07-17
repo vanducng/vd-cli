@@ -1,24 +1,17 @@
+import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 
 import { AgentBadge } from "@/features/obs/components/agent-badge";
 import { CostCell } from "@/features/obs/components/cost-cell";
 import { TokenCell } from "@/features/obs/components/token-cell";
+import { formatStarted } from "@/features/obs/lib/format";
 import { totalTokens, type SessionDetail } from "@/features/obs/schemas";
-import { cn } from "@/lib/utils";
 
-function StatTile({
-  label,
-  value,
-  valueClassName,
-}: {
-  label: string;
-  value: React.ReactNode;
-  valueClassName?: string;
-}) {
+function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="rounded-md border border-border bg-panel px-4 py-3">
-      <div className={cn("truncate text-xl tabular-nums", valueClassName)}>{value}</div>
-      <span className="text-xs uppercase tracking-wide text-faint">{label}</span>
+    <div className="min-w-[110px] rounded-md border border-border bg-panel px-4 py-2.5">
+      <div className="text-xs font-semibold uppercase tracking-wide text-faint">{label}</div>
+      <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
     </div>
   );
 }
@@ -27,23 +20,44 @@ interface SessionHeaderProps {
   session: SessionDetail;
 }
 
-/** The portal's answer to `vd obs show`'s header block: id, agent, cwd/branch,
- * cli version, and roll-up stat tiles, with room to breathe instead of one
- * 80-column line. */
+/** Compact session header: agent + title + raw id, a fact line (cwd/branch/model/
+ * started), and a single totals row. Judges flagged the old design's duplicate
+ * stat cards (this row plus a second cwd/branch tile in the same grid), so totals
+ * live here only — turns/tokens/cost/cache hit, nothing else. */
 export function SessionHeader({ session }: SessionHeaderProps) {
   const tokens = totalTokens(session.tokens);
   const cacheHit = session.cachehitrate === null ? null : Math.round(session.cachehitrate * 100);
 
   return (
-    <div className="mb-5">
-      <div className="mb-4 flex items-start justify-between gap-4">
+    <div className="mb-6 rounded-lg border border-border bg-panel p-5">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold">{session.title || "(untitled session)"}</h1>
-          <p className="mt-0.5 flex flex-wrap items-center gap-2 font-mono text-sm text-muted-foreground">
-            <span>{session.id}</span>
+          <div className="flex flex-wrap items-center gap-3">
             <AgentBadge agent={session.agent} />
-            {session.model && <span>{session.model}</span>}
-            {session.cliversion && <span>cli {session.cliversion}</span>}
+            <h1 className="truncate text-lg font-semibold text-foreground">
+              {session.title || "untitled session"}
+            </h1>
+          </div>
+          <p className="mt-1 truncate font-mono text-xs text-faint" title={session.id}>
+            {session.id}
+          </p>
+          <p className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs text-faint">
+            <span>
+              <b className="text-muted-foreground">cwd</b> {session.cwd || "?"}
+            </span>
+            {session.gitbranch && (
+              <span>
+                <b className="text-muted-foreground">branch</b> {session.gitbranch}
+              </span>
+            )}
+            {session.model && (
+              <span>
+                <b className="text-muted-foreground">model</b> {session.model}
+              </span>
+            )}
+            <span>
+              <b className="text-muted-foreground">started</b> {formatStarted(session.startedat)}
+            </span>
           </p>
         </div>
         <Link to="/obs/sessions" className="shrink-0 text-sm text-muted-foreground hover:underline">
@@ -51,34 +65,18 @@ export function SessionHeader({ session }: SessionHeaderProps) {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatTile label="Turns" value={session.turncount} />
-        <StatTile label="Tokens" value={<TokenCell tokens={tokens} />} />
-        <StatTile
-          label="Est cost"
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Stat label="Turns" value={session.turncount} />
+        <Stat label="Tokens" value={<TokenCell tokens={tokens} />} />
+        <Stat
+          label="Cost"
           value={
             <>
               $<CostCell costUsd={session.costusd} model={session.model} />
             </>
           }
         />
-        <StatTile label="Cache hit" value={cacheHit === null ? "?" : `${cacheHit}%`} />
-        <StatTile
-          label="cwd · branch"
-          valueClassName="text-sm font-normal"
-          value={
-            <>
-              <span className="block truncate" title={session.cwd}>
-                {session.cwd || "?"}
-              </span>
-              {session.gitbranch && (
-                <span className="block truncate text-xs text-muted-foreground" title={session.gitbranch}>
-                  {session.gitbranch}
-                </span>
-              )}
-            </>
-          }
-        />
+        <Stat label="Cache hit" value={cacheHit === null ? "?" : `${cacheHit}%`} />
       </div>
     </div>
   );

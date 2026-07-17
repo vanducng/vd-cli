@@ -5,6 +5,8 @@ import { z } from "zod";
 import { TopBar } from "@/components/layout/top-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UsageChart, UsageTable, usageQuery, type Agent } from "@/features/obs";
+import { formatUsd } from "@/features/obs/lib/format";
+import { KpiStrip, type Kpi } from "@/features/shared/components/kpi-strip";
 
 const GROUP_OPTIONS = ["daily", "monthly"] as const;
 
@@ -32,6 +34,18 @@ function UsagePage() {
   );
 
   const unpriced = data?.unpricedmodels ?? [];
+  const rows = data?.rows ?? [];
+  const kpis: Kpi[] = [
+    { label: "Total est $", value: data?.totalcostusd != null ? formatUsd(data.totalcostusd) : "?", tone: "accent" },
+    { label: "Days", value: new Set(rows.map((r) => r.date)).size },
+    { label: "Models", value: new Set(rows.map((r) => r.model || "(unknown)")).size },
+    {
+      label: "Unpriced",
+      value: unpriced.length,
+      tone: unpriced.length > 0 ? "warn" : "default",
+      sublabel: unpriced.length > 0 ? "add to prices.json" : undefined,
+    },
+  ];
 
   return (
     <div>
@@ -39,6 +53,8 @@ function UsagePage() {
         title="Usage"
         subtitle={`last ${search.since} · grouped ${search.group} · est $ = API-equivalent from token counts, not a subscription bill`}
       />
+
+      <KpiStrip items={kpis} />
 
       <div className="mb-4 flex gap-2">
         <Select
@@ -72,7 +88,7 @@ function UsagePage() {
       </div>
 
       {unpriced.length > 0 && (
-        <div className="mb-3 rounded-sm border border-primary/45 bg-primary/[0.08] px-3 py-2 text-sm text-primary">
+        <div className="mb-3 rounded-sm border border-warn/45 bg-warn/[0.08] px-3 py-2 text-sm text-warn">
           ! {unpriced.length} unpriced model{unpriced.length === 1 ? "" : "s"}: {unpriced.join(", ")}, add to
           ~/.vd/obs/prices.json
         </div>

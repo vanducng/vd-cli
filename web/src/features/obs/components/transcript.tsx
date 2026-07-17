@@ -22,11 +22,17 @@ export function Transcript({ session, isFetchingMore, onLoadMore }: TranscriptPr
       {session.turns.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">This session has no turns yet.</p>
       ) : (
-        <div>
-          {session.turns.map((turn) => (
-            <TurnCard key={turn.id} turn={turn} agent={session.agent} sessionWorkflowId={session.workflowid} />
+        <ol className="grid gap-5" aria-label="Turn timeline">
+          {session.turns.map((turn, i) => (
+            <TurnCard
+              key={turn.id}
+              turn={turn}
+              agent={session.agent}
+              sessionWorkflowId={session.workflowid}
+              isLast={i === session.turns.length - 1}
+            />
           ))}
-        </div>
+        </ol>
       )}
 
       {hasMore && (
