@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.11.0](https://github.com/vanducng/vd-cli/compare/v3.10.0...v3.11.0) (2026-07-17)
+
+
+### Features
+
+* **obs:** skill-level error observability (closes [#71](https://github.com/vanducng/vd-cli/issues/71)) ([#74](https://github.com/vanducng/vd-cli/issues/74)) ([1496781](https://github.com/vanducng/vd-cli/commit/14967812a592b599fc6b06de512cc6b93b0bba4c))
+
 ## [3.10.0](https://github.com/vanducng/vd-cli/compare/v3.9.0...v3.10.0) (2026-07-17)
 
 
