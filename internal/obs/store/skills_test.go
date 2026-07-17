@@ -173,6 +173,42 @@ func TestSkillsAgentFilterRestrictsBothLegs(t *testing.T) {
 	}
 }
 
+// A correction before any invocation lands on (none); one inside a window lands on
+// its skill; an interrupt marker counts as an abort. No raw prompt text is exposed.
+func TestSkillsCorrectionsAndAborts(t *testing.T) {
+	s := openTestDB(t)
+	now := time.Unix(1_780_000_000, 0).UTC()
+	rec := model.Record{
+		Session: model.Session{ID: "D", Agent: model.AgentClaude, Project: "vd-cli", CWD: "/repo/vd-cli", StartedAt: now},
+		Turns: []model.Turn{
+			{ID: "D-t0", SessionID: "D", Index: 0, StartedAt: now, PromptText: "no, that's wrong"},
+			{ID: "D-t1", SessionID: "D", Index: 1, StartedAt: now, PromptText: "$plan the work"},
+			{ID: "D-t2", SessionID: "D", Index: 2, StartedAt: now, PromptText: "revert that please"},
+			{ID: "D-t3", SessionID: "D", Index: 3, StartedAt: now, PromptText: "[Request interrupted by user]"},
+			{ID: "D-t4", SessionID: "D", Index: 4, StartedAt: now, PromptText: "looks good, thanks"},
+		},
+		Skills: []model.Skill{{TurnID: "D-t1", Name: "plan"}},
+	}
+	if err := s.IngestFile(context.Background(), rec, Watermark{}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	rows, err := s.Skills(context.Background(), model.SkillFilter{})
+	if err != nil {
+		t.Fatalf("Skills: %v", err)
+	}
+	got := byName(rows)
+
+	if p := got["plan"]; p.Corrections != 1 || p.Aborts != 1 {
+		t.Errorf("plan corr/abrt = %d/%d, want 1/1 (revert in-window, interrupt in-window)",
+			p.Corrections, p.Aborts)
+	}
+	if n := got[model.SkillNone]; n.Corrections != 1 || n.Aborts != 0 {
+		t.Errorf("(none) corr/abrt = %d/%d, want 1/0 (the pre-invocation 'no,' push-back)",
+			n.Corrections, n.Aborts)
+	}
+}
+
 func eqStrs(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

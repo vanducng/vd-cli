@@ -210,6 +210,12 @@ type SkillSummary struct {
 	ToolErrors   int      `json:"toolerrors"`
 	ErrRate      *float64 `json:"errrate"`
 	Tokens       int      `json:"tokens"`
+	// Correctness proxies, classified at query time (no raw text is ever exposed).
+	// Corrections counts user turns opening with a correction phrase; Aborts counts
+	// turns carrying the interrupt marker. Counters flag candidates — only reading
+	// the transcript proves fault.
+	Corrections int `json:"corrections"`
+	Aborts      int `json:"aborts"`
 }
 
 // SkillNone is the bucket name for tool activity that precedes any invocation or

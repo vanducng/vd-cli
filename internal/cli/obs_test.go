@@ -96,14 +96,14 @@ func TestRenderSkillsColumnsAndNilRate(t *testing.T) {
 	rep := &model.SkillReport{Skills: []model.SkillSummary{
 		{Name: "ship", Agents: []string{model.AgentClaude, model.AgentCodex},
 			Invocations: 12, Sessions: 9, SoloSessions: 4, ToolCalls: 3348, ToolErrors: 144,
-			ErrRate: &rate, Tokens: 2_500_000},
+			ErrRate: &rate, Tokens: 2_500_000, Corrections: 6, Aborts: 2},
 		{Name: model.SkillNone, ToolCalls: 100, ToolErrors: 0},
 	}}
 	var buf bytes.Buffer
 	renderSkills(&buf, rep)
 	out := buf.String()
 
-	for _, want := range []string{"ship", "claude+codex", "4.3%", "2.5M", "(none)"} {
+	for _, want := range []string{"ship", "claude+codex", "4.3%", "2.5M", "(none)", "CORR", "ABRT"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("renderSkills output missing %q\n%s", want, out)
 		}

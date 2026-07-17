@@ -3,11 +3,25 @@ package store
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/vanducng/vd-cli/v2/internal/obs/model"
 )
+
+// correctionRe flags a user turn that opens by pushing back on the last result.
+// Ported from the skill-audit miner; RE2 has no backrefs but needs none here.
+// It runs in Go because modernc SQLite ships no REGEXP; the input is a trimmed
+// prompt prefix, so the start anchor still means "start of the message".
+var correctionRe = regexp.MustCompile(
+	`(?i)^(no[,. ]|nope\b|wrong\b|not what|that'?s not|revert\b|undo\b|you broke|` +
+		`still (fail|broken|wrong)|didn'?t work|doesn'?t work|try again)`)
+
+// interruptMarker is the text a user interruption leaves in a turn's payload. It
+// is the only per-turn abort trace obs persists today (Codex turn_aborted folds
+// into a duration only), so aborts count it rather than inventing new storage.
+const interruptMarker = "%[Request interrupted by user%"
 
 // skillConds turns a SkillFilter into session-level predicates over alias `s`.
 // Every leg of the rollup applies the same set, so a filter can never restrict
@@ -68,6 +82,7 @@ type skillAgg struct {
 	invocations, sessions, solo int
 	toolCalls, toolErrors       int
 	tokens                      int
+	corrections, aborts         int
 	agents                      map[string]struct{}
 }
 
@@ -200,6 +215,45 @@ func (s *Store) Skills(ctx context.Context, f model.SkillFilter) ([]model.SkillS
 		return nil, err
 	}
 
+	// Corrections and aborts: classified per windowed user turn. Only a 200-char
+	// prompt prefix leaves the store (the correction match is start-anchored), and
+	// the interrupt marker is a per-turn flag — no raw text reaches any aggregate.
+	// The interrupt marker carries '%' (a LIKE wildcard and an fmt verb), so the CTE
+	// is formatted first and the marker concatenated after, never routed through fmt.
+	proseQ := fmt.Sprintf(skillWindowCTE, where) + `
+		SELECT w.name, substr(p.prompt_text, 1, 200),
+			CASE WHEN p.prompt_text LIKE '` + interruptMarker + `'
+				OR p.response_text LIKE '` + interruptMarker + `' THEN 1 ELSE 0 END
+		FROM windows w
+		JOIN turns tt ON tt.session_id = w.session_id AND tt.idx >= w.start_idx AND tt.idx < w.end_idx
+		JOIN turn_payloads p ON p.turn_id = tt.id
+		UNION ALL
+		SELECT '` + model.SkillNone + `', substr(p.prompt_text, 1, 200),
+			CASE WHEN p.prompt_text LIKE '` + interruptMarker + `'
+				OR p.response_text LIKE '` + interruptMarker + `' THEN 1 ELSE 0 END
+		FROM turns tt
+		JOIN sessions s ON s.id = tt.session_id
+		JOIN turn_payloads p ON p.turn_id = tt.id
+		LEFT JOIN firsts f ON f.session_id = tt.session_id
+		WHERE (f.session_id IS NULL OR tt.idx < f.first_idx)` + andClause(conds)
+	if err := s.scanRows(ctx, proseQ, twice, func(sc scanner) error {
+		var name, prefix string
+		var interrupted int
+		if err := sc.Scan(&name, &prefix, &interrupted); err != nil {
+			return err
+		}
+		a := get(name)
+		if correctionRe.MatchString(strings.TrimSpace(prefix)) {
+			a.corrections++
+		}
+		if interrupted != 0 {
+			a.aborts++
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
 	return finishSkills(agg), nil
 }
 
@@ -211,13 +265,14 @@ func finishSkills(agg map[string]*skillAgg) []model.SkillSummary {
 	for name, a := range agg {
 		// Drop a "(none)" bucket that never collected anything, but always keep real
 		// skills so an invoked-but-idle skill still shows up.
-		if name == model.SkillNone && a.toolCalls == 0 && a.tokens == 0 {
+		if name == model.SkillNone && a.toolCalls == 0 && a.tokens == 0 && a.corrections == 0 && a.aborts == 0 {
 			continue
 		}
 		sum := model.SkillSummary{
 			Name: name, Agents: sortedKeys(a.agents),
 			Invocations: a.invocations, Sessions: a.sessions, SoloSessions: a.solo,
 			ToolCalls: a.toolCalls, ToolErrors: a.toolErrors, Tokens: a.tokens,
+			Corrections: a.corrections, Aborts: a.aborts,
 		}
 		if a.toolCalls > 0 {
 			r := float64(a.toolErrors) / float64(a.toolCalls)

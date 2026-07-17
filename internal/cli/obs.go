@@ -261,14 +261,16 @@ func renderSkills(w io.Writer, rep *model.SkillReport) {
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(tw, "  SKILL\tAGENTS\tINV\tSESS\tSOLO\tCALLS\tERRS\tERR%\tTOKENS")
+	_, _ = fmt.Fprintln(tw, "  SKILL\tAGENTS\tINV\tSESS\tSOLO\tCALLS\tERRS\tERR%\tCORR\tABRT\tTOKENS")
 	for _, s := range rep.Skills {
-		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\n",
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%s\n",
 			trunc(sanitize(s.Name), 20), shortAgents(s.Agents), s.Invocations, s.Sessions,
-			s.SoloSessions, s.ToolCalls, s.ToolErrors, pct(s.ErrRate), humanTokens(s.Tokens))
+			s.SoloSessions, s.ToolCalls, s.ToolErrors, pct(s.ErrRate), s.Corrections, s.Aborts,
+			humanTokens(s.Tokens))
 	}
 	_ = tw.Flush()
 	_, _ = fmt.Fprintln(w, "  attribution = invocation → next invocation; (none) = pre-invocation or no-skill activity.")
+	_, _ = fmt.Fprintln(w, "  CORR = user push-backs · ABRT = interrupt marker · counters flag candidates, not proven fault.")
 }
 
 // shortAgents renders a skill's agents compactly (claude+codex), or "-" for none.
