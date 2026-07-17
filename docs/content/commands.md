@@ -545,6 +545,9 @@ Local observability over Claude Code and Codex transcripts. Read-only. See the [
 - `vd obs sessions [--agent claude-code|codex] [--project <p>] [--since 7d] [--limit N] [--offset N] [--json]` — list sessions across both agents.
 - `vd obs show <id-or-prefix> [--turns N] [--json]` — one session turn by turn.
 - `vd obs usage [--daily|--monthly] [--agent <a>] [--since 3d] [--json]` — tokens and API-equivalent cost by day or month, per model.
+- `vd obs skills [--agent <a>] [--project <p>] [--since <d>] [--json]` — per-skill tool calls, error rate, corrections/aborts and tokens, attributed per invocation (window = invocation → next invocation; `(none)` = unattributed).
+- `vd obs hooks [--agent <a>] [--project <p>] [--since <d>] [--json]` — hook fire counts, block rates and their share of same-turn tool errors (Claude-only).
+- `vd obs sync [--full] [--agent <a>] [--since <d>]` — ingest new or changed transcripts; `--full` drops the cache and re-reads every transcript.
 
 Costs are estimates from token counts, not a subscription bill; unpriced models render `?`. Cache at `~/.vd/obs/obs.sqlite` (override with `VD_OBS_DB`); price overrides in `~/.vd/obs/prices.json`.
 

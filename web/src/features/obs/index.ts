@@ -7,6 +7,7 @@ export { SessionsTable } from "@/features/obs/components/sessions-table";
 export { SessionsFilterBar, SINCE_OPTIONS, type SessionsFilterValue, type SinceOption } from "@/features/obs/components/sessions-filter-bar";
 export { UsageChart } from "@/features/obs/components/usage-chart";
 export { UsageTable } from "@/features/obs/components/usage-table";
+export { SkillsTable } from "@/features/obs/components/skills-table";
 export { SessionHeader } from "@/features/obs/components/session-header";
 export { Transcript } from "@/features/obs/components/transcript";
 export { TurnCard } from "@/features/obs/components/turn-card";

@@ -18,6 +18,7 @@ import { Route as SkillsIndexRouteImport } from './routes/skills.index'
 import { Route as ObsIndexRouteImport } from './routes/obs.index'
 import { Route as SkillsNameRouteImport } from './routes/skills.$name'
 import { Route as ObsUsageRouteImport } from './routes/obs.usage'
+import { Route as ObsSkillsRouteImport } from './routes/obs.skills'
 import { Route as ObsSessionsRouteImport } from './routes/obs.sessions'
 import { Route as ObsSessionsIndexRouteImport } from './routes/obs.sessions.index'
 import { Route as ObsSessionsIdRouteImport } from './routes/obs.sessions.$id'
@@ -67,6 +68,11 @@ const ObsUsageRoute = ObsUsageRouteImport.update({
   path: '/usage',
   getParentRoute: () => ObsRoute,
 } as any)
+const ObsSkillsRoute = ObsSkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => ObsRoute,
+} as any)
 const ObsSessionsRoute = ObsSessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/obs': typeof ObsRouteWithChildren
   '/skills': typeof SkillsRouteWithChildren
   '/obs/sessions': typeof ObsSessionsRouteWithChildren
+  '/obs/skills': typeof ObsSkillsRoute
   '/obs/usage': typeof ObsUsageRoute
   '/skills/$name': typeof SkillsNameRoute
   '/obs/': typeof ObsIndexRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/doctor': typeof DoctorRoute
   '/hooks': typeof HooksRoute
+  '/obs/skills': typeof ObsSkillsRoute
   '/obs/usage': typeof ObsUsageRoute
   '/skills/$name': typeof SkillsNameRoute
   '/obs': typeof ObsIndexRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/obs': typeof ObsRouteWithChildren
   '/skills': typeof SkillsRouteWithChildren
   '/obs/sessions': typeof ObsSessionsRouteWithChildren
+  '/obs/skills': typeof ObsSkillsRoute
   '/obs/usage': typeof ObsUsageRoute
   '/skills/$name': typeof SkillsNameRoute
   '/obs/': typeof ObsIndexRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/obs'
     | '/skills'
     | '/obs/sessions'
+    | '/obs/skills'
     | '/obs/usage'
     | '/skills/$name'
     | '/obs/'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/'
     | '/doctor'
     | '/hooks'
+    | '/obs/skills'
     | '/obs/usage'
     | '/skills/$name'
     | '/obs'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/obs'
     | '/skills'
     | '/obs/sessions'
+    | '/obs/skills'
     | '/obs/usage'
     | '/skills/$name'
     | '/obs/'
@@ -238,6 +250,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ObsUsageRouteImport
       parentRoute: typeof ObsRoute
     }
+    '/obs/skills': {
+      id: '/obs/skills'
+      path: '/skills'
+      fullPath: '/obs/skills'
+      preLoaderRoute: typeof ObsSkillsRouteImport
+      parentRoute: typeof ObsRoute
+    }
     '/obs/sessions': {
       id: '/obs/sessions'
       path: '/sessions'
@@ -278,12 +297,14 @@ const ObsSessionsRouteWithChildren = ObsSessionsRoute._addFileChildren(
 
 interface ObsRouteChildren {
   ObsSessionsRoute: typeof ObsSessionsRouteWithChildren
+  ObsSkillsRoute: typeof ObsSkillsRoute
   ObsUsageRoute: typeof ObsUsageRoute
   ObsIndexRoute: typeof ObsIndexRoute
 }
 
 const ObsRouteChildren: ObsRouteChildren = {
   ObsSessionsRoute: ObsSessionsRouteWithChildren,
+  ObsSkillsRoute: ObsSkillsRoute,
   ObsUsageRoute: ObsUsageRoute,
   ObsIndexRoute: ObsIndexRoute,
 }

@@ -135,6 +135,28 @@ export const usageReportSchema = z.object({
 });
 export type UsageReport = z.infer<typeof usageReportSchema>;
 
+// errrate is nullable, not optional: a skill that drove no tool call sends null so
+// the UI renders "—", never 0.0% (a zero reads as "clean" when it means "no data").
+export const skillSummarySchema = z.object({
+  name: z.string(),
+  agents: z.array(z.string()),
+  invocations: z.number(),
+  sessions: z.number(),
+  solosessions: z.number(),
+  toolcalls: z.number(),
+  toolerrors: z.number(),
+  errrate: z.number().nullable(),
+  tokens: z.number(),
+  corrections: z.number(),
+  aborts: z.number(),
+});
+export type SkillSummary = z.infer<typeof skillSummarySchema>;
+
+export const skillReportSchema = z.object({
+  skills: z.array(skillSummarySchema),
+});
+export type SkillReport = z.infer<typeof skillReportSchema>;
+
 // Frontend-only filter shapes. Field names mirror the HTTP query params 1:1
 // (agent, project, q, since, limit, offset, sort) per Plan 1 phase-01.
 export interface SessionFilter {
@@ -150,5 +172,11 @@ export interface SessionFilter {
 export interface UsageFilter {
   group?: "daily" | "monthly";
   agent?: Agent;
+  since?: string;
+}
+
+export interface SkillFilter {
+  agent?: Agent;
+  project?: string;
   since?: string;
 }

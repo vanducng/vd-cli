@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, BarChart3, ChevronsLeft, ChevronsRight, Package, Stethoscope, Webhook } from "lucide-react";
+import { Activity, BarChart3, ChevronsLeft, ChevronsRight, Gauge, Package, Stethoscope, Webhook } from "lucide-react";
 
 import { Brand } from "@/components/layout/brand";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-  to: "/skills" | "/hooks" | "/doctor" | "/obs/sessions" | "/obs/usage";
+  to: "/skills" | "/hooks" | "/doctor" | "/obs/sessions" | "/obs/usage" | "/obs/skills";
   label: string;
   icon: typeof Package;
 }
@@ -20,6 +20,7 @@ const CONTROL_PLANE: NavItem[] = [
 const OBSERVABILITY: NavItem[] = [
   { to: "/obs/sessions", label: "Sessions", icon: Activity },
   { to: "/obs/usage", label: "Usage", icon: BarChart3 },
+  { to: "/obs/skills", label: "Skill health", icon: Gauge },
 ];
 
 export function AppSidebar() {
