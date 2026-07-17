@@ -12,22 +12,46 @@ import { cn } from "@/lib/utils";
 
 const COLS = 7;
 const PAGE_SIZE = 25;
-const SKILL_CHIP_LIMIT = 3;
+const SKILL_CHIP_LIMIT = 2;
 const SKELETON_ROWS = 10;
+const SIGNATURE_TRUNCATE_THRESHOLD = 85;
+const SIGNATURE_HEAD_LEN = 32;
+const SIGNATURE_TAIL_LEN = 38;
+
+// Leading markdown/heading junk ("### ", "* ") occasionally leaks into a raw
+// error signature; strip it for display only — the underlying signature stays
+// untouched since it is the dedup/grouping key (frozen contract with the Go side).
+function stripLeadingMarkup(s: string): string {
+  return s.replace(/^[#*\s]+/, "");
+}
+
+// End-truncation hides the discriminating tail on signatures that share a long
+// common prefix (e.g. "PreToolUse:Bash hook error: [python3 <str>]: NOTE: ...").
+// Keep both ends so the differentiating detail near the tail stays visible.
+function truncateSignatureMiddle(s: string): string {
+  if (s.length <= SIGNATURE_TRUNCATE_THRESHOLD) return s;
+  return `${s.slice(0, SIGNATURE_HEAD_LEN)}…${s.slice(-SIGNATURE_TAIL_LEN)}`;
+}
+
+// All trend chips render as one neutral, equal-weight style: count and trend
+// reliability are independent cues, so no color/italic may imply a verdict.
+const TREND_LABEL: Record<Trend, string> = {
+  up: "↑",
+  down: "↓",
+  flat: "→",
+  "low sample": "low sample",
+  "": "—",
+};
 
 function TrendChip({ trend }: { trend: Trend }) {
-  switch (trend) {
-    case "up":
-      return <span className="rounded-pill border border-err/40 px-2 py-0.5 text-xs text-err">↑ up</span>;
-    case "down":
-      return <span className="rounded-pill border border-ok/40 px-2 py-0.5 text-xs text-ok">↓ down</span>;
-    case "flat":
-      return <span className="rounded-pill border border-border px-2 py-0.5 text-xs text-faint">→ flat</span>;
-    case "low sample":
-      return <span className="rounded-pill border border-border px-2 py-0.5 text-xs italic text-faint">low sample</span>;
-    default:
-      return <span className="text-xs text-faint">—</span>;
-  }
+  return (
+    <span
+      className="rounded-pill border border-border px-2 py-0.5 text-xs text-muted-foreground"
+      title={trend || "no trend data"}
+    >
+      {TREND_LABEL[trend] ?? "—"}
+    </span>
+  );
 }
 
 function buildInvestigationPrompt(cluster: ErrorCluster): string {
@@ -177,6 +201,8 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
               pageClusters.map((cluster, i) => {
                 const index = page * PAGE_SIZE + i;
                 const isOpen = expanded.has(index);
+                const cleanedSignature = stripLeadingMarkup(cluster.signature).trim();
+                const displaySignature = truncateSignatureMiddle(cleanedSignature);
                 return (
                   <Fragment key={index}>
                     <TableRow
@@ -190,29 +216,35 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
                           <ChevronRight className="h-3.5 w-3.5 text-faint" />
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[420px] truncate font-mono text-xs">{cluster.signature}</TableCell>
+                      <TableCell className="whitespace-nowrap font-mono text-xs" title={cluster.signature}>
+                        {cleanedSignature === "" ? (
+                          <span className="italic text-faint">(empty error)</span>
+                        ) : (
+                          displaySignature
+                        )}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums font-semibold">{formatCount(cluster.count)}</TableCell>
                       <TableCell>
                         <TrendChip trend={cluster.trend} />
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate font-mono text-xs text-muted-foreground">
+                      <TableCell className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
                         {cluster.affectedtools.join(", ") || "—"}
                       </TableCell>
-                      <TableCell className="max-w-[220px]">
+                      <TableCell className="max-w-[210px]">
                         {cluster.cooccurringskills.length === 0 ? (
                           <span className="text-xs text-faint">—</span>
                         ) : (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-nowrap items-center gap-1 overflow-hidden">
                             {cluster.cooccurringskills.slice(0, SKILL_CHIP_LIMIT).map((s) => (
                               <span
                                 key={s.name}
-                                className="rounded-pill border border-border px-1.5 py-0.5 text-xs text-muted-foreground"
+                                className="max-w-[90px] shrink-0 truncate rounded-pill border border-border px-1.5 py-0.5 text-xs text-muted-foreground"
                               >
                                 {s.name}
                               </span>
                             ))}
                             {cluster.cooccurringskills.length > SKILL_CHIP_LIMIT && (
-                              <span className="text-xs text-faint">
+                              <span className="shrink-0 text-xs text-faint">
                                 +{cluster.cooccurringskills.length - SKILL_CHIP_LIMIT}
                               </span>
                             )}

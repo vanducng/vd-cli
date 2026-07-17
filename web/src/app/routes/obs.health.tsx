@@ -39,8 +39,12 @@ function HealthPage() {
     {
       label: "Total errors",
       value: data ? formatCount(data.totalerrors) : "?",
-      sublabel: data == null ? undefined : data.delta == null ? "low sample" : `${data.delta >= 0 ? "+" : ""}${formatCount(data.delta)}`,
-      tone: data?.delta != null && data.delta > 0 ? "warn" : "default",
+      sublabel:
+        data == null
+          ? undefined
+          : data.delta == null
+            ? "low sample"
+            : `${data.delta >= 0 ? "+" : ""}${formatCount(data.delta)} vs prior ${search.since}`,
     },
     {
       label: "Error rate",
@@ -64,8 +68,6 @@ function HealthPage() {
         title="Health"
         subtitle="Investigate signals, not verdicts — agents fail-probe routinely; a count says look here, never this is broken."
       />
-
-      <KpiStrip items={kpis} />
 
       <div className="sticky top-14 z-20 -mx-1 mb-4 flex flex-wrap items-center gap-2 bg-background/90 px-1 py-2 backdrop-blur">
         <Select
@@ -99,9 +101,11 @@ function HealthPage() {
           placeholder="Project: all"
           value={search.project}
           onChange={(e) => navigate({ search: (prev) => ({ ...prev, project: e.target.value }) })}
-          className="w-[200px]"
+          className="w-[160px]"
         />
       </div>
+
+      <KpiStrip items={kpis} />
 
       <div className="mb-4">
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">Errors by tool</div>
