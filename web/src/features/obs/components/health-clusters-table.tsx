@@ -139,13 +139,18 @@ function ClusterDetail({ cluster }: { cluster: ErrorCluster }) {
   // Belt-and-suspenders past the zod .default([]): a version-skewed binary
   // predating the variants field must degrade to "no variants", never a crash.
   const variants = cluster.variants ?? [];
+  // The backend caps variants at its top 5 by count, so the visible sum can
+  // legitimately fall short of the cluster's total — the remainder line
+  // makes that gap explicit instead of letting the numbers look wrong.
+  const variantsSum = variants.reduce((sum, v) => sum + (v.count ?? 0), 0);
+  const otherVariantsCount = cluster.count - variantsSum;
 
   return (
     <div className="grid gap-4">
       {variants.length > 1 && (
         <div>
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-faint">
-            Variants ({variants.length}) — merged family, verify these are the same cause
+            Variants (top 5) — merged family, verify these are the same cause
           </div>
           <div className="grid gap-1.5 rounded-sm border border-border bg-panel-2 p-2">
             {variants.map((v, i) => (
@@ -158,6 +163,14 @@ function ClusterDetail({ cluster }: { cluster: ErrorCluster }) {
                 </span>
               </div>
             ))}
+            {otherVariantsCount > 0 && (
+              <div className="flex items-start gap-3">
+                <span className="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-faint">
+                  +{formatCount(otherVariantsCount)}
+                </span>
+                <span className="font-mono text-xs text-faint">errors in other variants</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -196,7 +209,7 @@ function ClusterDetail({ cluster }: { cluster: ErrorCluster }) {
       {cluster.evidence.length > 0 && (
         <div>
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-faint">
-            Evidence ({cluster.evidence.length})
+            Evidence ({cluster.evidence.length} turns · {cluster.sessions.length} sessions)
           </div>
           <div className="flex max-h-40 flex-wrap gap-2 overflow-auto">
             {cluster.evidence.slice(0, EVIDENCE_CHIP_LIMIT).map((e) => (
@@ -269,8 +282,8 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-8" />
               <TableHead>Signature</TableHead>
-              <TableHead className="text-right">Count</TableHead>
-              <TableHead>Trend</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">Count</TableHead>
+              <TableHead className="hidden sm:table-cell">Trend</TableHead>
               <TableHead>Tools</TableHead>
               <TableHead>Skills</TableHead>
               <TableHead className="text-right">Sessions</TableHead>
@@ -319,14 +332,25 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
                         )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap font-mono text-xs" title={cluster.signature}>
-                        {cleanedSignature === "" ? (
-                          <span className="italic text-faint">(empty error)</span>
-                        ) : (
-                          displaySignature
-                        )}
+                        <div>
+                          {cleanedSignature === "" ? (
+                            <span className="italic text-faint">(empty error)</span>
+                          ) : (
+                            displaySignature
+                          )}
+                        </div>
+                        {/* <sm: Count/Trend columns are hidden (scrolled off the
+                            viewport otherwise), so ranking still needs to read
+                            at a glance without discovering horizontal scroll. */}
+                        <div className="mt-1 flex items-center gap-2 sm:hidden">
+                          <span className="tabular-nums font-semibold text-foreground">{formatCount(cluster.count)}</span>
+                          <TrendChip trend={cluster.trend} />
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold">{formatCount(cluster.count)}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden text-right tabular-nums font-semibold sm:table-cell">
+                        {formatCount(cluster.count)}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <TrendChip trend={cluster.trend} />
                       </TableCell>
                       <TableCell className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
