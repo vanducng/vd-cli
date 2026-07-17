@@ -32,7 +32,7 @@ from token counts, not a bill.`,
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
-	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd())
+	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd(), newObsSyncCmd())
 	return cmd
 }
 
@@ -211,6 +211,64 @@ func newObsUsageCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&daily, "daily", true, "Group by day")
 	cmd.Flags().BoolVar(&monthly, "monthly", false, "Group by month")
 	return cmd
+}
+
+func newObsSyncCmd() *cobra.Command {
+	var f obsFlags
+	var full bool
+
+	cmd := &cobra.Command{
+		Use:   "sync",
+		Short: "Ingest new or changed transcripts into the local cache",
+		Long: `Scan ~/.claude and ~/.codex for new or changed transcripts and fold them into
+the obs cache. Incremental by default: unchanged files are skipped by watermark.
+
+--full drops the derived cache and re-reads every transcript from scratch,
+ignoring watermarks and --since. Use it after an ingest change (e.g. new Codex
+skill parsing) so historical rollouts already past their watermark are re-read.`,
+		Args: cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			if err := checkAgentFlag(f.agent); err != nil {
+				return err
+			}
+			since, err := store.ParseSince(f.since)
+			if err != nil {
+				return err
+			}
+			svc, err := obs.NewService("")
+			if err != nil {
+				return err
+			}
+			defer func() { _ = svc.Close() }()
+
+			opts := ingest.SyncOptions{Full: full, Since: since}
+			if f.agent != "" {
+				opts.Agents = []string{f.agent}
+			}
+			stats, err := svc.Sync(c.Context(), opts)
+			if err != nil {
+				return err
+			}
+			if f.asJSON {
+				return emitJSON(c.OutOrStdout(), stats)
+			}
+			renderSyncStats(c.OutOrStdout(), stats)
+			return nil
+		},
+	}
+	fl := cmd.Flags()
+	fl.StringVar(&f.agent, "agent", "", "Only this agent: claude-code or codex")
+	fl.StringVar(&f.since, "since", "", "Only transcripts modified since this time (e.g. 7d, 24h, RFC3339)")
+	fl.BoolVar(&f.asJSON, "json", false, "Emit sync stats as JSON")
+	fl.BoolVar(&full, "full", false, "Drop the cache and re-read every transcript (ignores watermarks and --since)")
+	return cmd
+}
+
+func renderSyncStats(w io.Writer, s ingest.SyncStats) {
+	_, _ = fmt.Fprintf(w,
+		"  sync  %d files · %d parsed · %d cached · %d errored · %d sessions · %d turns · %d unknown records   %s\n",
+		s.FilesScanned, s.FilesParsed, s.Skipped, s.Errored, s.Sessions, s.Turns, s.UnknownRecords,
+		s.Elapsed.Round(time.Millisecond))
 }
 
 func emitJSON(w io.Writer, v any) error {

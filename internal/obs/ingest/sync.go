@@ -74,7 +74,9 @@ func Sync(ctx context.Context, st *store.Store, opts SyncOptions) (SyncStats, er
 		files = append(files, claude...)
 	}
 	if opts.wants(model.AgentCodex) {
-		codex, err := codexJobs()
+		// One readdir of the install roots per sync, not per rollout: the registry
+		// filters the `$name` skill convention out of every Codex user message.
+		codex, err := codexJobs(LoadSkillRegistry(DefaultSkillRoots()))
 		if err != nil {
 			return stats, err
 		}
@@ -217,7 +219,7 @@ func claudeJob(path string) fileJob {
 	}
 }
 
-func codexJobs() ([]fileJob, error) {
+func codexJobs(reg SkillRegistry) ([]fileJob, error) {
 	root, err := CodexSessionsPath()
 	if err != nil {
 		return nil, err
@@ -235,12 +237,12 @@ func codexJobs() ([]fileJob, error) {
 	}
 	out := make([]fileJob, 0, len(paths))
 	for _, p := range paths {
-		out = append(out, codexJob(p))
+		out = append(out, codexJob(p, reg))
 	}
 	return out, nil
 }
 
-func codexJob(path string) fileJob {
+func codexJob(path string, reg SkillRegistry) fileJob {
 	ref := &scanStateRef{s: &ScanState{}}
 	return fileJob{
 		path: path,
@@ -251,7 +253,7 @@ func codexJob(path string) fileJob {
 				return model.Record{}, 0, fmt.Errorf("open rollout %s: %w", path, err)
 			}
 			defer func() { _ = f.Close() }()
-			return ParseCodex(f, ref.s)
+			return ParseCodex(f, ref.s, reg)
 		},
 	}
 }
