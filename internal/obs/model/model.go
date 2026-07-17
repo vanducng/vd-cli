@@ -261,12 +261,14 @@ type SkillFilter struct {
 // same-turn tool errors that co-occur with its blocks. Claude Code only; Codex
 // emits no hook events.
 type HookSummary struct {
-	HookName     string   `json:"hookname"`
-	Event        string   `json:"event"`
-	Fires        int      `json:"fires"`
-	NonzeroExits int      `json:"nonzeroexits"`
-	BlockRate    float64  `json:"blockrate"`
-	ErrShare     *float64 `json:"errshare"`
+	HookName     string `json:"hookname"`
+	Event        string `json:"event"`
+	Fires        int    `json:"fires"`
+	NonzeroExits int    `json:"nonzeroexits"`
+	// BlockRate and ErrShare stay nil when undefined (no fires, no errors in scope)
+	// rather than 0, so "never fired" never reads as "0% block rate".
+	BlockRate *float64 `json:"blockrate"`
+	ErrShare  *float64 `json:"errshare"`
 }
 
 // HookReport is the whole `vd obs hooks` answer, sorted by nonzero exits desc.

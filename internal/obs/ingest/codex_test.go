@@ -427,6 +427,33 @@ func TestCodexSkillsFromUserMessage(t *testing.T) {
 	}
 }
 
+// Only a leading `vd:` is stripped to canonicalize. A namespaced name like
+// codex:rescue must survive intact so it can match a registry entry of that name;
+// stripping to the last colon would wrongly collapse it to "rescue".
+func TestCanonicalSkillStripsOnlyVdPrefix(t *testing.T) {
+	tests := []struct{ raw, want string }{
+		{"vd:ship", "ship"},
+		{"ship", "ship"},
+		{"codex:rescue", "codex:rescue"},
+		{"vd:cnb-release", "cnb-release"},
+		{"brainstorm-", "brainstorm"},
+	}
+	for _, tt := range tests {
+		if got := canonicalSkill(tt.raw); got != tt.want {
+			t.Errorf("canonicalSkill(%q) = %q, want %q", tt.raw, got, tt.want)
+		}
+	}
+
+	// End to end through the registry: both a vd-prefixed and a namespaced token
+	// resolve to their canonical, registry-validated names.
+	reg := SkillRegistry{"ship": {}, "codex:rescue": {}}
+	got := reg.matchSkills("run $vd:ship then $codex:rescue please")
+	want := []string{"ship", "codex:rescue"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("matchSkills = %v, want %v", got, want)
+	}
+}
+
 // Subagent and pre-2026-06 rollouts never emit turn_context; user_message is the
 // only boundary, and their tokens must still land on a turn.
 func TestCodexLegacySubagentTurns(t *testing.T) {

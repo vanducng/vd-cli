@@ -342,9 +342,9 @@ func renderHooks(w io.Writer, rep *model.HookReport) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintln(tw, "  HOOK\tEVENT\tFIRES\tBLOCKS\tBLOCK%\tERR-SHARE")
 	for _, h := range rep.Hooks {
-		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%d\t%d\t%.1f%%\t%s\n",
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%d\t%d\t%s\t%s\n",
 			trunc(sanitize(h.HookName), 28), trunc(sanitize(h.Event), 16), h.Fires,
-			h.NonzeroExits, h.BlockRate*100, pct(h.ErrShare))
+			h.NonzeroExits, pct(h.BlockRate), pct(h.ErrShare))
 	}
 	_ = tw.Flush()
 	_, _ = fmt.Fprintln(w, "  claude-only · blocks = nonzero-exit hook runs; err-share = same-turn tool errors during blocks.")
@@ -368,9 +368,14 @@ skill parsing) so historical rollouts already past their watermark are re-read.`
 			if err := checkAgentFlag(f.agent); err != nil {
 				return err
 			}
-			since, err := store.ParseSince(f.since)
-			if err != nil {
-				return err
+			// --full ignores --since (help text says so), so do not even parse it:
+			// a bad --since must not error a run that would have discarded it.
+			var since time.Time
+			if !full {
+				var err error
+				if since, err = store.ParseSince(f.since); err != nil {
+					return err
+				}
 			}
 			svc, err := obs.NewService("")
 			if err != nil {

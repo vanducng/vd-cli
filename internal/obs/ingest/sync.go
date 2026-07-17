@@ -3,6 +3,7 @@ package ingest
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -76,7 +77,14 @@ func Sync(ctx context.Context, st *store.Store, opts SyncOptions) (SyncStats, er
 	if opts.wants(model.AgentCodex) {
 		// One readdir of the install roots per sync, not per rollout: the registry
 		// filters the `$name` skill convention out of every Codex user message.
-		codex, err := codexJobs(LoadSkillRegistry(DefaultSkillRoots()))
+		reg := LoadSkillRegistry(DefaultSkillRoots())
+		if len(reg) == 0 {
+			// Empty is normal on a skill-less machine, but it also masks a bad home
+			// dir or a moved install root; a one-line note lets an operator tell the
+			// difference rather than silently recording zero codex skills.
+			log.Printf("obs: skill registry is empty; codex $skill invocations will not be recorded this sync")
+		}
+		codex, err := codexJobs(reg)
 		if err != nil {
 			return stats, err
 		}

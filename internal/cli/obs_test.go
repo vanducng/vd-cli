@@ -59,7 +59,7 @@ func TestRenderersStripTerminalEscapes(t *testing.T) {
 	}
 
 	hooks := &model.HookReport{Hooks: []model.HookSummary{
-		{HookName: evil, Event: evil, Fires: 2, NonzeroExits: 1, BlockRate: 0.5},
+		{HookName: evil, Event: evil, Fires: 2, NonzeroExits: 1},
 	}}
 	buf.Reset()
 	renderHooks(&buf, hooks)
@@ -69,10 +69,10 @@ func TestRenderersStripTerminalEscapes(t *testing.T) {
 }
 
 func TestRenderHooksColumns(t *testing.T) {
-	share := 0.42
+	block, share := 0.4167, 0.42
 	rep := &model.HookReport{Hooks: []model.HookSummary{
 		{HookName: "scout-block", Event: "PreToolUse", Fires: 120, NonzeroExits: 50,
-			BlockRate: 0.4167, ErrShare: &share},
+			BlockRate: &block, ErrShare: &share},
 	}}
 	var buf bytes.Buffer
 	renderHooks(&buf, rep)

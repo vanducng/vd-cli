@@ -4,8 +4,14 @@ import { AgentBadge } from "@/features/obs/components/agent-badge";
 import { TokenCell } from "@/features/obs/components/token-cell";
 import type { SkillSummary } from "@/features/obs/schemas";
 
+// Mirrors backend model.SkillNone ("(none)") — the pre-invocation / no-skill
+// bucket. Kept as a literal because it crosses the Go↔TS boundary (no shared import);
+// if the backend constant ever changes, change it here too.
 const NONE = "(none)";
 const COLS = 11;
+const SKELETON_ROWS = 6;
+// Error rates at or above this percent are highlighted as a quality signal.
+const ERR_RATE_HIGHLIGHT_PCT = 5;
 
 function Count({ value }: { value: number }) {
   if (value === 0) return <span className="text-muted-foreground">—</span>;
@@ -16,7 +22,9 @@ function Count({ value }: { value: number }) {
 function ErrRate({ rate }: { rate: number | null }) {
   if (rate === null) return <span className="text-muted-foreground">—</span>;
   const pct = rate * 100;
-  return <span className={pct >= 5 ? "tabular-nums text-err" : "tabular-nums"}>{pct.toFixed(1)}%</span>;
+  return (
+    <span className={pct >= ERR_RATE_HIGHLIGHT_PCT ? "tabular-nums text-err" : "tabular-nums"}>{pct.toFixed(1)}%</span>
+  );
 }
 
 interface SkillsTableProps {
@@ -54,7 +62,7 @@ export function SkillsTable({ skills, isLoading, error }: SkillsTableProps) {
               </TableCell>
             </TableRow>
           ) : isLoading ? (
-            Array.from({ length: 6 }).map((_, i) => (
+            Array.from({ length: SKELETON_ROWS }).map((_, i) => (
               <TableRow key={i} className="hover:bg-transparent">
                 {Array.from({ length: COLS }).map((_, j) => (
                   <TableCell key={j}>

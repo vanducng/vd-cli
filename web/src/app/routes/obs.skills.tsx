@@ -8,7 +8,8 @@ import { SkillsTable, skillsQuery, type Agent } from "@/features/obs";
 
 const searchSchema = z.object({
   agent: z.enum(["all", "claude-code", "codex"]).catch("all").default("all"),
-  since: z.string().catch("30d").default("30d"),
+  // Restrict to the dropdown options so a hand-edited ?since= can't reach the API.
+  since: z.enum(["7d", "30d", "90d", "0d"]).catch("30d").default("30d"),
 });
 
 export const Route = createFileRoute("/obs/skills")({

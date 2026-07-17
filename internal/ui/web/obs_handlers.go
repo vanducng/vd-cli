@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/vanducng/vd-cli/v2/internal/obs"
 	"github.com/vanducng/vd-cli/v2/internal/obs/ingest"
@@ -151,32 +152,28 @@ func (h *obsHandler) hooks(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rep)
 }
 
-func parseSkillFilter(r *http.Request) (model.SkillFilter, error) {
+// parseCommonFilter reads the agent/project/since triple that skills and hooks
+// share, so a validation rule added here can never apply to one and miss the other.
+func parseCommonFilter(r *http.Request) (agent, project string, since time.Time, err error) {
 	q := r.URL.Query()
-	f := model.SkillFilter{Agent: q.Get("agent"), Project: q.Get("project")}
-	if err := checkAgent(f.Agent); err != nil {
-		return f, err
+	agent, project = q.Get("agent"), q.Get("project")
+	if err = checkAgent(agent); err != nil {
+		return "", "", time.Time{}, err
 	}
-	since, err := store.ParseSince(q.Get("since"))
-	if err != nil {
-		return f, err
+	if since, err = store.ParseSince(q.Get("since")); err != nil {
+		return "", "", time.Time{}, err
 	}
-	f.Since = since
-	return f, nil
+	return agent, project, since, nil
+}
+
+func parseSkillFilter(r *http.Request) (model.SkillFilter, error) {
+	agent, project, since, err := parseCommonFilter(r)
+	return model.SkillFilter{Agent: agent, Project: project, Since: since}, err
 }
 
 func parseHookFilter(r *http.Request) (model.HookFilter, error) {
-	q := r.URL.Query()
-	f := model.HookFilter{Agent: q.Get("agent"), Project: q.Get("project")}
-	if err := checkAgent(f.Agent); err != nil {
-		return f, err
-	}
-	since, err := store.ParseSince(q.Get("since"))
-	if err != nil {
-		return f, err
-	}
-	f.Since = since
-	return f, nil
+	agent, project, since, err := parseCommonFilter(r)
+	return model.HookFilter{Agent: agent, Project: project, Since: since}, err
 }
 
 func parseSessionFilter(r *http.Request) (model.SessionFilter, error) {

@@ -60,7 +60,7 @@ func TestHooksBlockRateAndErrorShare(t *testing.T) {
 	if guard.Fires != 2 || guard.NonzeroExits != 1 {
 		t.Errorf("guard fires/nonzero = %d/%d, want 2/1", guard.Fires, guard.NonzeroExits)
 	}
-	if guard.BlockRate < 0.49 || guard.BlockRate > 0.51 {
+	if guard.BlockRate == nil || *guard.BlockRate < 0.49 || *guard.BlockRate > 0.51 {
 		t.Errorf("guard block_rate = %v, want 0.5", guard.BlockRate)
 	}
 	// One of the two total errors (e1) sits in the blocked turn t1.
@@ -69,7 +69,7 @@ func TestHooksBlockRateAndErrorShare(t *testing.T) {
 	}
 
 	logger := rows[1]
-	if logger.NonzeroExits != 0 || logger.BlockRate != 0 {
+	if logger.NonzeroExits != 0 || logger.BlockRate == nil || *logger.BlockRate != 0 {
 		t.Errorf("logger nonzero/block_rate = %d/%v, want 0/0", logger.NonzeroExits, logger.BlockRate)
 	}
 	if logger.ErrShare == nil || *logger.ErrShare != 0 {

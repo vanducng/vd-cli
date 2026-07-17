@@ -70,11 +70,22 @@ const skillWindowCTE = `WITH inv AS (
 	JOIN sessions s ON s.id = si.session_id
 	%s
 ),
+-- Several skills invoked on one turn share a start_idx. The last (highest seq)
+-- owns that turn, so each turn yields exactly one window: windows never collapse
+-- to zero width and every span is attributed once. INV still counts every
+-- invocation (that leg reads skill_invocations directly, not these windows).
+owners AS (
+	SELECT session_id, start_idx, name FROM (
+		SELECT session_id, start_idx, name,
+			ROW_NUMBER() OVER (PARTITION BY session_id, start_idx ORDER BY seq DESC) AS rn
+		FROM inv
+	) WHERE rn = 1
+),
 windows AS (
 	SELECT session_id, name, start_idx,
 		LEAD(start_idx, 1, 1000000000000000000) OVER (
-			PARTITION BY session_id ORDER BY start_idx, seq) AS end_idx
-	FROM inv
+			PARTITION BY session_id ORDER BY start_idx) AS end_idx
+	FROM owners
 ),
 firsts AS (SELECT session_id, MIN(start_idx) AS first_idx FROM inv GROUP BY session_id)`
 
@@ -215,9 +226,9 @@ func (s *Store) Skills(ctx context.Context, f model.SkillFilter) ([]model.SkillS
 		return nil, err
 	}
 
-	// Corrections and aborts: classified per windowed user turn. Only a 200-char
-	// prompt prefix leaves the store (the correction match is start-anchored), and
-	// the interrupt marker is a per-turn flag — no raw text reaches any aggregate.
+	// Corrections and aborts: classified per windowed user turn. A 200-char prompt
+	// prefix is read only for the start-anchored correction match and discarded — no
+	// raw text reaches any aggregate; the interrupt marker is a per-turn SQL flag.
 	// The interrupt marker carries '%' (a LIKE wildcard and an fmt verb), so the CTE
 	// is formatted first and the marker concatenated after, never routed through fmt.
 	proseQ := fmt.Sprintf(skillWindowCTE, where) + `

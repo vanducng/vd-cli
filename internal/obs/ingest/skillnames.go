@@ -1,6 +1,7 @@
 package ingest
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -41,12 +42,12 @@ func (r SkillRegistry) matchSkills(msg string) []string {
 	return out
 }
 
-// canonicalSkill drops a leading namespace (`vd:ship` -> `ship`) and trims the
-// separators a token can end on, so it maps to an install-root directory name.
+// canonicalSkill strips exactly a leading `vd:` prefix — the only namespace the
+// invocation convention uses — and trims the separators a token can end on, so it
+// maps to an install-root directory name. A namespaced name like `codex:rescue`
+// is left intact so it can still match a registry entry of the same name.
 func canonicalSkill(raw string) string {
-	if i := strings.LastIndex(raw, ":"); i >= 0 {
-		raw = raw[i+1:]
-	}
+	raw = strings.TrimPrefix(raw, "vd:")
 	return strings.Trim(raw, "-_")
 }
 
@@ -79,6 +80,7 @@ func LoadSkillRegistry(roots []string) SkillRegistry {
 func DefaultSkillRoots() []string {
 	home, err := os.UserHomeDir()
 	if err != nil {
+		log.Printf("obs: skill registry cannot resolve home directory (%v); codex skill invocations will not be recorded", err)
 		return nil
 	}
 	return []string{

@@ -62,7 +62,7 @@ func (s *Store) Hooks(ctx context.Context, f model.HookFilter) ([]model.HookSumm
 			a.fires, a.nonzero = fires, nonzero
 			return nil
 		}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("hook fires query: %w", err)
 	}
 
 	// Errors that co-occur (same turn) with a nonzero exit of this hook.
@@ -82,7 +82,7 @@ func (s *Store) Hooks(ctx context.Context, f model.HookFilter) ([]model.HookSumm
 			get(k).errsInBlockedTurns = n
 			return nil
 		}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("hook co-occurring errors query: %w", err)
 	}
 
 	out := make([]model.HookSummary, 0, len(agg))
@@ -91,7 +91,8 @@ func (s *Store) Hooks(ctx context.Context, f model.HookFilter) ([]model.HookSumm
 			HookName: k.name, Event: k.event, Fires: a.fires, NonzeroExits: a.nonzero,
 		}
 		if a.fires > 0 {
-			sum.BlockRate = float64(a.nonzero) / float64(a.fires)
+			br := float64(a.nonzero) / float64(a.fires)
+			sum.BlockRate = &br
 		}
 		if totalErrs > 0 {
 			share := float64(a.errsInBlockedTurns) / float64(totalErrs)

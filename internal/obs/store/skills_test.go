@@ -209,6 +209,56 @@ func TestSkillsCorrectionsAndAborts(t *testing.T) {
 	}
 }
 
+// When two skills are invoked on one turn (same idx), the last (max seq) owns the
+// turn's window; the earlier one records its invocation but claims no spans. No
+// span is lost to a zero-width window — mass conservation still holds.
+func TestSkillsSameTurnInvocationOwnedByLastSeq(t *testing.T) {
+	s := openTestDB(t)
+	now := time.Unix(1_780_000_000, 0).UTC()
+	rec := model.Record{
+		Session: model.Session{ID: "E", Agent: model.AgentClaude, Project: "vd-cli", CWD: "/repo/vd-cli", StartedAt: now},
+		Turns: []model.Turn{
+			{ID: "E-t0", SessionID: "E", Index: 0, StartedAt: now},
+			{ID: "E-t1", SessionID: "E", Index: 1, StartedAt: now},
+		},
+		ToolSpans: []model.ToolSpan{
+			{ID: "e0", TurnID: "E-t0", Name: "Bash", OK: true},
+			{ID: "e1", TurnID: "E-t1", Name: "Bash", OK: true},
+			{ID: "e1e", TurnID: "E-t1", Name: "Bash", OK: false},
+		},
+		// plan (seq 0) and cook (seq 1) both invoked on turn E-t0.
+		Skills: []model.Skill{
+			{TurnID: "E-t0", Name: "plan", Seq: 0},
+			{TurnID: "E-t0", Name: "cook", Seq: 1},
+		},
+	}
+	if err := s.IngestFile(context.Background(), rec, Watermark{}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	rows, err := s.Skills(context.Background(), model.SkillFilter{})
+	if err != nil {
+		t.Fatalf("Skills: %v", err)
+	}
+	got := byName(rows)
+
+	// Both invocations are counted, but only cook (max seq) owns the window.
+	if p := got["plan"]; p.Invocations != 1 || p.ToolCalls != 0 {
+		t.Errorf("plan inv/calls = %d/%d, want 1/0 (invoked, but did not own the turn)", p.Invocations, p.ToolCalls)
+	}
+	if c := got["cook"]; c.Invocations != 1 || c.ToolCalls != 3 || c.ToolErrors != 1 {
+		t.Errorf("cook inv/calls/errs = %d/%d/%d, want 1/3/1 (owns the shared turn's window)",
+			c.Invocations, c.ToolCalls, c.ToolErrors)
+	}
+	total := 0
+	for _, r := range rows {
+		total += r.ToolCalls
+	}
+	if total != 3 {
+		t.Errorf("mass conservation broken on a same-turn invocation: sum tool_calls = %d, want 3", total)
+	}
+}
+
 func eqStrs(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
