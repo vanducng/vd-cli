@@ -166,6 +166,87 @@ export const skillReportSchema = z.object({
 });
 export type SkillReport = z.infer<typeof skillReportSchema>;
 
+export const healthWindowSchema = z.object({
+  since: z.coerce.date(),
+  until: z.coerce.date(),
+});
+export type HealthWindow = z.infer<typeof healthWindowSchema>;
+
+export const toolErrorCountSchema = z.object({
+  tool: z.string(),
+  count: z.number(),
+});
+export type ToolErrorCount = z.infer<typeof toolErrorCountSchema>;
+
+export const agentErrorCountSchema = z.object({
+  agent: z.string(),
+  count: z.number(),
+});
+export type AgentErrorCount = z.infer<typeof agentErrorCountSchema>;
+
+export const healthEvidenceSchema = z.object({
+  sessionid: z.string(),
+  turnindex: z.number(),
+  turnid: z.string(),
+});
+export type HealthEvidence = z.infer<typeof healthEvidenceSchema>;
+
+export const coOccurringSkillSchema = z.object({
+  name: z.string(),
+  path: z.string(),
+});
+export type CoOccurringSkill = z.infer<typeof coOccurringSkillSchema>;
+
+export const trendSchema = z.enum(["up", "down", "flat", "low sample", ""]);
+export type Trend = z.infer<typeof trendSchema>;
+
+// One distinct full (pre-prefix-cut) signature the prefix-key merge folded
+// into this cluster, top 5 by count. A single-cause cluster reports exactly
+// one variant; more than one means the merge is hiding distinct causes.
+export const clusterVariantSchema = z.object({
+  signature: z.string(),
+  count: z.number(),
+});
+export type ClusterVariant = z.infer<typeof clusterVariantSchema>;
+
+// count and trend are separate cues: a cluster can have count=377 and
+// trend="low sample" (baseline too small for a % comparison). Never dim a
+// row or its count because trend is unreliable — only the trend chip reads
+// as uncertain.
+export const errorClusterSchema = z.object({
+  signature: z.string(),
+  count: z.number(),
+  lowsample: z.boolean(),
+  trend: trendSchema,
+  affectedtools: z.array(z.string()),
+  sessions: z.array(z.string()),
+  cooccurringskills: z.array(coOccurringSkillSchema),
+  suggestedfocus: z.string().nullable(),
+  evidence: z.array(healthEvidenceSchema),
+  sample: z.string(),
+  variants: z.array(clusterVariantSchema).default([]),
+});
+export type ErrorCluster = z.infer<typeof errorClusterSchema>;
+
+export const healthReportSchema = z.object({
+  window: healthWindowSchema,
+  prevwindow: healthWindowSchema,
+  totalerrors: z.number(),
+  errorrate: z.number(),
+  delta: z.number().nullable(),
+  bytool: z.array(toolErrorCountSchema),
+  byagent: z.array(agentErrorCountSchema),
+  erroredsessions: z.number(),
+  clusters: z.array(errorClusterSchema),
+});
+export type HealthReport = z.infer<typeof healthReportSchema>;
+
+export interface HealthFilter {
+  agent?: Agent;
+  project?: string;
+  since?: string;
+}
+
 // Frontend-only filter shapes. Field names mirror the HTTP query params 1:1
 // (agent, project, q, since, limit, offset, sort) per Plan 1 phase-01.
 export interface SessionFilter {

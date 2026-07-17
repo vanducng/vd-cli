@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/vanducng/vd-cli/v2/internal/inventory"
 	"github.com/vanducng/vd-cli/v2/internal/obs"
 	"github.com/vanducng/vd-cli/v2/internal/obs/ingest"
 	"github.com/vanducng/vd-cli/v2/internal/obs/model"
@@ -32,7 +33,7 @@ from token counts, not a bill.`,
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
-	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd(),
+	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd(), newObsHealthCmd(),
 		newObsSkillsCmd(), newObsHooksCmd(), newObsSyncCmd())
 	return cmd
 }
@@ -59,7 +60,7 @@ func (f *obsFlags) open(ctx context.Context) (*obs.Service, error) {
 	if err := checkAgentFlag(f.agent); err != nil {
 		return nil, err
 	}
-	svc, err := obs.NewService("")
+	svc, err := obs.NewService("", healthInventoryService())
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +85,23 @@ func checkAgentFlag(a string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown --agent %q: want claude-code or codex", a)
+}
+
+// healthInventoryService resolves the inventory service `vd obs health` uses to
+// turn a co-occurring skill name into a file path. Best-effort: unlike `vd
+// web`, obs commands work with no repo root at all, so a missing skills.toml
+// repo or ~/.claude just means repo-managed skill lookups miss and fall
+// through to the platform-home scan — never a hard failure for `vd obs`.
+func healthInventoryService() *inventory.Service {
+	root, err := resolveRepoRoot(flagRoot)
+	if err != nil {
+		root = "."
+	}
+	claudeHome, err := claudeDir()
+	if err != nil {
+		claudeHome = ""
+	}
+	return inventory.NewService(root, claudeHome)
 }
 
 func newObsSessionsCmd() *cobra.Command {
@@ -166,6 +184,51 @@ func newObsShowCmd() *cobra.Command {
 	f.bind(cmd, "")
 	cmd.Flags().IntVar(&turns, "turns", 0, "Show at most this many turns")
 	cmd.Flags().IntVar(&offset, "offset", 0, "Skip this many turns")
+	return cmd
+}
+
+func newObsHealthCmd() *cobra.Command {
+	var f obsFlags
+	var project string
+
+	cmd := &cobra.Command{
+		Use:   "health",
+		Short: "Investigate signal: recurring tool errors, not a health verdict",
+		Long: `Aggregate tool-call failures (tool_spans where ok=false) into recurring
+error clusters. Agents fail-probe routinely — a grep no-match or an
+exploratory Bash call both trip ok=false — so a high count means "look here",
+never "this is broken". Each cluster carries fetchable evidence
+(vd obs show <session-id> --json) and, where the error text names a skill, a
+resolved file path to start from.
+
+Self-heal loop: pick the top cluster, fetch its evidence turns, edit the
+linked file, then re-run with a tight --since window — old errors persist
+inside wide windows, so the signature is the tracking key, not the count.`,
+		Args: cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			since, err := store.ParseSince(f.since)
+			if err != nil {
+				return err
+			}
+			svc, err := f.open(c.Context())
+			if err != nil {
+				return err
+			}
+			defer func() { _ = svc.Close() }()
+
+			rep, err := svc.Health(c.Context(), model.HealthFilter{Since: since, Agent: f.agent, Project: project})
+			if err != nil {
+				return err
+			}
+			if f.asJSON {
+				return emitJSON(c.OutOrStdout(), rep)
+			}
+			renderHealth(c.OutOrStdout(), rep)
+			return nil
+		},
+	}
+	f.bind(cmd, "7d")
+	cmd.Flags().StringVar(&project, "project", "", "Filter by project name or cwd prefix")
 	return cmd
 }
 
@@ -377,7 +440,7 @@ skill parsing) so historical rollouts already past their watermark are re-read.`
 					return err
 				}
 			}
-			svc, err := obs.NewService("")
+			svc, err := obs.NewService("", healthInventoryService())
 			if err != nil {
 				return err
 			}
@@ -493,6 +556,42 @@ func renderSession(w io.Writer, d *model.SessionDetail) {
 		_, _ = fmt.Fprintf(w, "\n  ... %d more turns    (--turns N to limit · --json for full detail)\n",
 			d.TurnCount-len(d.Turns))
 	}
+}
+
+// renderHealth frames the report as an investigate signal, never a verdict:
+// the header line is load-bearing copy, not decoration.
+func renderHealth(w io.Writer, rep *model.HealthReport) {
+	_, _ = fmt.Fprintln(w, "  INVESTIGATE SIGNAL — not a health verdict: agents fail-probe routinely.")
+	_, _ = fmt.Fprintf(w, "  window   %s -> %s\n",
+		rep.Window.Since.Local().Format("01-02 15:04"), rep.Window.Until.Local().Format("01-02 15:04"))
+	delta := "n/a"
+	if rep.Delta != nil {
+		delta = fmt.Sprintf("%+d", *rep.Delta)
+	}
+	_, _ = fmt.Fprintf(w, "  errors   %d (%.1f%% of tool calls)   delta %s   sessions with errors %d\n\n",
+		rep.TotalErrors, rep.ErrorRate*100, delta, rep.ErroredSessions)
+
+	if len(rep.Clusters) == 0 {
+		_, _ = fmt.Fprintln(w, "  no recurring error clusters in this window")
+		return
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "  COUNT\tTREND\tTOOLS\tSKILL PATH\tSIGNATURE")
+	for _, c := range rep.Clusters {
+		trend := c.Trend
+		if trend == "" {
+			trend = "-"
+		}
+		skill := "-"
+		if c.SuggestedFocus != nil {
+			skill = sanitize(*c.SuggestedFocus)
+		}
+		_, _ = fmt.Fprintf(tw, "  %d\t%s\t%s\t%s\t%s\n",
+			c.Count, trend, trunc(sanitize(strings.Join(c.AffectedTools, ",")), 20),
+			trunc(skill, 30), trunc(sanitize(c.Signature), 60))
+	}
+	_ = tw.Flush()
+	_, _ = fmt.Fprintln(w, "\n  investigate: vd obs show <session-id> --json   ·   verify with a tight --since after a fix")
 }
 
 func renderUsage(w io.Writer, rep *model.UsageReport) {

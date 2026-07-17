@@ -31,21 +31,30 @@ func likeEscape(s string) string {
 	return r.Replace(s)
 }
 
+// sessionFilterConds builds the agent/project WHERE fragments shared by
+// session listing and health aggregation. prefix qualifies column names (e.g.
+// "s.") for queries that join other tables which also have an agent, project
+// or cwd column.
+func sessionFilterConds(agent, project, prefix string) ([]string, []any) {
+	var conds []string
+	var args []any
+	if agent != "" {
+		conds = append(conds, prefix+"agent = ?")
+		args = append(args, agent)
+	}
+	if project != "" {
+		conds = append(conds, fmt.Sprintf(`(%sproject = ? OR %scwd LIKE ? ESCAPE '\')`, prefix, prefix))
+		args = append(args, project, likeEscape(project)+"%")
+	}
+	return conds, args
+}
+
 // buildSessionWhere is shared by ListSessions and CountSessions so a page and its
 // total can never disagree about what was filtered.
 func buildSessionWhere(f model.SessionFilter) (string, []any) {
 	// Subagent transcripts contribute usage but are not sessions in their own right.
-	conds := []string{"parent_id = ''"}
-	var args []any
-
-	if f.Agent != "" {
-		conds = append(conds, "agent = ?")
-		args = append(args, f.Agent)
-	}
-	if f.Project != "" {
-		conds = append(conds, `(project = ? OR cwd LIKE ? ESCAPE '\')`)
-		args = append(args, f.Project, likeEscape(f.Project)+"%")
-	}
+	conds, args := sessionFilterConds(f.Agent, f.Project, "")
+	conds = append([]string{"parent_id = ''"}, conds...)
 	if f.Q != "" {
 		conds = append(conds, `(title LIKE ? ESCAPE '\' OR cwd LIKE ? ESCAPE '\')`)
 		args = append(args, "%"+likeEscape(f.Q)+"%", "%"+likeEscape(f.Q)+"%")

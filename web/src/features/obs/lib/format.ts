@@ -27,3 +27,13 @@ export function formatMs(ms: number): string {
 export function formatUsd(v: number): string {
   return `$${v.toFixed(2)}`;
 }
+
+/** "2,921" — thousands-separated, locale-independent enough for a counter. */
+export function formatCount(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
+/** "1.34%" — a 0..1 fraction as a percent. */
+export function formatPct(v: number): string {
+  return `${(v * 100).toFixed(2)}%`;
+}

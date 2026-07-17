@@ -22,6 +22,7 @@ func (h *obsHandler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/obs/sessions", h.sessions)
 	mux.HandleFunc("GET /api/obs/sessions/{id}", h.session)
 	mux.HandleFunc("GET /api/obs/usage", h.usage)
+	mux.HandleFunc("GET /api/obs/health", h.health)
 	mux.HandleFunc("GET /api/obs/skills", h.skills)
 	mux.HandleFunc("GET /api/obs/hooks", h.hooks)
 }
@@ -116,6 +117,24 @@ func (h *obsHandler) usage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rep)
 }
 
+func (h *obsHandler) health(w http.ResponseWriter, r *http.Request) {
+	f, err := parseHealthFilter(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if !h.ready(w) {
+		return
+	}
+	h.refresh(r)
+	rep, err := h.svc.Health(r.Context(), f)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rep)
+}
+
 func (h *obsHandler) skills(w http.ResponseWriter, r *http.Request) {
 	f, err := parseSkillFilter(r)
 	if err != nil {
@@ -152,8 +171,9 @@ func (h *obsHandler) hooks(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rep)
 }
 
-// parseCommonFilter reads the agent/project/since triple that skills and hooks
-// share, so a validation rule added here can never apply to one and miss the other.
+// parseCommonFilter reads the agent/project/since triple that health, skills
+// and hooks all share, so a validation rule added here can never apply to one
+// and miss the others.
 func parseCommonFilter(r *http.Request) (agent, project string, since time.Time, err error) {
 	q := r.URL.Query()
 	agent, project = q.Get("agent"), q.Get("project")
@@ -164,6 +184,11 @@ func parseCommonFilter(r *http.Request) (agent, project string, since time.Time,
 		return "", "", time.Time{}, err
 	}
 	return agent, project, since, nil
+}
+
+func parseHealthFilter(r *http.Request) (model.HealthFilter, error) {
+	agent, project, since, err := parseCommonFilter(r)
+	return model.HealthFilter{Agent: agent, Project: project, Since: since}, err
 }
 
 func parseSkillFilter(r *http.Request) (model.SkillFilter, error) {

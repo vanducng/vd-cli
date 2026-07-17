@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vanducng/vd-cli/v2/internal/inventory"
 	"github.com/vanducng/vd-cli/v2/internal/obs/ingest"
 	"github.com/vanducng/vd-cli/v2/internal/obs/model"
 	"github.com/vanducng/vd-cli/v2/internal/obs/pricing"
@@ -26,14 +27,17 @@ const syncDebounce = 5 * time.Second
 type Service struct {
 	st    *store.Store
 	price *pricing.Table
+	inv   *inventory.Service
 
 	mu       sync.Mutex
 	syncedAt time.Time
 	syncing  bool
 }
 
-// NewService opens the cache at dbPath (empty for the default location).
-func NewService(dbPath string) (*Service, error) {
+// NewService opens the cache at dbPath (empty for the default location). inv
+// resolves co-occurring skill names to file paths for Health; a nil inv means
+// Health reports no co-occurring skills rather than guessing paths.
+func NewService(dbPath string, inv *inventory.Service) (*Service, error) {
 	st, err := store.New(store.Config{Path: dbPath})
 	if err != nil {
 		return nil, err
@@ -43,7 +47,7 @@ func NewService(dbPath string) (*Service, error) {
 		_ = st.Close()
 		return nil, err
 	}
-	return &Service{st: st, price: tbl}, nil
+	return &Service{st: st, price: tbl, inv: inv}, nil
 }
 
 // Close releases the database handle.

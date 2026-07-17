@@ -14,3 +14,5 @@ export { TurnCard } from "@/features/obs/components/turn-card";
 export { ToolSpanBlock, ToolSpanSummary } from "@/features/obs/components/tool-span-block";
 export { HookTimeline } from "@/features/obs/components/hook-timeline";
 export { SubagentRollup } from "@/features/obs/components/subagent-rollup";
+export { ToolErrorBars } from "@/features/obs/components/tool-error-bars";
+export { HealthClustersTable } from "@/features/obs/components/health-clusters-table";

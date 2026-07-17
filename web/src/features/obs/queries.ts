@@ -2,10 +2,12 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client";
 import {
+  healthReportSchema,
   sessionDetailSchema,
   sessionListSchema,
   skillReportSchema,
   usageReportSchema,
+  type HealthFilter,
   type SessionFilter,
   type SkillFilter,
   type UsageFilter,
@@ -22,6 +24,7 @@ export const obsKeys = {
   session: (id: string, filter: SessionDetailFilter = {}) => [...obsKeys.all, "session", id, filter] as const,
   usage: (filter: UsageFilter) => [...obsKeys.all, "usage", filter] as const,
   skills: (filter: SkillFilter) => [...obsKeys.all, "skills", filter] as const,
+  health: (filter: HealthFilter) => [...obsKeys.all, "health", filter] as const,
 };
 
 // The API's 404 body is {"error": "obs: session not found"} (obs.ErrNotFound).
@@ -93,6 +96,17 @@ export function skillsQuery(filter: SkillFilter) {
       const qs = buildQuery({ agent: filter.agent, project: filter.project, since: filter.since });
       const raw = await apiClient.get<unknown>(`/api/obs/skills${qs}`);
       return skillReportSchema.parse(raw);
+    },
+  });
+}
+
+export function healthQuery(filter: HealthFilter) {
+  return queryOptions({
+    queryKey: obsKeys.health(filter),
+    queryFn: async () => {
+      const qs = buildQuery({ agent: filter.agent, project: filter.project, since: filter.since });
+      const raw = await apiClient.get<unknown>(`/api/obs/health${qs}`);
+      return healthReportSchema.parse(raw);
     },
   });
 }
