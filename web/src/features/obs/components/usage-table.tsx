@@ -64,7 +64,9 @@ export function UsageTable({ rows, totals, totalCostUsd, isLoading, error }: Usa
           ) : (
             rows.map((row, i) => (
               <TableRow key={`${row.date}-${row.agent}-${row.model}-${i}`}>
-                <TableCell className="font-mono text-muted-foreground">{row.date}</TableCell>
+                <TableCell className="font-mono text-muted-foreground">
+                  {i > 0 && rows[i - 1].date === row.date ? "" : row.date}
+                </TableCell>
                 <TableCell>
                   <AgentBadge agent={row.agent} />
                 </TableCell>

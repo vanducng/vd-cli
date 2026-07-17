@@ -93,7 +93,7 @@ export function UsageChart({ rows, isLoading, error }: UsageChartProps) {
             fontSize={11}
             tickFormatter={(d: string) => d.slice(5)}
           />
-          <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={formatUsd} width={56} />
+          <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={formatUsd} width={56} domain={[0, (max: number) => Math.ceil((max * 1.1) / 100) * 100]} />
           <ChartTooltip content={<ChartTooltipContent formatter={formatUsd} />} cursor={{ fill: "hsl(var(--panel-2))" }} />
           {/* model names ("gpt-5.6-sol") are invalid CSS idents, so var(--color-…)
               silently drops the fill — pass the palette color directly */}

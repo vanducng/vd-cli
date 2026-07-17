@@ -17,11 +17,7 @@ function Bubble({ role, text }: { role: "user" | "assistant"; text: string }) {
 
   if (!text) {
     if (role === "assistant") return null;
-    return (
-      <div className="rounded-md border border-dashed border-border bg-panel-2/50 px-4 py-3 text-sm italic text-faint">
-        agent-continued turn (no user prompt)
-      </div>
-    );
+    return <p className="text-xs italic text-faint">agent-continued turn — no user prompt</p>;
   }
 
   return (
