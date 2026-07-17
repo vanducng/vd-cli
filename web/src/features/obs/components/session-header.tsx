@@ -72,7 +72,9 @@ export function SessionHeader({ session }: SessionHeaderProps) {
                 {session.cwd || "?"}
               </span>
               {session.gitbranch && (
-                <span className="block truncate text-xs text-muted-foreground">{session.gitbranch}</span>
+                <span className="block truncate text-xs text-muted-foreground" title={session.gitbranch}>
+                  {session.gitbranch}
+                </span>
               )}
             </>
           }

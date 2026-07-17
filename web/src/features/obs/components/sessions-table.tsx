@@ -1,4 +1,4 @@
-import { useMemo, type ComponentType, type ReactNode } from "react";
+import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -7,16 +7,6 @@ import { AgentBadge } from "@/features/obs/components/agent-badge";
 import { CostCell } from "@/features/obs/components/cost-cell";
 import { TokenCell } from "@/features/obs/components/token-cell";
 import type { SessionSummary } from "@/features/obs/schemas";
-
-// /obs/sessions/$id lands in phase 5; TanStack's generated route registry can't
-// type-check a Link to it yet. Widen just this one usage rather than casting at
-// every call site — resolves to a real typed route once phase 5 adds the file.
-const SessionLink = Link as unknown as ComponentType<{
-  to: "/obs/sessions/$id";
-  params: { id: string };
-  className?: string;
-  children?: ReactNode;
-}>;
 
 function formatStarted(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -70,9 +60,9 @@ export function SessionsTable({
             return <span className="text-faint">— no title ({kind})</span>;
           }
           return (
-            <SessionLink to="/obs/sessions/$id" params={{ id }} className="text-info hover:underline">
+            <Link to="/obs/sessions/$id" params={{ id }} className="text-info hover:underline">
               {title}
-            </SessionLink>
+            </Link>
           );
         },
       },

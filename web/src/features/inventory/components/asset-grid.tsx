@@ -46,6 +46,18 @@ function CardsView({ rows, onOpen }: { rows: Row[]; onOpen: (n: string) => void 
             key={rowKey(r)}
             className={cn("flex flex-col gap-2", openable && "cursor-pointer hover:border-primary/50")}
             onClick={openable ? () => onOpen(r.name) : undefined}
+            role={openable ? "button" : undefined}
+            tabIndex={openable ? 0 : undefined}
+            onKeyDown={
+              openable
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onOpen(r.name);
+                    }
+                  }
+                : undefined
+            }
           >
             <div className="flex items-center justify-between gap-2">
               <span className="truncate font-medium">{r.name}</span>
