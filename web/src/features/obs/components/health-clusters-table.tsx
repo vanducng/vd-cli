@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 const COLS = 7;
 const PAGE_SIZE = 25;
 const SKILL_CHIP_LIMIT = 2;
+const EVIDENCE_CHIP_LIMIT = 12;
 const SKELETON_ROWS = 10;
 const SIGNATURE_TRUNCATE_THRESHOLD = 85;
 const SIGNATURE_HEAD_LEN = 32;
@@ -198,17 +199,23 @@ function ClusterDetail({ cluster }: { cluster: ErrorCluster }) {
             Evidence ({cluster.evidence.length})
           </div>
           <div className="flex max-h-40 flex-wrap gap-2 overflow-auto">
-            {cluster.evidence.map((e) => (
+            {cluster.evidence.slice(0, EVIDENCE_CHIP_LIMIT).map((e) => (
               <Link
                 key={e.turnid}
                 to="/obs/sessions/$id"
                 params={{ id: e.sessionid }}
                 className="rounded-pill border border-border px-2 py-1 font-mono text-xs text-info hover:underline"
               >
-                turn {e.turnindex}
+                {e.sessionid.slice(0, 8)}·t{e.turnindex}
               </Link>
             ))}
           </div>
+          {cluster.evidence.length > EVIDENCE_CHIP_LIMIT && (
+            <p className="mt-1.5 text-xs text-faint">
+              +{cluster.evidence.length - EVIDENCE_CHIP_LIMIT} more evidence refs — use `vd obs health --json` for the
+              full list
+            </p>
+          )}
         </div>
       )}
 
