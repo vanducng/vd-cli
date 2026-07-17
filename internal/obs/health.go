@@ -21,12 +21,18 @@ const minSample = 3
 // here," not "this is broken."
 func (s *Service) Health(ctx context.Context, f model.HealthFilter) (*model.HealthReport, error) {
 	now := time.Now()
+	// The store floors to whole milliseconds, so querying with the bare `now`
+	// can exclude an error written in the same millisecond as this call (rare
+	// in production's real write/query latency, but reliably hit by a test that
+	// seeds then immediately queries). Pad the SQL upper bound by 1ms; the
+	// reported Window.Until below stays the true, unpadded `now`.
+	until := now.Add(time.Millisecond)
 
-	events, err := s.st.ErrorEvents(ctx, f.Since, now, f.Agent, f.Project)
+	events, err := s.st.ErrorEvents(ctx, f.Since, until, f.Agent, f.Project)
 	if err != nil {
 		return nil, err
 	}
-	total, err := s.st.ToolSpanTotal(ctx, f.Since, now, f.Agent, f.Project)
+	total, err := s.st.ToolSpanTotal(ctx, f.Since, until, f.Agent, f.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -163,6 +169,7 @@ func (s *Service) buildCluster(key string, group []store.ErrorEvent, prevCount i
 	sessions := map[string]bool{}
 	skillNames := map[string]bool{}
 	seenTurns := map[string]bool{}
+	variantCounts := map[string]int{}
 	for _, e := range group {
 		tools[e.ToolName] = true
 		sessions[e.SessionID] = true
@@ -178,12 +185,41 @@ func (s *Service) buildCluster(key string, group []store.ErrorEvent, prevCount i
 		if c.Sample == "" && e.ErrorText != "" {
 			c.Sample = e.ErrorText
 		}
+		// Full, pre-prefix-cut signature: this is what the prefix-key merge
+		// collapsed, so it is what makes the merge verifiable rather than opaque.
+		variantCounts[normalizeSignature(e.ErrorText)]++
 	}
 	c.AffectedTools = sortedKeys(tools)
 	c.Sessions = sortedKeys(sessions)
 	c.CoOccurringSkills = s.resolveSkills(sortedKeys(skillNames))
 	c.SuggestedFocus = suggestFocus(c.CoOccurringSkills, group)
+	c.Variants = topVariants(variantCounts, maxVariants)
 	return c
+}
+
+// maxVariants caps how many distinct full signatures a cluster reports —
+// enough to reveal a bad merge without turning the field into a full dump of
+// every member.
+const maxVariants = 5
+
+// topVariants ranks distinct full signatures by count desc, name asc, and
+// keeps the top limit. A cluster with only one distinct signature returns
+// that one variant unchanged.
+func topVariants(counts map[string]int, limit int) []model.ClusterVariant {
+	out := make([]model.ClusterVariant, 0, len(counts))
+	for sig, n := range counts {
+		out = append(out, model.ClusterVariant{Signature: sig, Count: n})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Signature < out[j].Signature
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
 }
 
 func sortedKeys(m map[string]bool) []string {

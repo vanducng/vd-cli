@@ -207,4 +207,39 @@ func TestHealthMergesSharedPrefixFamilyAcrossManyDistinctTails(t *testing.T) {
 	if len(top.Sessions) != 5 {
 		t.Fatalf("merged cluster Sessions = %d, want 5 distinct sessions", len(top.Sessions))
 	}
+
+	// The merge must stay verifiable: Variants lists the two distinct full
+	// (pre-prefix-cut) signatures the merge collapsed, desc by count.
+	if len(top.Variants) != 2 {
+		t.Fatalf("Variants = %d, want 2 distinct full signatures: %+v", len(top.Variants), top.Variants)
+	}
+	wantVariantB := normalizeSignature(preamble + "Pattern: totally different wording entirely")
+	wantVariantA := normalizeSignature(preamble + "Pattern: alpha-specific-detail")
+	if top.Variants[0].Signature != wantVariantB || top.Variants[0].Count != 3 {
+		t.Fatalf("Variants[0] = %+v, want {%q 3}", top.Variants[0], wantVariantB)
+	}
+	if top.Variants[1].Signature != wantVariantA || top.Variants[1].Count != 2 {
+		t.Fatalf("Variants[1] = %+v, want {%q 2}", top.Variants[1], wantVariantA)
+	}
+
+	// A single-cause cluster (the unrelated, unmerged error) must still report
+	// its one variant, not an empty list.
+	other := rep.Clusters[1]
+	if len(other.Variants) != 1 || other.Variants[0].Signature != other.Signature || other.Variants[0].Count != other.Count {
+		t.Fatalf("single-cause cluster Variants = %+v, want one variant matching the cluster itself", other.Variants)
+	}
+}
+
+func TestTopVariantsRanksByCountThenSignatureAndCaps(t *testing.T) {
+	counts := map[string]int{"c": 1, "b": 5, "a": 5, "d": 2}
+	got := topVariants(counts, 3)
+	want := []model.ClusterVariant{{Signature: "a", Count: 5}, {Signature: "b", Count: 5}, {Signature: "d", Count: 2}}
+	if len(got) != len(want) {
+		t.Fatalf("topVariants len = %d, want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("topVariants[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
 }

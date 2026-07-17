@@ -73,24 +73,36 @@ type SkillRef struct {
 	Path string `json:"path"`
 }
 
+// ClusterVariant is one distinct full normalized signature inside a cluster,
+// pre-prefix-cut. A prefix-key merge can hide two truly different failures
+// behind one shared preamble; Variants makes that verifiable instead of
+// opaque.
+type ClusterVariant struct {
+	Signature string `json:"signature"`
+	Count     int    `json:"count"`
+}
+
 // ErrorCluster groups errors sharing a normalized-signature prefix — the
 // cluster's cross-run identity, stable across runs for the same underlying
 // failure. Signature is that shared prefix (truncated, honest display: only
 // what every member actually has in common), not necessarily any one
-// member's full error text. CoOccurringSkills is a co-occurrence hint, never
-// blame: SuggestedFocus is set only when the error text itself names a
-// resolvable skill.
+// member's full error text. Variants lists the top 5 distinct full
+// signatures the merge collapsed, by count — a single-cause cluster reports
+// one variant; a merge that actually hid two causes shows up as two.
+// CoOccurringSkills is a co-occurrence hint, never blame: SuggestedFocus is
+// set only when the error text itself names a resolvable skill.
 type ErrorCluster struct {
-	Signature         string        `json:"signature"`
-	Count             int           `json:"count"`
-	LowSample         bool          `json:"lowsample"`
-	Trend             string        `json:"trend"`
-	AffectedTools     []string      `json:"affectedtools"`
-	Sessions          []string      `json:"sessions"`
-	CoOccurringSkills []SkillRef    `json:"cooccurringskills"`
-	SuggestedFocus    *string       `json:"suggestedfocus"`
-	Evidence          []EvidenceRef `json:"evidence"`
-	Sample            string        `json:"sample"`
+	Signature         string           `json:"signature"`
+	Count             int              `json:"count"`
+	LowSample         bool             `json:"lowsample"`
+	Trend             string           `json:"trend"`
+	AffectedTools     []string         `json:"affectedtools"`
+	Sessions          []string         `json:"sessions"`
+	CoOccurringSkills []SkillRef       `json:"cooccurringskills"`
+	SuggestedFocus    *string          `json:"suggestedfocus"`
+	Evidence          []EvidenceRef    `json:"evidence"`
+	Sample            string           `json:"sample"`
+	Variants          []ClusterVariant `json:"variants"`
 }
 
 // MarshalJSON enforces the never-null rule for the cluster's list fields.
@@ -108,6 +120,9 @@ func (c ErrorCluster) MarshalJSON() ([]byte, error) {
 	}
 	if v.Evidence == nil {
 		v.Evidence = []EvidenceRef{}
+	}
+	if v.Variants == nil {
+		v.Variants = []ClusterVariant{}
 	}
 	return json.Marshal(v)
 }
