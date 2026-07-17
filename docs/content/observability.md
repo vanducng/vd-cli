@@ -6,7 +6,7 @@ title: "vd obs — observability"
 
 ## Commands
 
-- `vd obs sessions [--agent claude-code|codex] [--project <p>] [--since 7d] [--json]` — one list across both agents: title, model, turns, tokens, estimated cost.
+- `vd obs sessions [--agent claude-code|codex] [--project <p>] [--since 7d] [--json]` — one list across both agents: title, model, turns, tokens, estimated cost. Codex rollouts carry no title of their own, so their title is derived from the first prompt (secret-redacted, truncated to 80 chars).
 - `vd obs show <id-or-prefix> [--turns N] [--json]` — a session turn by turn: prompts, tool calls, hook timings, subagent rollups.
 - `vd obs usage [--daily|--monthly] [--agent …] [--since 3d] [--json]` — tokens and estimated cost grouped by day or month, per model.
 - `vd obs skills [--agent …] [--project <p>] [--since …] [--json]` — per-skill tool calls, error rate, corrections, aborts and tokens across both agents.

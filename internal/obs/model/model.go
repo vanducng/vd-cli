@@ -44,20 +44,24 @@ func (t TokenUsage) Total() int {
 // Session is one top-level agent conversation. Subagent transcripts are sessions
 // too, linked by ParentID; they contribute usage but are not listed on their own.
 type Session struct {
-	ID         string    `json:"id"`
-	Agent      string    `json:"agent"`
-	Title      string    `json:"title"`
-	CWD        string    `json:"cwd"`
-	Project    string    `json:"project"`
-	GitBranch  string    `json:"gitbranch"`
-	GitSHA     string    `json:"gitsha"`
-	Model      string    `json:"model"`
-	CLIVersion string    `json:"cliversion"`
-	Originator string    `json:"originator"`
-	WorkflowID string    `json:"workflowid,omitempty"`
-	ParentID   string    `json:"parentid,omitempty"`
-	StartedAt  time.Time `json:"startedat"`
-	EndedAt    time.Time `json:"endedat"`
+	ID    string `json:"id"`
+	Agent string `json:"agent"`
+	Title string `json:"title"`
+	// TitleDerived is true when Title was inferred from the first user prompt
+	// (Codex carries no title field of its own) rather than sourced from the
+	// transcript (e.g. Claude's ai-title record).
+	TitleDerived bool      `json:"titlederived"`
+	CWD          string    `json:"cwd"`
+	Project      string    `json:"project"`
+	GitBranch    string    `json:"gitbranch"`
+	GitSHA       string    `json:"gitsha"`
+	Model        string    `json:"model"`
+	CLIVersion   string    `json:"cliversion"`
+	Originator   string    `json:"originator"`
+	WorkflowID   string    `json:"workflowid,omitempty"`
+	ParentID     string    `json:"parentid,omitempty"`
+	StartedAt    time.Time `json:"startedat"`
+	EndedAt      time.Time `json:"endedat"`
 }
 
 // SessionSummary is one row of `vd obs sessions` / GET /api/obs/sessions.
