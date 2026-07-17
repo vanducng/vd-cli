@@ -5,22 +5,11 @@ import { HookTimeline } from "@/features/obs/components/hook-timeline";
 import { SubagentRollup } from "@/features/obs/components/subagent-rollup";
 import { TokenCell } from "@/features/obs/components/token-cell";
 import { ToolSpanSummary } from "@/features/obs/components/tool-span-block";
+import { formatClock, formatDuration } from "@/features/obs/lib/format";
 import { totalTokens, type Turn } from "@/features/obs/schemas";
 import { cn } from "@/lib/utils";
 
 const COLLAPSE_THRESHOLD = 400;
-
-function formatClock(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-function formatDuration(ms: number): string {
-  const totalSec = Math.round(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return m === 0 ? `${s}s` : `${m}m${String(s).padStart(2, "0")}s`;
-}
 
 function Bubble({ role, text }: { role: "user" | "assistant"; text: string }) {
   const long = text.length > COLLAPSE_THRESHOLD;

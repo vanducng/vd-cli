@@ -1,12 +1,8 @@
 import { useState } from "react";
 
+import { formatMs } from "@/features/obs/lib/format";
 import type { ToolSpan } from "@/features/obs/schemas";
 import { cn } from "@/lib/utils";
-
-function formatMs(ms: number): string {
-  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${ms}ms`;
-}
 
 interface ToolSpanBlockProps {
   span: ToolSpan;

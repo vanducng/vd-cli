@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Agent } from "@/features/obs/schemas";
+import { agentSchema, type Agent } from "@/features/obs/schemas";
 
 export const SINCE_OPTIONS = ["24h", "7d", "30d"] as const;
 export type SinceOption = (typeof SINCE_OPTIONS)[number];
@@ -50,8 +50,11 @@ export function SessionsFilterBar({ value, onChange }: SessionsFilterBarProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Agent: all</SelectItem>
-          <SelectItem value="claude-code">claude-code</SelectItem>
-          <SelectItem value="codex">codex</SelectItem>
+          {agentSchema.options.map((a) => (
+            <SelectItem key={a} value={a}>
+              {a}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       <Select value={value.since} onValueChange={(v) => onChange({ since: v as SinceOption })}>
