@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.8.0](https://github.com/vanducng/vd-cli/compare/v3.7.0...v3.8.0) (2026-07-17)
+
+
+### Features
+
+* **obs:** vd obs — local Claude Code + Codex session observability ([#66](https://github.com/vanducng/vd-cli/issues/66)) ([20c4fe0](https://github.com/vanducng/vd-cli/commit/20c4fe0cd2e6abe6634d5d9c3d1ad4dad0bca248))
+
 ## [3.7.0](https://github.com/vanducng/vd-cli/compare/v3.6.2...v3.7.0) (2026-07-10)
 
 
