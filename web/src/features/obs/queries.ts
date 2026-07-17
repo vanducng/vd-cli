@@ -9,12 +9,24 @@ import {
   type UsageFilter,
 } from "@/features/obs/schemas";
 
+export interface SessionDetailFilter {
+  turns?: number;
+  offset?: number;
+}
+
 export const obsKeys = {
   all: ["obs"] as const,
   sessions: (filter: SessionFilter) => [...obsKeys.all, "sessions", filter] as const,
-  session: (id: string) => [...obsKeys.all, "session", id] as const,
+  session: (id: string, filter: SessionDetailFilter = {}) => [...obsKeys.all, "session", id, filter] as const,
   usage: (filter: UsageFilter) => [...obsKeys.all, "usage", filter] as const,
 };
+
+// The API's 404 body is {"error": "obs: session not found"} (obs.ErrNotFound).
+// apiClient throws a plain Error with that message, so detect it by content
+// rather than status code (apiClient does not expose one).
+export function isSessionNotFound(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("not found");
+}
 
 function buildQuery(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
@@ -45,11 +57,15 @@ export function sessionsQuery(filter: SessionFilter) {
   });
 }
 
-export function sessionQuery(id: string) {
+// Server paginates turns via ?turns=&offset= (never loads a multi-MB session
+// whole). Callers grow `turns` to page in more, see obs.sessions.$id.tsx's
+// "load more".
+export function sessionQuery(id: string, filter: SessionDetailFilter = {}) {
   return queryOptions({
-    queryKey: obsKeys.session(id),
+    queryKey: obsKeys.session(id, filter),
     queryFn: async () => {
-      const raw = await apiClient.get<unknown>(`/api/obs/sessions/${encodeURIComponent(id)}`);
+      const qs = buildQuery({ turns: filter.turns, offset: filter.offset });
+      const raw = await apiClient.get<unknown>(`/api/obs/sessions/${encodeURIComponent(id)}${qs}`);
       return sessionDetailSchema.parse(raw);
     },
     enabled: Boolean(id),

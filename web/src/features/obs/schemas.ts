@@ -16,6 +16,12 @@ export const tokenUsageSchema = z.object({
 });
 export type TokenUsage = z.infer<typeof tokenUsageSchema>;
 
+// ReasoningOutput is already counted inside Output (see model.go), so it is
+// deliberately excluded here too; summing it in would double the total.
+export function totalTokens(t: TokenUsage): number {
+  return t.input + t.output + t.cacheread + t.cachewrite;
+}
+
 const sessionBaseSchema = z.object({
   id: z.string(),
   agent: z.string(),
