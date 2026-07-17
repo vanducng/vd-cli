@@ -1,6 +1,7 @@
-import type { AssetSummary, AssetType } from "../types";
+import type { AssetSummary, AssetType } from "../schemas";
 
 export type Scope = "managed" | "discovered";
+
 export interface Row extends AssetSummary {
   scope: Scope;
 }
@@ -25,7 +26,7 @@ export function platformLabel(p: string): string {
 }
 
 export function typeLabel(t: string): string {
-  if (t === "all") return "All";
+  if (t === "all") return "All types";
   return t.charAt(0).toUpperCase() + t.slice(1) + "s";
 }
 
