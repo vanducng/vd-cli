@@ -126,21 +126,22 @@ type codexTurn struct {
 }
 
 type codexParser struct {
-	st         *ScanState
-	reg        SkillRegistry
-	sess       model.Session
-	turns      []*codexTurn
-	byID       map[string]*codexTurn
-	cur        *codexTurn
-	spans      []*model.ToolSpan
-	skills     []model.Skill
-	skillSeq   map[string]int
-	calls      map[string]*model.ToolSpan
-	callAt     map[string]time.Time
-	last       time.Time
-	lastTokens model.TokenUsage
-	lastTotal  model.TokenUsage
-	sawTokens  bool
+	st           *ScanState
+	reg          SkillRegistry
+	sess         model.Session
+	turns        []*codexTurn
+	byID         map[string]*codexTurn
+	cur          *codexTurn
+	spans        []*model.ToolSpan
+	skills       []model.Skill
+	skillSeq     map[string]int
+	calls        map[string]*model.ToolSpan
+	callAt       map[string]time.Time
+	last         time.Time
+	lastTokens   model.TokenUsage
+	lastTotal    model.TokenUsage
+	sawTokens    bool
+	firstUserMsg string
 }
 
 func (p *codexParser) line(b []byte) error {
@@ -251,6 +252,9 @@ func (p *codexParser) userMessage(msg string) {
 	if msg == "" {
 		return
 	}
+	if p.firstUserMsg == "" {
+		p.firstUserMsg = msg
+	}
 	// Legacy and subagent rollouts never emit turn_context, so their only turn
 	// boundary is the user message itself.
 	t := p.cur
@@ -344,6 +348,14 @@ func (p *codexParser) record() model.Record {
 	sess.Agent = model.AgentCodex
 	if !p.last.IsZero() {
 		sess.EndedAt = p.last
+	}
+	// Rollouts carry no title field (unlike Claude's ai-title record), so every
+	// codex session would otherwise render "untitled" in the session list.
+	if sess.Title == "" {
+		if title := deriveCodexTitle(p.firstUserMsg); title != "" {
+			sess.Title = title
+			sess.TitleDerived = true
+		}
 	}
 	rec := model.Record{Session: sess}
 	for i, t := range p.turns {
