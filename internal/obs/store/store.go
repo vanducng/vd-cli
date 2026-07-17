@@ -92,14 +92,14 @@ func openAt(path string) (*sql.DB, error) {
 	dsn := "file:" + path +
 		"?_txlock=immediate" +
 		"&_pragma=busy_timeout(15000)" +
-		"&_pragma=synchronous(NORMAL)" +
-		"&_pragma=foreign_keys(ON)"
+		"&_pragma=synchronous(NORMAL)"
 
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open obs db: %w", err)
 	}
 	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(4) // keep all four warm; churn hurts under vd web's read bursts
 
 	if err := enableWAL(db); err != nil {
 		_ = db.Close()
@@ -166,7 +166,13 @@ func truncateMid(s string, max int) string {
 	for start < len(s) && !utf8RuneStart(s[start]) {
 		start++
 	}
-	return s[:head] + marker + s[start:]
+	out := s[:head] + marker + s[start:]
+	// Rune backoff only shrinks head/grows start, so out is always <= max here;
+	// guard anyway so the cap is a hard invariant, not an inference.
+	if len(out) > max {
+		return out[:max]
+	}
+	return out
 }
 
 func utf8RuneStart(b byte) bool { return b&0xC0 != 0x80 }

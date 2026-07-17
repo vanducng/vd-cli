@@ -23,18 +23,25 @@ func ensureSchema(db *sql.DB) error {
 	if err := db.QueryRow("PRAGMA user_version").Scan(&have); err != nil {
 		return fmt.Errorf("read user_version: %w", err)
 	}
-	// One transaction for drop+recreate+stamp: a WAL reader in another process
-	// must see either the old schema or the new one, never the gap between
-	// dropAll and the re-apply.
+	// Already current: the tables exist (CREATE IF NOT EXISTS ran at this version),
+	// so skip re-parsing all DDL on every open.
+	if have == schemaVersion {
+		return nil
+	}
+	return rebuildSchema(db)
+}
+
+// rebuildSchema drops any existing tables, recreates them, and stamps the version
+// — all in one transaction, so a concurrent WAL reader sees either the old schema
+// or the new one, never the tableless gap.
+func rebuildSchema(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin schema tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if have != 0 && have != schemaVersion {
-		if err := dropAll(tx); err != nil {
-			return fmt.Errorf("rebuild schema from v%d: %w", have, err)
-		}
+	if err := dropAll(tx); err != nil {
+		return fmt.Errorf("drop for rebuild: %w", err)
 	}
 	if _, err := tx.Exec(schemaSQL); err != nil {
 		return fmt.Errorf("apply schema: %w", err)

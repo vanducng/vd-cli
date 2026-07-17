@@ -156,10 +156,9 @@ func (s *Store) IngestFile(ctx context.Context, rec model.Record, w Watermark) e
 	return tx.Commit()
 }
 
-// Reset drops every derived row for a --full rebuild.
+// Reset drops and rebuilds every derived table for a --full sync. The drop and
+// re-create run in one transaction (via rebuildSchema) so a concurrent WAL reader
+// never sees the tableless gap.
 func (s *Store) Reset(ctx context.Context) error {
-	if err := dropAll(s.db); err != nil {
-		return err
-	}
-	return ensureSchema(s.db)
+	return rebuildSchema(s.db)
 }

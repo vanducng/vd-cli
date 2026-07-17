@@ -391,13 +391,28 @@ func (s *Store) Usage(ctx context.Context, f model.UsageFilter) ([]UsageRaw, err
 	return out, rows.Err()
 }
 
-// SessionModel returns a session's model by id, for pricing a subagent rollup at
-// the subagent's own model rather than its parent's.
-func (s *Store) SessionModel(ctx context.Context, id string) (string, bool) {
-	var m string
-	err := s.db.QueryRowContext(ctx, "SELECT model FROM sessions WHERE id = ?", id).Scan(&m)
-	if err != nil || m == "" {
-		return "", false
+// SessionModels resolves many session ids to their models in one query, for
+// pricing subagent rollups at each subagent's own model rather than the parent's.
+func (s *Store) SessionModels(ctx context.Context, ids map[string]bool) map[string]string {
+	out := map[string]string{}
+	if len(ids) == 0 {
+		return out
 	}
-	return m, true
+	list := make([]any, 0, len(ids))
+	for id := range ids {
+		list = append(list, id)
+	}
+	ph := strings.TrimSuffix(strings.Repeat("?,", len(list)), ",")
+	rows, err := s.db.QueryContext(ctx, "SELECT id, model FROM sessions WHERE id IN ("+ph+")", list...)
+	if err != nil {
+		return out
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id, m string
+		if err := rows.Scan(&id, &m); err == nil {
+			out[id] = m
+		}
+	}
+	return out
 }

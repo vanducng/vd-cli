@@ -24,11 +24,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	obsSvc, err := obs.NewService("")
-	if err != nil {
-		log.Fatal(err)
+	// Degrade gracefully like internal/cli/web.go: a broken obs cache must not stop
+	// the whole desktop window — NewServer answers those routes 503 for a nil obs.
+	obsSvc, obsErr := obs.NewService("")
+	if obsErr != nil {
+		log.Printf("warning: obs unavailable: %v", obsErr)
+		obsSvc = nil
 	}
-	defer func() { _ = obsSvc.Close() }()
+	defer func() {
+		if obsSvc != nil {
+			_ = obsSvc.Close()
+		}
+	}()
 
 	srv, err := webui.NewServer(inventory.NewService(repoRoot(), claudeHome), obsSvc)
 	if err != nil {

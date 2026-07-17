@@ -222,8 +222,12 @@ func codexJobs() ([]fileJob, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := os.Stat(root); os.IsNotExist(err) {
-		return nil, nil
+	if _, err := os.Stat(root); err != nil {
+		// missing is fine (no codex on this machine); a real error (perms) surfaces
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("stat codex root %s: %w", root, err)
 	}
 	paths, err := EnumerateCodex(root)
 	if err != nil {

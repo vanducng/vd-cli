@@ -40,7 +40,7 @@ from token counts, not a bill.`,
 type obsFlags struct {
 	agent  string
 	since  string
-	jsonOu bool
+	asJSON bool
 	noSync bool
 }
 
@@ -48,7 +48,7 @@ func (f *obsFlags) bind(cmd *cobra.Command, sinceDefault string) {
 	fl := cmd.Flags()
 	fl.StringVar(&f.agent, "agent", "", "Filter by agent: claude-code or codex")
 	fl.StringVar(&f.since, "since", sinceDefault, "Only sessions since this time (e.g. 7d, 24h, RFC3339)")
-	fl.BoolVar(&f.jsonOu, "json", false, "Emit JSON")
+	fl.BoolVar(&f.asJSON, "json", false, "Emit JSON")
 	fl.BoolVar(&f.noSync, "no-sync", false, "Skip the incremental sync and read the cache as-is")
 }
 
@@ -70,7 +70,7 @@ func (f *obsFlags) open(ctx context.Context) (*obs.Service, error) {
 		_ = svc.Close()
 		return nil, err
 	}
-	if !f.jsonOu && stats.FilesScanned > 0 {
+	if !f.asJSON && stats.FilesScanned > 0 {
 		_, _ = fmt.Fprintf(os.Stderr, "  sync  %d files parsed · %d cached · %d unknown records       %s\n\n",
 			stats.FilesParsed, stats.Skipped, stats.UnknownRecords, stats.Elapsed.Round(time.Millisecond))
 	}
@@ -113,7 +113,7 @@ func newObsSessionsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if f.jsonOu {
+			if f.asJSON {
 				return emitJSON(c.OutOrStdout(), list)
 			}
 			renderSessions(c.OutOrStdout(), list)
@@ -155,7 +155,7 @@ func newObsShowCmd() *cobra.Command {
 			default:
 				return err
 			}
-			if f.jsonOu {
+			if f.asJSON {
 				return emitJSON(c.OutOrStdout(), d)
 			}
 			renderSession(c.OutOrStdout(), d)
@@ -200,7 +200,7 @@ func newObsUsageCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if f.jsonOu {
+			if f.asJSON {
 				return emitJSON(c.OutOrStdout(), rep)
 			}
 			renderUsage(c.OutOrStdout(), rep)

@@ -56,6 +56,11 @@ func ParseSince(v string) (time.Time, error) {
 	if len(v) >= 2 {
 		unit := v[len(v)-1]
 		if n, err := strconv.Atoi(v[:len(v)-1]); err == nil && n >= 0 {
+			// 0d/0h means "no lower bound", not "since this instant" (which would
+			// filter out every session as not-in-the-future).
+			if n == 0 {
+				return time.Time{}, nil
+			}
 			switch unit {
 			case 'd':
 				return time.Now().AddDate(0, 0, -n), nil

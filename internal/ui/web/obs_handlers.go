@@ -34,7 +34,10 @@ func (h *obsHandler) ready(w http.ResponseWriter) bool {
 	return true
 }
 
-func (h *obsHandler) sync(r *http.Request) {
+// refresh syncs the cache before a read. It runs inline in the request: the
+// first cold request pays the sync latency; concurrent ones return immediately
+// via the service's debounce.
+func (h *obsHandler) refresh(r *http.Request) {
 	// A failed sync serves whatever the cache already has rather than erroring the
 	// read — but log it, so silent staleness is at least observable server-side.
 	if _, err := h.svc.Sync(r.Context(), ingest.SyncOptions{}); err != nil {
@@ -51,7 +54,7 @@ func (h *obsHandler) sessions(w http.ResponseWriter, r *http.Request) {
 	if !h.ready(w) {
 		return
 	}
-	h.sync(r)
+	h.refresh(r)
 	list, err := h.svc.Sessions(r.Context(), f)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
@@ -78,7 +81,7 @@ func (h *obsHandler) session(w http.ResponseWriter, r *http.Request) {
 	if !h.ready(w) {
 		return
 	}
-	h.sync(r)
+	h.refresh(r)
 	d, err := h.svc.Session(r.Context(), r.PathValue("id"), r.URL.Query().Get("agent"), turns, offset)
 	switch {
 	case errors.Is(err, obs.ErrNotFound):
@@ -101,7 +104,7 @@ func (h *obsHandler) usage(w http.ResponseWriter, r *http.Request) {
 	if !h.ready(w) {
 		return
 	}
-	h.sync(r)
+	h.refresh(r)
 	rep, err := h.svc.Usage(r.Context(), f)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)

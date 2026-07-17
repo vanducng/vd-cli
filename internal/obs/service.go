@@ -49,11 +49,12 @@ func NewService(dbPath string) (*Service, error) {
 // Close releases the database handle.
 func (s *Service) Close() error { return s.st.Close() }
 
-// Sync brings the cache up to date. It is single-flight and non-blocking: the
-// lock guards only the bookkeeping, never the multi-second ingest. A caller that
-// arrives while a sync is running (or within the debounce) returns immediately
-// with current data rather than queueing — otherwise a fresh `vd web` would block
-// every parallel first-load request behind one 50s cold sync.
+// Sync brings the cache up to date. It debounces rather than coalesces: the lock
+// guards only the bookkeeping, never the multi-second ingest, and a caller that
+// arrives while a sync is running (or within the debounce window) returns
+// immediately with current data rather than waiting for the in-flight result.
+// This keeps a fresh `vd web`'s parallel first-load requests from all blocking
+// behind one 50s cold sync — the first caller pays it, the rest read what's there.
 func (s *Service) Sync(ctx context.Context, opts ingest.SyncOptions) (ingest.SyncStats, error) {
 	s.mu.Lock()
 	if s.syncing || (!opts.Full && time.Since(s.syncedAt) < syncDebounce) {
@@ -103,6 +104,19 @@ func (s *Service) Session(ctx context.Context, idOrPrefix, agent string, turns, 
 		return nil, err
 	}
 	s.applyCost(&d.SessionSummary)
+
+	// Resolve every subagent's model in one query rather than one-per-span: the
+	// rollup must be priced at the subagent's own model, not the parent's.
+	subIDs := map[string]bool{}
+	for i := range d.Turns {
+		for j := range d.Turns[i].ToolSpans {
+			if sp := d.Turns[i].ToolSpans[j]; sp.RollupTokens != nil && sp.SubagentSessionID != "" {
+				subIDs[sp.SubagentSessionID] = true
+			}
+		}
+	}
+	subModels := s.st.SessionModels(ctx, subIDs)
+
 	for i := range d.Turns {
 		if c, ok := s.price.Cost(d.Turns[i].Model, d.Turns[i].Tokens); ok {
 			d.Turns[i].CostUSD = &c
@@ -112,11 +126,8 @@ func (s *Service) Session(ctx context.Context, idOrPrefix, agent string, turns, 
 			if sp.RollupTokens == nil {
 				continue
 			}
-			// Price the rollup at the SUBAGENT's model, not the parent's — a
-			// mixed-model team (opus parent, haiku subagent) is off by multiples
-			// otherwise. Left nil ("?") if the subagent's model is unknown.
-			m, ok := s.st.SessionModel(ctx, sp.SubagentSessionID)
-			if !ok {
+			m := subModels[sp.SubagentSessionID]
+			if m == "" {
 				continue
 			}
 			if c, ok := s.price.Cost(m, *sp.RollupTokens); ok {

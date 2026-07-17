@@ -8,9 +8,7 @@ package pricing
 import (
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -51,14 +49,14 @@ func Load() (*Table, error) {
 	if path, err := overridePath(); err == nil {
 		if b, err := os.ReadFile(path); err == nil {
 			override := map[string]Price{}
-			if json.Unmarshal(b, &override) == nil {
+			if err := json.Unmarshal(b, &override); err != nil {
+				// malformed override: warn but keep the authoritative embedded table
+				fmt.Fprintf(os.Stderr, "warning: ignoring malformed %s: %v\n", path, err)
+			} else {
 				for id, p := range override {
 					prices[id] = p
 				}
 			}
-		} else if !errors.Is(err, fs.ErrNotExist) {
-			// unreadable (perms) — ignore, embedded still valid
-			_ = err
 		}
 	}
 	return &Table{prices: prices}, nil
