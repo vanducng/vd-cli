@@ -143,9 +143,10 @@ func TestHealthCountsAndLowSample(t *testing.T) {
 	var big, small *model.ErrorCluster
 	for i := range rep.Clusters {
 		c := &rep.Clusters[i]
-		if c.Count == 3 {
+		switch c.Count {
+		case 3:
 			big = c
-		} else if c.Count == 1 {
+		case 1:
 			small = c
 		}
 	}
