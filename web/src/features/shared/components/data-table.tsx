@@ -56,9 +56,9 @@ export function DataTable<TData, TValue>({
     <div className={cn("flex flex-col gap-3", className)}>
       {toolbar && <div className="flex flex-wrap gap-2">{toolbar}</div>}
 
-      <div className="overflow-x-auto rounded-md border border-border">
+      <div className="max-h-[75vh] overflow-auto rounded-md border border-border">
         <Table>
-          <TableHeader className="sticky top-14 z-10 bg-panel">
+          <TableHeader className="sticky top-0 z-10 bg-panel">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
                 {headerGroup.headers.map((header) => (

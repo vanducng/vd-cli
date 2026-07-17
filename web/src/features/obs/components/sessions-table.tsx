@@ -55,9 +55,11 @@ export function SessionsTable({
     <div className="flex flex-col gap-3">
       {toolbar}
 
-      <div className="overflow-x-auto rounded-md border border-border bg-panel">
+      {/* sticky thead binds to the nearest scroll container, so that container
+          must own vertical scroll too — viewport-sticky inside overflow-x breaks */}
+      <div className="max-h-[75vh] overflow-auto rounded-md border border-border bg-panel">
         <Table>
-          <TableHeader className="sticky top-[108px] z-10 bg-panel">
+          <TableHeader className="sticky top-0 z-10 bg-panel">
             <TableRow className="hover:bg-transparent">
               <TableHead>Started</TableHead>
               <TableHead>Agent</TableHead>
