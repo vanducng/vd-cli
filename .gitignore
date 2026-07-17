@@ -28,3 +28,6 @@ docs/dist/
 
 # desktop module build output
 desktop/desktop
+
+# e2e trace evidence (browser-trace runs)
+/.o11y/
