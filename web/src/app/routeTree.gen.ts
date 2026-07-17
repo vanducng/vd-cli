@@ -20,6 +20,7 @@ import { Route as SkillsNameRouteImport } from './routes/skills.$name'
 import { Route as ObsUsageRouteImport } from './routes/obs.usage'
 import { Route as ObsSessionsRouteImport } from './routes/obs.sessions'
 import { Route as ObsSessionsIndexRouteImport } from './routes/obs.sessions.index'
+import { Route as ObsSessionsIdRouteImport } from './routes/obs.sessions.$id'
 
 const SkillsRoute = SkillsRouteImport.update({
   id: '/skills',
@@ -76,6 +77,11 @@ const ObsSessionsIndexRoute = ObsSessionsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ObsSessionsRoute,
 } as any)
+const ObsSessionsIdRoute = ObsSessionsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ObsSessionsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/skills/$name': typeof SkillsNameRoute
   '/obs/': typeof ObsIndexRoute
   '/skills/': typeof SkillsIndexRoute
+  '/obs/sessions/$id': typeof ObsSessionsIdRoute
   '/obs/sessions/': typeof ObsSessionsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/skills/$name': typeof SkillsNameRoute
   '/obs': typeof ObsIndexRoute
   '/skills': typeof SkillsIndexRoute
+  '/obs/sessions/$id': typeof ObsSessionsIdRoute
   '/obs/sessions': typeof ObsSessionsIndexRoute
 }
 export interface FileRoutesById {
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/skills/$name': typeof SkillsNameRoute
   '/obs/': typeof ObsIndexRoute
   '/skills/': typeof SkillsIndexRoute
+  '/obs/sessions/$id': typeof ObsSessionsIdRoute
   '/obs/sessions/': typeof ObsSessionsIndexRoute
 }
 export interface FileRouteTypes {
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/skills/$name'
     | '/obs/'
     | '/skills/'
+    | '/obs/sessions/$id'
     | '/obs/sessions/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/skills/$name'
     | '/obs'
     | '/skills'
+    | '/obs/sessions/$id'
     | '/obs/sessions'
   id:
     | '__root__'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/skills/$name'
     | '/obs/'
     | '/skills/'
+    | '/obs/sessions/$id'
     | '/obs/sessions/'
   fileRoutesById: FileRoutesById
 }
@@ -240,14 +252,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ObsSessionsIndexRouteImport
       parentRoute: typeof ObsSessionsRoute
     }
+    '/obs/sessions/$id': {
+      id: '/obs/sessions/$id'
+      path: '/$id'
+      fullPath: '/obs/sessions/$id'
+      preLoaderRoute: typeof ObsSessionsIdRouteImport
+      parentRoute: typeof ObsSessionsRoute
+    }
   }
 }
 
 interface ObsSessionsRouteChildren {
+  ObsSessionsIdRoute: typeof ObsSessionsIdRoute
   ObsSessionsIndexRoute: typeof ObsSessionsIndexRoute
 }
 
 const ObsSessionsRouteChildren: ObsSessionsRouteChildren = {
+  ObsSessionsIdRoute: ObsSessionsIdRoute,
   ObsSessionsIndexRoute: ObsSessionsIndexRoute,
 }
 
