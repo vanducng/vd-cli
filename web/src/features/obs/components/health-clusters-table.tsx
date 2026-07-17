@@ -262,7 +262,8 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="max-h-[75vh] overflow-auto rounded-md border border-border bg-panel">
+      <div className="relative">
+        <div className="max-h-[75vh] overflow-auto rounded-md border border-border bg-panel">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-panel">
             <TableRow className="hover:bg-transparent">
@@ -377,6 +378,11 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
             )}
           </TableBody>
         </Table>
+        </div>
+        {/* Static right-edge fade — signals "more columns, scroll right" rather
+            than "content is cut off"; a scroll-position-aware toggle isn't worth
+            the complexity here. */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-6 rounded-r-md bg-gradient-to-l from-panel to-transparent" />
       </div>
 
       {clusters.length > PAGE_SIZE && (
