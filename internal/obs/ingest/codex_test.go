@@ -15,7 +15,7 @@ func parseCodexFixture(t *testing.T, name string) model.Record {
 	if err != nil {
 		t.Fatalf("read fixture: %v", err)
 	}
-	rec, off, err := ParseCodex(bytes.NewReader(data), &ScanState{})
+	rec, off, err := ParseCodex(bytes.NewReader(data), &ScanState{}, nil)
 	if err != nil {
 		t.Fatalf("ParseCodex: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestCodexOrphanToolOutputCounted(t *testing.T) {
 		t.Fatalf("read fixture: %v", err)
 	}
 	st := &ScanState{}
-	rec, _, err := ParseCodex(bytes.NewReader(data), st)
+	rec, _, err := ParseCodex(bytes.NewReader(data), st, nil)
 	if err != nil {
 		t.Fatalf("ParseCodex: %v", err)
 	}
@@ -369,23 +369,88 @@ func TestCodexCommandExtraction(t *testing.T) {
 	}
 }
 
-// Codex has neither hooks nor skills; synthesizing either would invent data.
-func TestCodexNoHooksOrSkills(t *testing.T) {
+// Codex emits no hook events; synthesizing them would invent data. Skills, by
+// contrast, are now parsed from the `$name` text convention (see the skills test).
+func TestCodexNoHooks(t *testing.T) {
 	for _, name := range []string{"session-basic.jsonl", "tools-aborted.jsonl", "subagent-legacy.jsonl"} {
 		t.Run(name, func(t *testing.T) {
 			rec := parseCodexFixture(t, name)
 			if len(rec.HookExecs) != 0 {
 				t.Errorf("HookExecs = %d, want 0", len(rec.HookExecs))
 			}
-			if len(rec.Skills) != 0 {
-				t.Errorf("Skills = %d, want 0", len(rec.Skills))
-			}
 			for _, turn := range rec.Turns {
-				if len(turn.HookExecs) != 0 || len(turn.Skills) != 0 {
-					t.Errorf("turn %s carries hooks/skills", turn.ID)
+				if len(turn.HookExecs) != 0 {
+					t.Errorf("turn %s carries hooks", turn.ID)
 				}
 			}
 		})
+	}
+}
+
+// Codex records skill invocations only as a `$name` / `$vd:name` text convention
+// in user messages. They are parsed against the install registry so shell noise
+// ($options), PHP ($this->foo) and uninstalled names ($unknown-skill) never land.
+func TestCodexSkillsFromUserMessage(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("testdata", "codex", "skills.jsonl"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	// No registry means no skills: a missing install root yields zero, not accept-all.
+	bare, _, err := ParseCodex(bytes.NewReader(data), &ScanState{}, nil)
+	if err != nil {
+		t.Fatalf("ParseCodex(nil reg): %v", err)
+	}
+	if len(bare.Skills) != 0 {
+		t.Fatalf("nil registry parsed %d skills, want 0", len(bare.Skills))
+	}
+
+	reg := SkillRegistry{"ship": {}, "brainstorm": {}}
+	rec, _, err := ParseCodex(bytes.NewReader(data), &ScanState{}, reg)
+	if err != nil {
+		t.Fatalf("ParseCodex(reg): %v", err)
+	}
+
+	const sess = "019f0000-0000-7000-8000-000000000005"
+	want := []model.Skill{
+		{TurnID: sess + ":turn-aaaa", Name: "ship", Seq: 0},
+		{TurnID: sess + ":turn-bbbb", Name: "brainstorm", Seq: 0},
+		{TurnID: sess + ":turn-bbbb", Name: "brainstorm", Seq: 1},
+	}
+	if len(rec.Skills) != len(want) {
+		t.Fatalf("Skills = %+v, want %d entries", rec.Skills, len(want))
+	}
+	for i, w := range want {
+		if rec.Skills[i] != w {
+			t.Errorf("Skills[%d] = %+v, want %+v", i, rec.Skills[i], w)
+		}
+	}
+}
+
+// Only a leading `vd:` is stripped to canonicalize. A namespaced name like
+// codex:rescue must survive intact so it can match a registry entry of that name;
+// stripping to the last colon would wrongly collapse it to "rescue".
+func TestCanonicalSkillStripsOnlyVdPrefix(t *testing.T) {
+	tests := []struct{ raw, want string }{
+		{"vd:ship", "ship"},
+		{"ship", "ship"},
+		{"codex:rescue", "codex:rescue"},
+		{"vd:cnb-release", "cnb-release"},
+		{"brainstorm-", "brainstorm"},
+	}
+	for _, tt := range tests {
+		if got := canonicalSkill(tt.raw); got != tt.want {
+			t.Errorf("canonicalSkill(%q) = %q, want %q", tt.raw, got, tt.want)
+		}
+	}
+
+	// End to end through the registry: both a vd-prefixed and a namespaced token
+	// resolve to their canonical, registry-validated names.
+	reg := SkillRegistry{"ship": {}, "codex:rescue": {}}
+	got := reg.matchSkills("run $vd:ship then $codex:rescue please")
+	want := []string{"ship", "codex:rescue"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("matchSkills = %v, want %v", got, want)
 	}
 }
 
@@ -439,7 +504,7 @@ func TestCodexResumePartialLine(t *testing.T) {
 	}
 
 	st := &ScanState{}
-	first, off, err := ParseCodex(bytes.NewReader(data[:cut]), st)
+	first, off, err := ParseCodex(bytes.NewReader(data[:cut]), st, nil)
 	if err != nil {
 		t.Fatalf("ParseCodex(partial): %v", err)
 	}
@@ -459,7 +524,7 @@ func TestCodexResumePartialLine(t *testing.T) {
 	// Changed files are reparsed whole rather than resumed mid-way: a resumed parse
 	// re-emits a turn holding only post-offset tokens, and the store's upsert
 	// replaces rather than merges, so stored totals would shrink.
-	full, off2, err := ParseCodex(bytes.NewReader(data), &ScanState{})
+	full, off2, err := ParseCodex(bytes.NewReader(data), &ScanState{}, nil)
 	if err != nil {
 		t.Fatalf("ParseCodex(whole): %v", err)
 	}
@@ -487,7 +552,7 @@ func TestCodexUnknownTypesCounted(t *testing.T) {
 		t.Fatalf("read fixture: %v", err)
 	}
 	st := &ScanState{}
-	if _, _, err := ParseCodex(bytes.NewReader(data), st); err != nil {
+	if _, _, err := ParseCodex(bytes.NewReader(data), st, nil); err != nil {
 		t.Fatalf("ParseCodex: %v", err)
 	}
 	if st.UnknownTypes["world_state"] != 1 {
@@ -506,7 +571,7 @@ func TestCodexMalformedLineTolerated(t *testing.T) {
 		"{\"timestamp\":\"2026-07-01T10:00:02.000Z\",\"type\":\"turn_context\",\"payload\":{\"turn_id\":\"t1\",\"model\":\"m\"}}\n"
 
 	st := &ScanState{}
-	rec, off, err := ParseCodex(bytes.NewReader([]byte(in)), st)
+	rec, off, err := ParseCodex(bytes.NewReader([]byte(in)), st, nil)
 	if err != nil {
 		t.Fatalf("ParseCodex: %v", err)
 	}
@@ -572,7 +637,7 @@ func TestEnumerateCodexMissingRoot(t *testing.T) {
 // Codex re-emits token_count for one API request with an identical last_token_usage;
 // billing every event doubles the bill. Real rollouts contain these pairs.
 func TestCodexDuplicateTokenCountBilledOnce(t *testing.T) {
-	rec, _, err := ParseCodex(bytes.NewReader(mustRead(t, "testdata/codex/dup_tokens.jsonl")), &ScanState{})
+	rec, _, err := ParseCodex(bytes.NewReader(mustRead(t, "testdata/codex/dup_tokens.jsonl")), &ScanState{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

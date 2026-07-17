@@ -195,6 +195,104 @@ type Skill struct {
 	Args   string `json:"args"`
 }
 
+// SkillSummary is one row of `vd obs skills`: a skill (or the "(none)" bucket for
+// unattributed activity) with the tool work charged to its invocation windows. A
+// window opens at an invocation's turn and closes at the next invocation in that
+// session, or session end; spans and turns inside it attribute to that skill.
+// Counting by session broadcast instead overcounts ~4.7x (measured) — never do it.
+type SkillSummary struct {
+	Name         string   `json:"name"`
+	Agents       []string `json:"agents"`
+	Invocations  int      `json:"invocations"`
+	Sessions     int      `json:"sessions"`
+	SoloSessions int      `json:"solosessions"`
+	ToolCalls    int      `json:"toolcalls"`
+	ToolErrors   int      `json:"toolerrors"`
+	ErrRate      *float64 `json:"errrate"`
+	Tokens       int      `json:"tokens"`
+	// Correctness proxies, classified at query time (no raw text is ever exposed).
+	// Corrections counts user turns opening with a correction phrase; Aborts counts
+	// turns carrying the interrupt marker. Counters flag candidates — only reading
+	// the transcript proves fault.
+	Corrections int `json:"corrections"`
+	Aborts      int `json:"aborts"`
+}
+
+// SkillNone is the bucket name for tool activity that precedes any invocation or
+// happens in a session that invoked no skill. It sorts last in a report.
+const SkillNone = "(none)"
+
+// SkillReport is the whole `vd obs skills` answer, sorted errors-desc with the
+// "(none)" bucket forced last.
+type SkillReport struct {
+	Skills []SkillSummary `json:"skills"`
+}
+
+// MarshalJSON enforces the never-null rule for the skills list.
+func (r SkillReport) MarshalJSON() ([]byte, error) {
+	type report SkillReport
+	v := report(r)
+	if v.Skills == nil {
+		v.Skills = []SkillSummary{}
+	}
+	return json.Marshal(v)
+}
+
+// MarshalJSON keeps a skill's agents an array, never null.
+func (s SkillSummary) MarshalJSON() ([]byte, error) {
+	type summary SkillSummary
+	v := summary(s)
+	if v.Agents == nil {
+		v.Agents = []string{}
+	}
+	return json.Marshal(v)
+}
+
+// SkillFilter scopes a skills rollup. Fields mirror the HTTP query params: agent,
+// project, since. All three are session-level, so a session is wholly in or out.
+type SkillFilter struct {
+	Agent   string    `json:"agent"`
+	Project string    `json:"project"`
+	Since   time.Time `json:"since"`
+}
+
+// HookSummary is one row of `vd obs hooks`: a hook/event pair with how often it
+// fired, how often it exited nonzero, and — for gate-class hooks — the share of
+// same-turn tool errors that co-occur with its blocks. Claude Code only; Codex
+// emits no hook events.
+type HookSummary struct {
+	HookName     string `json:"hookname"`
+	Event        string `json:"event"`
+	Fires        int    `json:"fires"`
+	NonzeroExits int    `json:"nonzeroexits"`
+	// BlockRate and ErrShare stay nil when undefined (no fires, no errors in scope)
+	// rather than 0, so "never fired" never reads as "0% block rate".
+	BlockRate *float64 `json:"blockrate"`
+	ErrShare  *float64 `json:"errshare"`
+}
+
+// HookReport is the whole `vd obs hooks` answer, sorted by nonzero exits desc.
+type HookReport struct {
+	Hooks []HookSummary `json:"hooks"`
+}
+
+// MarshalJSON enforces the never-null rule for the hooks list.
+func (r HookReport) MarshalJSON() ([]byte, error) {
+	type report HookReport
+	v := report(r)
+	if v.Hooks == nil {
+		v.Hooks = []HookSummary{}
+	}
+	return json.Marshal(v)
+}
+
+// HookFilter scopes a hook rollup by the same session-level dimensions as skills.
+type HookFilter struct {
+	Agent   string    `json:"agent"`
+	Project string    `json:"project"`
+	Since   time.Time `json:"since"`
+}
+
 // UsageRow is one grouped bucket of `vd obs usage`.
 type UsageRow struct {
 	Date    string     `json:"date"`

@@ -1,0 +1,7 @@
+{"timestamp":"2026-07-05T09:00:00.000Z","type":"session_meta","payload":{"session_id":"019f0000-0000-7000-8000-000000000005","id":"019f0000-0000-7000-8000-000000000005","timestamp":"2026-07-05T09:00:00.000Z","cwd":"/home/dev/src/widget-api","originator":"codex_cli","cli_version":"9.9.9","source":"exec","git":{"commit_hash":"5555555555555555555555555555555555555555","branch":"feat/skills"}}}
+{"timestamp":"2026-07-05T09:00:01.000Z","type":"turn_context","payload":{"turn_id":"turn-aaaa","cwd":"/home/dev/src/widget-api","model":"synthetic-large","effort":"high","summary":"auto"}}
+{"timestamp":"2026-07-05T09:00:02.000Z","type":"event_msg","payload":{"type":"user_message","message":"Let's $vd:ship this. Ignore $options, $this->foo, and $unknown-skill.","images":[]}}
+{"timestamp":"2026-07-05T09:00:03.000Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-aaaa","last_agent_message":"Shipped.","duration_ms":4000}}
+{"timestamp":"2026-07-05T09:00:04.000Z","type":"turn_context","payload":{"turn_id":"turn-bbbb","cwd":"/home/dev/src/widget-api","model":"synthetic-large","effort":"high","summary":"auto"}}
+{"timestamp":"2026-07-05T09:00:05.000Z","type":"event_msg","payload":{"type":"user_message","message":"$brainstorm approaches, then $brainstorm again.","images":[]}}
+{"timestamp":"2026-07-05T09:00:06.000Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-bbbb","last_agent_message":"Done.","duration_ms":3000}}

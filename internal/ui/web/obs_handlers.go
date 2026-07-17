@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/vanducng/vd-cli/v2/internal/obs"
 	"github.com/vanducng/vd-cli/v2/internal/obs/ingest"
@@ -22,6 +23,8 @@ func (h *obsHandler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/obs/sessions/{id}", h.session)
 	mux.HandleFunc("GET /api/obs/usage", h.usage)
 	mux.HandleFunc("GET /api/obs/health", h.health)
+	mux.HandleFunc("GET /api/obs/skills", h.skills)
+	mux.HandleFunc("GET /api/obs/hooks", h.hooks)
 }
 
 // ready reports whether obs is wired. A nil service reaching a handler would
@@ -132,18 +135,70 @@ func (h *obsHandler) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rep)
 }
 
-func parseHealthFilter(r *http.Request) (model.HealthFilter, error) {
-	q := r.URL.Query()
-	f := model.HealthFilter{Agent: q.Get("agent"), Project: q.Get("project")}
-	if err := checkAgent(f.Agent); err != nil {
-		return f, err
-	}
-	since, err := store.ParseSince(q.Get("since"))
+func (h *obsHandler) skills(w http.ResponseWriter, r *http.Request) {
+	f, err := parseSkillFilter(r)
 	if err != nil {
-		return f, err
+		writeErr(w, http.StatusBadRequest, err)
+		return
 	}
-	f.Since = since
-	return f, nil
+	if !h.ready(w) {
+		return
+	}
+	h.refresh(r)
+	rep, err := h.svc.Skills(r.Context(), f)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rep)
+}
+
+func (h *obsHandler) hooks(w http.ResponseWriter, r *http.Request) {
+	f, err := parseHookFilter(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if !h.ready(w) {
+		return
+	}
+	h.refresh(r)
+	rep, err := h.svc.Hooks(r.Context(), f)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rep)
+}
+
+// parseCommonFilter reads the agent/project/since triple that health, skills
+// and hooks all share, so a validation rule added here can never apply to one
+// and miss the others.
+func parseCommonFilter(r *http.Request) (agent, project string, since time.Time, err error) {
+	q := r.URL.Query()
+	agent, project = q.Get("agent"), q.Get("project")
+	if err = checkAgent(agent); err != nil {
+		return "", "", time.Time{}, err
+	}
+	if since, err = store.ParseSince(q.Get("since")); err != nil {
+		return "", "", time.Time{}, err
+	}
+	return agent, project, since, nil
+}
+
+func parseHealthFilter(r *http.Request) (model.HealthFilter, error) {
+	agent, project, since, err := parseCommonFilter(r)
+	return model.HealthFilter{Agent: agent, Project: project, Since: since}, err
+}
+
+func parseSkillFilter(r *http.Request) (model.SkillFilter, error) {
+	agent, project, since, err := parseCommonFilter(r)
+	return model.SkillFilter{Agent: agent, Project: project, Since: since}, err
+}
+
+func parseHookFilter(r *http.Request) (model.HookFilter, error) {
+	agent, project, since, err := parseCommonFilter(r)
+	return model.HookFilter{Agent: agent, Project: project, Since: since}, err
 }
 
 func parseSessionFilter(r *http.Request) (model.SessionFilter, error) {
