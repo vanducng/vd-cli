@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Component, Fragment, useMemo, useState, type ErrorInfo, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
@@ -32,11 +32,25 @@ function stripLeadingMarkup(s: string): string {
 
 // A hard character-level cut (ours or the backend's) can land mid-word
 // ("denied Patt"), which reads as a rendering bug rather than an intentional
-// truncation. Back up to the last word boundary so the fragment always ends
-// on a whole word before the "…" is appended.
-function trimToWordBoundary(s: string): string {
+// truncation. Back up to the last word boundary, but only when the dropped
+// fragment is a plain truncated word (letters only) — a code/regex-like
+// fragment ("(^|\/)node_modu") is itself the discriminating detail two
+// otherwise-identical signatures differ by, and must not be discarded.
+function trimTrailingPartialWord(s: string): string {
   const lastSpace = s.lastIndexOf(" ");
-  return lastSpace > 0 ? s.slice(0, lastSpace) : s;
+  if (lastSpace <= 0) return s;
+  const fragment = s.slice(lastSpace + 1);
+  if (!/^[A-Za-z]+$/.test(fragment)) return s;
+  return s.slice(0, lastSpace);
+}
+
+// The tail slice can start mid-sentence right after real punctuation (e.g.
+// "...window." + "BLOCKED..." slices to ". BLOCKED...") — placed right after
+// our own "…", a leading period/colon/etc. reads as doubled punctuation
+// ("….") rather than a clean continuation. Drop any leading non-word run.
+function trimLeadingPunctuation(s: string): string {
+  const stripped = s.replace(/^[^\w]+/, "");
+  return stripped === "" ? s : stripped;
 }
 
 // End-truncation alone hides the discriminating tail on signatures that share
@@ -48,7 +62,7 @@ function truncateSignatureMiddle(s: string, rawLen: number): string {
   const backendCut = rawLen >= BACKEND_HARD_CUT_LEN;
   if (s.length <= SIGNATURE_TRUNCATE_THRESHOLD && !backendCut) return s;
   const head = s.slice(0, SIGNATURE_HEAD_LEN);
-  const tail = trimToWordBoundary(s.slice(-SIGNATURE_TAIL_LEN));
+  const tail = trimTrailingPartialWord(trimLeadingPunctuation(s.slice(-SIGNATURE_TAIL_LEN)));
   return `${head}…${tail}…`;
 }
 
@@ -84,6 +98,32 @@ function TrendChip({ trend }: { trend: Trend }) {
   );
 }
 
+interface RowErrorBoundaryState {
+  hasError: boolean;
+}
+
+// A render error inside one row's expand panel (e.g. an unexpected field
+// shape from a version-skewed bundle/binary pairing) must never take down the
+// whole table with it. React error boundaries only exist as class components.
+class RowErrorBoundary extends Component<{ children: ReactNode }, RowErrorBoundaryState> {
+  state: RowErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): RowErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("HealthClustersTable: row detail failed to render", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <p className="text-sm text-err">Couldn't render this row's details.</p>;
+    }
+    return this.props.children;
+  }
+}
+
 function buildInvestigationPrompt(cluster: ErrorCluster): string {
   const first = cluster.evidence[0];
   const tools = cluster.affectedtools.join(", ") || "(none recorded)";
@@ -95,21 +135,25 @@ function buildInvestigationPrompt(cluster: ErrorCluster): string {
 }
 
 function ClusterDetail({ cluster }: { cluster: ErrorCluster }) {
+  // Belt-and-suspenders past the zod .default([]): a version-skewed binary
+  // predating the variants field must degrade to "no variants", never a crash.
+  const variants = cluster.variants ?? [];
+
   return (
     <div className="grid gap-4">
-      {cluster.variants.length > 1 && (
+      {variants.length > 1 && (
         <div>
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-faint">
-            Variants ({cluster.variants.length}) — merged family, verify these are the same cause
+            Variants ({variants.length}) — merged family, verify these are the same cause
           </div>
           <div className="grid gap-1.5 rounded-sm border border-border bg-panel-2 p-2">
-            {cluster.variants.map((v, i) => (
-              <div key={`${i}-${v.signature}`} className="flex items-start gap-3">
+            {variants.map((v, i) => (
+              <div key={`${i}-${v.signature ?? ""}`} className="flex items-start gap-3">
                 <span className="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
-                  {formatCount(v.count)}
+                  {formatCount(v.count ?? 0)}
                 </span>
                 <span className="whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
-                  {stripLeadingMarkup(v.signature).trim() || "(empty error)"}
+                  {stripLeadingMarkup(v.signature ?? "").trim() || "(empty error)"}
                 </span>
               </div>
             ))}
@@ -314,7 +358,9 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
                     {isOpen && (
                       <TableRow className="hover:bg-transparent">
                         <TableCell colSpan={COLS} className="bg-background/40 p-4">
-                          <ClusterDetail cluster={cluster} />
+                          <RowErrorBoundary>
+                            <ClusterDetail cluster={cluster} />
+                          </RowErrorBoundary>
                         </TableCell>
                       </TableRow>
                     )}
