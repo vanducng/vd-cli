@@ -11,7 +11,7 @@ import (
 // hookConds mirrors skillConds: the same session-level scope, applied to every
 // leg so the rollup and the error-share denominator agree on what is in range.
 func hookConds(f model.HookFilter) ([]string, []any) {
-	return skillConds(model.SkillFilter{Agent: f.Agent, Project: f.Project, Since: f.Since})
+	return skillConds(model.SkillFilter(f))
 }
 
 type hookKey struct{ name, event string }
