@@ -187,6 +187,16 @@ func (s *Service) Skills(ctx context.Context, f model.SkillFilter) (*model.Skill
 	return &model.SkillReport{Skills: rows}, nil
 }
 
+// Hooks rolls up hook executions with block rates and co-occurring error share.
+// Claude-only, like the underlying hook_execs.
+func (s *Service) Hooks(ctx context.Context, f model.HookFilter) (*model.HookReport, error) {
+	rows, err := s.st.Hooks(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	return &model.HookReport{Hooks: rows}, nil
+}
+
 // applyCost fills the money and cache-efficiency fields the store deliberately
 // knows nothing about. A model with no price entry leaves CostUSD nil, which
 // renders as "?" — never 0, which would read as free.

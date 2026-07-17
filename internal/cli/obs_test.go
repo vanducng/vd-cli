@@ -57,6 +57,38 @@ func TestRenderersStripTerminalEscapes(t *testing.T) {
 	if strings.ContainsRune(buf.String(), '\x1b') || strings.ContainsRune(buf.String(), '\a') {
 		t.Fatalf("renderSkills leaked escape bytes: %q", buf.String())
 	}
+
+	hooks := &model.HookReport{Hooks: []model.HookSummary{
+		{HookName: evil, Event: evil, Fires: 2, NonzeroExits: 1, BlockRate: 0.5},
+	}}
+	buf.Reset()
+	renderHooks(&buf, hooks)
+	if strings.ContainsRune(buf.String(), '\x1b') || strings.ContainsRune(buf.String(), '\a') {
+		t.Fatalf("renderHooks leaked escape bytes: %q", buf.String())
+	}
+}
+
+func TestRenderHooksColumns(t *testing.T) {
+	share := 0.42
+	rep := &model.HookReport{Hooks: []model.HookSummary{
+		{HookName: "scout-block", Event: "PreToolUse", Fires: 120, NonzeroExits: 50,
+			BlockRate: 0.4167, ErrShare: &share},
+	}}
+	var buf bytes.Buffer
+	renderHooks(&buf, rep)
+	out := buf.String()
+	for _, want := range []string{"scout-block", "PreToolUse", "41.7%", "42.0%", "claude-only"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("renderHooks output missing %q\n%s", want, out)
+		}
+	}
+
+	empty := &model.HookReport{}
+	buf.Reset()
+	renderHooks(&buf, empty)
+	if !strings.Contains(buf.String(), "no hook activity") {
+		t.Errorf("empty hook report should say so, got %q", buf.String())
+	}
 }
 
 func TestRenderSkillsColumnsAndNilRate(t *testing.T) {

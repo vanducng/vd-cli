@@ -250,6 +250,41 @@ type SkillFilter struct {
 	Since   time.Time `json:"since"`
 }
 
+// HookSummary is one row of `vd obs hooks`: a hook/event pair with how often it
+// fired, how often it exited nonzero, and — for gate-class hooks — the share of
+// same-turn tool errors that co-occur with its blocks. Claude Code only; Codex
+// emits no hook events.
+type HookSummary struct {
+	HookName     string   `json:"hookname"`
+	Event        string   `json:"event"`
+	Fires        int      `json:"fires"`
+	NonzeroExits int      `json:"nonzeroexits"`
+	BlockRate    float64  `json:"blockrate"`
+	ErrShare     *float64 `json:"errshare"`
+}
+
+// HookReport is the whole `vd obs hooks` answer, sorted by nonzero exits desc.
+type HookReport struct {
+	Hooks []HookSummary `json:"hooks"`
+}
+
+// MarshalJSON enforces the never-null rule for the hooks list.
+func (r HookReport) MarshalJSON() ([]byte, error) {
+	type report HookReport
+	v := report(r)
+	if v.Hooks == nil {
+		v.Hooks = []HookSummary{}
+	}
+	return json.Marshal(v)
+}
+
+// HookFilter scopes a hook rollup by the same session-level dimensions as skills.
+type HookFilter struct {
+	Agent   string    `json:"agent"`
+	Project string    `json:"project"`
+	Since   time.Time `json:"since"`
+}
+
 // UsageRow is one grouped bucket of `vd obs usage`.
 type UsageRow struct {
 	Date    string     `json:"date"`

@@ -33,7 +33,7 @@ from token counts, not a bill.`,
 		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
 	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd(),
-		newObsSkillsCmd(), newObsSyncCmd())
+		newObsSkillsCmd(), newObsHooksCmd(), newObsSyncCmd())
 	return cmd
 }
 
@@ -289,6 +289,63 @@ func pct(v *float64) string {
 		return "-"
 	}
 	return fmt.Sprintf("%.1f%%", *v*100)
+}
+
+func newObsHooksCmd() *cobra.Command {
+	var f obsFlags
+	var project string
+
+	cmd := &cobra.Command{
+		Use:   "hooks",
+		Short: "Hook fire counts, block rates and their share of tool errors",
+		Long: `Aggregate hook runs by hook and event: fires, nonzero exits (blocks), block
+rate, and the share of same-turn tool errors that co-occur with a block — the
+number that exposes a gate hook taxing tool calls.
+
+Claude Code only: Codex emits no hook events. Note that today obs ingests only
+successful hook runs, so blocks read as zero until failing-hook capture lands.`,
+		Args: cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			since, err := store.ParseSince(f.since)
+			if err != nil {
+				return err
+			}
+			svc, err := f.open(c.Context())
+			if err != nil {
+				return err
+			}
+			defer func() { _ = svc.Close() }()
+
+			rep, err := svc.Hooks(c.Context(), model.HookFilter{Agent: f.agent, Project: project, Since: since})
+			if err != nil {
+				return err
+			}
+			if f.asJSON {
+				return emitJSON(c.OutOrStdout(), rep)
+			}
+			renderHooks(c.OutOrStdout(), rep)
+			return nil
+		},
+	}
+	f.bind(cmd, "")
+	cmd.Flags().StringVar(&project, "project", "", "Filter by project name or cwd prefix")
+	return cmd
+}
+
+func renderHooks(w io.Writer, rep *model.HookReport) {
+	if len(rep.Hooks) == 0 {
+		_, _ = fmt.Fprintln(w, "  no hook activity in range")
+		return
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "  HOOK\tEVENT\tFIRES\tBLOCKS\tBLOCK%\tERR-SHARE")
+	for _, h := range rep.Hooks {
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%d\t%d\t%.1f%%\t%s\n",
+			trunc(sanitize(h.HookName), 28), trunc(sanitize(h.Event), 16), h.Fires,
+			h.NonzeroExits, h.BlockRate*100, pct(h.ErrShare))
+	}
+	_ = tw.Flush()
+	_, _ = fmt.Fprintln(w, "  claude-only · blocks = nonzero-exit hook runs; err-share = same-turn tool errors during blocks.")
 }
 
 func newObsSyncCmd() *cobra.Command {
