@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.11.1](https://github.com/vanducng/vd-cli/compare/v3.11.0...v3.11.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **obs:** derive codex session titles from first prompt with secret redaction ([#76](https://github.com/vanducng/vd-cli/issues/76)) ([c0790cf](https://github.com/vanducng/vd-cli/commit/c0790cf2d8836facc99a954e99e8afbef6e73b6c))
+
 ## [3.11.0](https://github.com/vanducng/vd-cli/compare/v3.10.0...v3.11.0) (2026-07-17)
 
 
