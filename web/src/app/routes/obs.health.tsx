@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -97,12 +98,7 @@ function HealthPage() {
             <SelectItem value="0d">all time</SelectItem>
           </SelectContent>
         </Select>
-        <Input
-          placeholder="Project: all"
-          value={search.project}
-          onChange={(e) => navigate({ search: (prev) => ({ ...prev, project: e.target.value }) })}
-          className="w-[160px]"
-        />
+        <ProjectFilter value={search.project} onChange={(v) => navigate({ search: (prev) => ({ ...prev, project: v }) })} />
       </div>
 
       <KpiStrip items={kpis} />
@@ -115,4 +111,20 @@ function HealthPage() {
       <HealthClustersTable clusters={data?.clusters ?? []} isLoading={isLoading} error={queryError} />
     </div>
   );
+}
+
+function ProjectFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [text, setText] = useState(value);
+
+  useEffect(() => setText(value), [value]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (text !== value) onChange(text);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
+
+  return <Input placeholder="Project: all" value={text} onChange={(e) => setText(e.target.value)} className="w-[160px]" />;
 }

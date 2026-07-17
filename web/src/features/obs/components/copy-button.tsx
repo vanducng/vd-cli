@@ -18,9 +18,13 @@ export function CopyButton({ value, label, className }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), FLASH_MS);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), FLASH_MS);
+    } catch {
+      /* clipboard unavailable (unfocused doc, insecure context) — leave the label unchanged */
+    }
   }
 
   return (

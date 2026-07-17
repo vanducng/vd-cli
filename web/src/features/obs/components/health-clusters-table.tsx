@@ -60,7 +60,8 @@ function trimLeadingPunctuation(s: string): string {
 // backend's 140-rune hard cut — ends with a single visible "…"; a signature
 // that fits whole keeps its true, untouched ending.
 function truncateSignatureMiddle(s: string, rawLen: number): string {
-  const backendCut = rawLen >= BACKEND_HARD_CUT_LEN;
+  // rawLen callers pass .length (UTF-16 units); backend cut is in runes — compare on code points
+  const backendCut = [...s].length >= BACKEND_HARD_CUT_LEN || rawLen >= BACKEND_HARD_CUT_LEN;
   if (s.length <= SIGNATURE_TRUNCATE_THRESHOLD && !backendCut) return s;
   const head = s.slice(0, SIGNATURE_HEAD_LEN);
   const tail = trimTrailingPartialWord(trimLeadingPunctuation(s.slice(-SIGNATURE_TAIL_LEN)));

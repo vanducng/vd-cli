@@ -53,7 +53,7 @@ func (s *Store) ErrorEvents(ctx context.Context, since, until time.Time, agent, 
 		LEFT JOIN tool_span_payloads tsp ON tsp.span_id = ts.id
 		LEFT JOIN windows w ON w.session_id = ts.session_id AND t.idx >= w.start_idx AND t.idx < w.end_idx
 		WHERE %s
-		ORDER BY t.started_at DESC`, cteWhere, strings.Join(conds, " AND "))
+		ORDER BY t.started_at DESC, ts.id`, cteWhere, strings.Join(conds, " AND "))
 
 	out := []ErrorEvent{}
 	err := s.scanRows(ctx, q, append(cteArgs, args...), func(sc scanner) error {

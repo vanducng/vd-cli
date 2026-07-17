@@ -1,6 +1,7 @@
 package obs
 
 import (
+	"strconv"
 	"context"
 	"sort"
 	"strings"
@@ -50,6 +51,9 @@ func (s *Service) Health(ctx context.Context, f model.HealthFilter) (*model.Heal
 	havePrev := !f.Since.IsZero()
 	if havePrev {
 		prevSince := f.Since.Add(-now.Sub(f.Since))
+		if prevSince.After(f.Since) {
+			prevSince = f.Since
+		}
 		prevEvents, err = s.st.ErrorEvents(ctx, prevSince, f.Since, f.Agent, f.Project)
 		if err != nil {
 			return nil, err
@@ -176,8 +180,12 @@ func (s *Service) buildCluster(key string, group []store.ErrorEvent, prevCount i
 		for _, sk := range e.Skills {
 			skillNames[sk] = true
 		}
-		if !seenTurns[e.TurnID] {
-			seenTurns[e.TurnID] = true
+		turnKey := e.TurnID
+		if turnKey == "" {
+			turnKey = e.SessionID + "#" + strconv.Itoa(e.TurnIndex)
+		}
+		if !seenTurns[turnKey] {
+			seenTurns[turnKey] = true
 			c.Evidence = append(c.Evidence, model.EvidenceRef{
 				SessionID: e.SessionID, TurnIndex: e.TurnIndex, TurnID: e.TurnID,
 			})
