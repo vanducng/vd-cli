@@ -1,32 +1,32 @@
 import { useState } from "react";
-import { Link, useSearch } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Activity, BarChart3, ChevronsLeft, ChevronsRight, Package, Stethoscope, Webhook } from "lucide-react";
 
 import { Brand } from "@/components/layout/brand";
 import { cn } from "@/lib/utils";
 
-type Tab = "skills" | "hooks" | "doctor" | "sessions" | "usage";
-
 interface NavItem {
-  tab: Tab;
+  to: "/skills" | "/hooks" | "/doctor";
   label: string;
   icon: typeof Package;
 }
 
 const CONTROL_PLANE: NavItem[] = [
-  { tab: "skills", label: "Skills", icon: Package },
-  { tab: "hooks", label: "Hooks", icon: Webhook },
-  { tab: "doctor", label: "Doctor", icon: Stethoscope },
+  { to: "/skills", label: "Skills", icon: Package },
+  { to: "/hooks", label: "Hooks", icon: Webhook },
+  { to: "/doctor", label: "Doctor", icon: Stethoscope },
 ];
 
-const OBSERVABILITY: NavItem[] = [
-  { tab: "sessions", label: "Sessions", icon: Activity },
-  { tab: "usage", label: "Usage", icon: BarChart3 },
+// No /obs/* routes exist yet (phase-04/05); render as disabled entries rather than
+// Links to a path the generated route tree doesn't know about.
+const OBSERVABILITY: { label: string; icon: typeof Activity }[] = [
+  { label: "Sessions", icon: Activity },
+  { label: "Usage", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const { tab: activeTab } = useSearch({ from: "/" });
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
     <aside
@@ -37,8 +37,35 @@ export function AppSidebar() {
     >
       {!collapsed && <Brand />}
       <nav className="flex-1 px-2">
-        <NavGroup label="Control plane" items={CONTROL_PLANE} activeTab={activeTab} collapsed={collapsed} />
-        <NavGroup label="Observability" items={OBSERVABILITY} activeTab={activeTab} collapsed={collapsed} />
+        <div className="mb-4">
+          {!collapsed && <div className="mb-1 px-3 text-xs uppercase tracking-wide text-faint">Control plane</div>}
+          {CONTROL_PLANE.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className={cn(
+                "flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-muted-foreground hover:text-foreground",
+                pathname.startsWith(to) && "bg-panel-2 text-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>{label}</span>}
+            </Link>
+          ))}
+        </div>
+        <div className="mb-4">
+          {!collapsed && <div className="mb-1 px-3 text-xs uppercase tracking-wide text-faint">Observability</div>}
+          {OBSERVABILITY.map(({ label, icon: Icon }) => (
+            <div
+              key={label}
+              className="flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-faint opacity-60"
+              title="Ships in a later phase"
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>{label}</span>}
+            </div>
+          ))}
+        </div>
       </nav>
       <button
         type="button"
@@ -49,39 +76,5 @@ export function AppSidebar() {
         {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
       </button>
     </aside>
-  );
-}
-
-function NavGroup({
-  label,
-  items,
-  activeTab,
-  collapsed,
-}: {
-  label: string;
-  items: NavItem[];
-  activeTab: Tab;
-  collapsed: boolean;
-}) {
-  return (
-    <div className="mb-4">
-      {!collapsed && (
-        <div className="mb-1 px-3 text-xs uppercase tracking-wide text-faint">{label}</div>
-      )}
-      {items.map(({ tab, label: itemLabel, icon: Icon }) => (
-        <Link
-          key={tab}
-          to="/"
-          search={{ tab }}
-          className={cn(
-            "flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-muted-foreground hover:text-foreground",
-            activeTab === tab && "bg-panel-2 text-foreground",
-          )}
-        >
-          <Icon className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>{itemLabel}</span>}
-        </Link>
-      ))}
-    </div>
   );
 }
