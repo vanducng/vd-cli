@@ -9,8 +9,15 @@ title: "vd obs — observability"
 - `vd obs sessions [--agent claude-code|codex] [--project <p>] [--since 7d] [--json]` — one list across both agents: title, model, turns, tokens, estimated cost.
 - `vd obs show <id-or-prefix> [--turns N] [--json]` — a session turn by turn: prompts, tool calls, hook timings, subagent rollups.
 - `vd obs usage [--daily|--monthly] [--agent …] [--since 3d] [--json]` — tokens and estimated cost grouped by day or month, per model.
+- `vd obs skills [--agent …] [--project <p>] [--since …] [--json]` — per-skill tool calls, error rate, corrections, aborts and tokens across both agents.
+- `vd obs hooks [--agent …] [--project <p>] [--since …] [--json]` — hook fire counts, block rates and their share of same-turn tool errors (Claude-only).
+- `vd obs sync [--full] [--agent …] [--since …]` — fold new or changed transcripts into the cache. `--full` drops the cache and re-reads everything (use it after upgrading past an ingest change so historical rollouts are re-parsed).
 
 Costs are labeled **API-equivalent** — computed from token counts, not a subscription bill. An unpriced model renders `?`, never `$0.00`. Add rates in `~/.vd/obs/prices.json` to override the built-in table.
+
+### Skill attribution
+
+`vd obs skills` attributes work **per invocation**: a skill owns the turns from its invocation to the next invocation in the same session (or session end); the tool calls, errors, tokens and correction/abort signals inside that window count toward it. Activity before any invocation, or in a session that invoked no skill, lands in the `(none)` bucket. Counting by session broadcast instead overcounts several-fold, so the rollup never does. `CORR` (user push-backs) and `ABRT` (interrupt marker) are query-time correctness proxies — they flag candidates, not proven fault, and no raw prompt text ever enters an aggregate. Codex skill invocations come from the `$name` / `$vd:name` text convention, validated against the installed-skill registry so shell noise never counts.
 
 ## Web portal
 
@@ -19,6 +26,7 @@ Costs are labeled **API-equivalent** — computed from token counts, not a subsc
 - **Sessions** — filterable table (agent, since, project) with server-side paging.
 - **Session transcript** (`/obs/sessions/:id`) — chat bubbles, tool blocks (errors expanded), a hook timeline that flags any PreToolUse hook over its 100ms budget, and subagent rollups. Deep-linkable.
 - **Usage** — cost-over-time chart stacked by model, with a per-model breakdown and an explicit warning for any unpriced model.
+- **Skill health** (`/obs/skills`) — the per-invocation skills rollup, same columns as `vd obs skills`, with agent and since filters.
 
 ## How it fits together
 
@@ -38,7 +46,8 @@ One Go core, three surfaces. Parsing and cost live in `obs.Service`; the CLI cal
               ┌────────────────────┴────────────────────┐
               ▼                                          ▼
      internal/cli/obs.go                internal/ui/web/obs_handlers.go
-     vd obs sessions|show|usage         GET /api/obs/sessions|…/{id}|usage
+     vd obs sessions|show|usage|        GET /api/obs/sessions|…/{id}|usage|
+     skills|hooks|sync                      skills|hooks
                                                          ▼
                                             web/  React portal (SPA)
 ```

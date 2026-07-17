@@ -1,1 +1,0 @@
-import{j as e}from"./index-B8UvGq-N.js";function m({title:t,subtitle:s}){return e.jsx("div",{className:"mb-6 flex items-center justify-between",children:e.jsxs("div",{children:[e.jsx("h1",{className:"text-xl font-semibold",children:t}),s&&e.jsx("p",{className:"mt-0.5 text-sm text-muted-foreground",children:s})]})})}export{m as T};

@@ -4,8 +4,10 @@ import { apiClient } from "@/lib/api-client";
 import {
   sessionDetailSchema,
   sessionListSchema,
+  skillReportSchema,
   usageReportSchema,
   type SessionFilter,
+  type SkillFilter,
   type UsageFilter,
 } from "@/features/obs/schemas";
 
@@ -19,6 +21,7 @@ export const obsKeys = {
   sessions: (filter: SessionFilter) => [...obsKeys.all, "sessions", filter] as const,
   session: (id: string, filter: SessionDetailFilter = {}) => [...obsKeys.all, "session", id, filter] as const,
   usage: (filter: UsageFilter) => [...obsKeys.all, "usage", filter] as const,
+  skills: (filter: SkillFilter) => [...obsKeys.all, "skills", filter] as const,
 };
 
 // The API's 404 body is {"error": "obs: session not found"} (obs.ErrNotFound).
@@ -79,6 +82,17 @@ export function usageQuery(filter: UsageFilter) {
       const qs = buildQuery({ group: filter.group, agent: filter.agent, since: filter.since });
       const raw = await apiClient.get<unknown>(`/api/obs/usage${qs}`);
       return usageReportSchema.parse(raw);
+    },
+  });
+}
+
+export function skillsQuery(filter: SkillFilter) {
+  return queryOptions({
+    queryKey: obsKeys.skills(filter),
+    queryFn: async () => {
+      const qs = buildQuery({ agent: filter.agent, project: filter.project, since: filter.since });
+      const raw = await apiClient.get<unknown>(`/api/obs/skills${qs}`);
+      return skillReportSchema.parse(raw);
     },
   });
 }

@@ -32,7 +32,8 @@ from token counts, not a bill.`,
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
-	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd())
+	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd(),
+		newObsSkillsCmd(), newObsHooksCmd(), newObsSyncCmd())
 	return cmd
 }
 
@@ -211,6 +212,205 @@ func newObsUsageCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&daily, "daily", true, "Group by day")
 	cmd.Flags().BoolVar(&monthly, "monthly", false, "Group by month")
 	return cmd
+}
+
+func newObsSkillsCmd() *cobra.Command {
+	var f obsFlags
+	var project string
+
+	cmd := &cobra.Command{
+		Use:   "skills",
+		Short: "Per-skill tool activity and error rates across both agents",
+		Long: `Roll up tool calls, errors and tokens by the skill invoked at each turn.
+
+Attribution is per invocation: a skill owns the turns from its invocation to the
+next invocation in the same session (or session end). Counting by session
+broadcast instead overcounts several-fold — this view never does. The (none) row
+is activity before any skill was invoked, or in sessions that invoked none.`,
+		Args: cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			since, err := store.ParseSince(f.since)
+			if err != nil {
+				return err
+			}
+			svc, err := f.open(c.Context())
+			if err != nil {
+				return err
+			}
+			defer func() { _ = svc.Close() }()
+
+			rep, err := svc.Skills(c.Context(), model.SkillFilter{Agent: f.agent, Project: project, Since: since})
+			if err != nil {
+				return err
+			}
+			if f.asJSON {
+				return emitJSON(c.OutOrStdout(), rep)
+			}
+			renderSkills(c.OutOrStdout(), rep)
+			return nil
+		},
+	}
+	f.bind(cmd, "")
+	cmd.Flags().StringVar(&project, "project", "", "Filter by project name or cwd prefix")
+	return cmd
+}
+
+func renderSkills(w io.Writer, rep *model.SkillReport) {
+	if len(rep.Skills) == 0 {
+		_, _ = fmt.Fprintln(w, "  no skill activity in range")
+		return
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "  SKILL\tAGENTS\tINV\tSESS\tSOLO\tCALLS\tERRS\tERR%\tCORR\tABRT\tTOKENS")
+	for _, s := range rep.Skills {
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%s\n",
+			trunc(sanitize(s.Name), 20), shortAgents(s.Agents), s.Invocations, s.Sessions,
+			s.SoloSessions, s.ToolCalls, s.ToolErrors, pct(s.ErrRate), s.Corrections, s.Aborts,
+			humanTokens(s.Tokens))
+	}
+	_ = tw.Flush()
+	_, _ = fmt.Fprintln(w, "  attribution = invocation → next invocation; (none) = pre-invocation or no-skill activity.")
+	_, _ = fmt.Fprintln(w, "  CORR = user push-backs · ABRT = interrupt marker · counters flag candidates, not proven fault.")
+}
+
+// shortAgents renders a skill's agents compactly (claude+codex), or "-" for none.
+func shortAgents(agents []string) string {
+	if len(agents) == 0 {
+		return "-"
+	}
+	parts := make([]string, len(agents))
+	for i, a := range agents {
+		parts[i] = shortAgent(a)
+	}
+	return strings.Join(parts, "+")
+}
+
+// pct renders a nil rate as "-" (no calls yet) rather than a misleading 0%.
+func pct(v *float64) string {
+	if v == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%.1f%%", *v*100)
+}
+
+func newObsHooksCmd() *cobra.Command {
+	var f obsFlags
+	var project string
+
+	cmd := &cobra.Command{
+		Use:   "hooks",
+		Short: "Hook fire counts, block rates and their share of tool errors",
+		Long: `Aggregate hook runs by hook and event: fires, nonzero exits (blocks), block
+rate, and the share of same-turn tool errors that co-occur with a block — the
+number that exposes a gate hook taxing tool calls.
+
+Claude Code only: Codex emits no hook events. Note that today obs ingests only
+successful hook runs, so blocks read as zero until failing-hook capture lands.`,
+		Args: cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			since, err := store.ParseSince(f.since)
+			if err != nil {
+				return err
+			}
+			svc, err := f.open(c.Context())
+			if err != nil {
+				return err
+			}
+			defer func() { _ = svc.Close() }()
+
+			rep, err := svc.Hooks(c.Context(), model.HookFilter{Agent: f.agent, Project: project, Since: since})
+			if err != nil {
+				return err
+			}
+			if f.asJSON {
+				return emitJSON(c.OutOrStdout(), rep)
+			}
+			renderHooks(c.OutOrStdout(), rep)
+			return nil
+		},
+	}
+	f.bind(cmd, "")
+	cmd.Flags().StringVar(&project, "project", "", "Filter by project name or cwd prefix")
+	return cmd
+}
+
+func renderHooks(w io.Writer, rep *model.HookReport) {
+	if len(rep.Hooks) == 0 {
+		_, _ = fmt.Fprintln(w, "  no hook activity in range")
+		return
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "  HOOK\tEVENT\tFIRES\tBLOCKS\tBLOCK%\tERR-SHARE")
+	for _, h := range rep.Hooks {
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%d\t%d\t%s\t%s\n",
+			trunc(sanitize(h.HookName), 28), trunc(sanitize(h.Event), 16), h.Fires,
+			h.NonzeroExits, pct(h.BlockRate), pct(h.ErrShare))
+	}
+	_ = tw.Flush()
+	_, _ = fmt.Fprintln(w, "  claude-only · blocks = nonzero-exit hook runs; err-share = same-turn tool errors during blocks.")
+}
+
+func newObsSyncCmd() *cobra.Command {
+	var f obsFlags
+	var full bool
+
+	cmd := &cobra.Command{
+		Use:   "sync",
+		Short: "Ingest new or changed transcripts into the local cache",
+		Long: `Scan ~/.claude and ~/.codex for new or changed transcripts and fold them into
+the obs cache. Incremental by default: unchanged files are skipped by watermark.
+
+--full drops the derived cache and re-reads every transcript from scratch,
+ignoring watermarks and --since. Use it after an ingest change (e.g. new Codex
+skill parsing) so historical rollouts already past their watermark are re-read.`,
+		Args: cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			if err := checkAgentFlag(f.agent); err != nil {
+				return err
+			}
+			// --full ignores --since (help text says so), so do not even parse it:
+			// a bad --since must not error a run that would have discarded it.
+			var since time.Time
+			if !full {
+				var err error
+				if since, err = store.ParseSince(f.since); err != nil {
+					return err
+				}
+			}
+			svc, err := obs.NewService("")
+			if err != nil {
+				return err
+			}
+			defer func() { _ = svc.Close() }()
+
+			opts := ingest.SyncOptions{Full: full, Since: since}
+			if f.agent != "" {
+				opts.Agents = []string{f.agent}
+			}
+			stats, err := svc.Sync(c.Context(), opts)
+			if err != nil {
+				return err
+			}
+			if f.asJSON {
+				return emitJSON(c.OutOrStdout(), stats)
+			}
+			renderSyncStats(c.OutOrStdout(), stats)
+			return nil
+		},
+	}
+	fl := cmd.Flags()
+	fl.StringVar(&f.agent, "agent", "", "Only this agent: claude-code or codex")
+	fl.StringVar(&f.since, "since", "", "Only transcripts modified since this time (e.g. 7d, 24h, RFC3339)")
+	fl.BoolVar(&f.asJSON, "json", false, "Emit sync stats as JSON")
+	fl.BoolVar(&full, "full", false, "Drop the cache and re-read every transcript (ignores watermarks and --since)")
+	return cmd
+}
+
+func renderSyncStats(w io.Writer, s ingest.SyncStats) {
+	_, _ = fmt.Fprintf(w,
+		"  sync  %d files · %d parsed · %d cached · %d errored · %d sessions · %d turns · %d unknown records   %s\n",
+		s.FilesScanned, s.FilesParsed, s.Skipped, s.Errored, s.Sessions, s.Turns, s.UnknownRecords,
+		s.Elapsed.Round(time.Millisecond))
 }
 
 func emitJSON(w io.Writer, v any) error {

@@ -1,10 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, BarChart3, Package, Stethoscope, Webhook } from "lucide-react";
+import { Activity, BarChart3, Gauge, Package, Stethoscope, Webhook } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-  to: "/skills" | "/hooks" | "/doctor" | "/obs/sessions" | "/obs/usage";
+  to: "/skills" | "/hooks" | "/doctor" | "/obs/sessions" | "/obs/usage" | "/obs/skills";
   label: string;
   icon: typeof Package;
 }
@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
   { to: "/doctor", label: "Doctor", icon: Stethoscope },
   { to: "/obs/sessions", label: "Sessions", icon: Activity },
   { to: "/obs/usage", label: "Usage", icon: BarChart3 },
+  { to: "/obs/skills", label: "Skill health", icon: Gauge },
 ];
 
 /** Sticky console chrome: brand, view tabs, live-local status chip. Replaces the

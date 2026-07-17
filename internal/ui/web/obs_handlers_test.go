@@ -42,7 +42,8 @@ func TestSPARouteStillServesIndex(t *testing.T) {
 // A nil obs service must not panic a handler.
 func TestObsRoutesReport503WhenUnwired(t *testing.T) {
 	h := obsTestServer(t)
-	for _, p := range []string{"/api/obs/sessions", "/api/obs/usage", "/api/obs/sessions/abc12345"} {
+	for _, p := range []string{"/api/obs/sessions", "/api/obs/usage", "/api/obs/sessions/abc12345",
+		"/api/obs/skills", "/api/obs/hooks"} {
 		if w := get(t, h, p); w.Code != http.StatusServiceUnavailable {
 			t.Errorf("GET %s = %d, want 503", p, w.Code)
 		}
@@ -61,6 +62,10 @@ func TestObsBadParamsAre400(t *testing.T) {
 		"/api/obs/sessions?limit=abc",
 		"/api/obs/usage?group=hourly",
 		"/api/obs/usage?agent=bogus",
+		"/api/obs/skills?agent=bogus",
+		"/api/obs/skills?since=yesterday",
+		"/api/obs/hooks?agent=bogus",
+		"/api/obs/hooks?since=nope",
 	}
 	for _, p := range bad {
 		w := get(t, h, p)
@@ -83,6 +88,8 @@ func TestObsValidParamsReachTheService(t *testing.T) {
 		"/api/obs/sessions?agent=claude-code&since=7d&limit=10&offset=5&sort=oldest&q=x&project=vd-cli",
 		"/api/obs/sessions?since=2026-07-01T00:00:00Z",
 		"/api/obs/usage?group=monthly&agent=codex",
+		"/api/obs/skills?agent=codex&since=30d&project=vd-cli",
+		"/api/obs/hooks?agent=claude-code&since=7d",
 	}
 	for _, p := range ok {
 		if w := get(t, h, p); w.Code != http.StatusServiceUnavailable {

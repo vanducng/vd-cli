@@ -39,9 +39,14 @@ func EnumerateCodex(root string) ([]string, error) {
 // mid-file resume would re-emit a turn carrying only post-offset tokens, and the
 // store's upsert replaces rather than merges, so stored totals would shrink.
 // Sync skips unchanged files instead.
-func ParseCodex(r io.Reader, st *ScanState) (model.Record, int64, error) {
+//
+// reg is the installed-skill filter for the `$name` invocation convention in user
+// messages; a nil registry parses no skills, which is the right default for the
+// tests and callers that do not care about them.
+func ParseCodex(r io.Reader, st *ScanState, reg SkillRegistry) (model.Record, int64, error) {
 	p := &codexParser{
 		st:     st,
+		reg:    reg,
 		byID:   map[string]*codexTurn{},
 		calls:  map[string]*model.ToolSpan{},
 		callAt: map[string]time.Time{},
@@ -122,11 +127,14 @@ type codexTurn struct {
 
 type codexParser struct {
 	st         *ScanState
+	reg        SkillRegistry
 	sess       model.Session
 	turns      []*codexTurn
 	byID       map[string]*codexTurn
 	cur        *codexTurn
 	spans      []*model.ToolSpan
+	skills     []model.Skill
+	skillSeq   map[string]int
 	calls      map[string]*model.ToolSpan
 	callAt     map[string]time.Time
 	last       time.Time
@@ -250,6 +258,23 @@ func (p *codexParser) userMessage(msg string) {
 		t = p.open("", false)
 	}
 	t.prompts = append(t.prompts, msg)
+	p.recordSkills(t, msg)
+}
+
+// recordSkills emits a Skill per registered `$name` token in the message. seq
+// disambiguates a name invoked twice in one turn, so the (turn, name, seq) PK
+// does not collapse the repeats. TurnID is the raw turn id; namespaceTurnIDs
+// prefixes it with the session id afterward, exactly as it does for tool spans.
+func (p *codexParser) recordSkills(t *codexTurn, msg string) {
+	for _, name := range p.reg.matchSkills(msg) {
+		if p.skillSeq == nil {
+			p.skillSeq = map[string]int{}
+		}
+		key := t.id + "|" + name
+		seq := p.skillSeq[key]
+		p.skillSeq[key] = seq + 1
+		p.skills = append(p.skills, model.Skill{TurnID: t.id, Name: name, Seq: seq})
+	}
 }
 
 func (p *codexParser) toolCall(rec codexRecord) {
@@ -337,6 +362,7 @@ func (p *codexParser) record() model.Record {
 	for _, sp := range p.spans {
 		rec.ToolSpans = append(rec.ToolSpans, *sp)
 	}
+	rec.Skills = p.skills
 	return rec
 }
 
