@@ -127,8 +127,9 @@ After these five commands:
 | `vd hooks uninstall\|rollback` | Manage installed hooks |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |
 | `vd context print` | Print the resolved VD path/naming context |
-| `vd web` | Launch a local web UI to review skills, discovered `~/.claude` assets, and hooks |
+| `vd web` | Launch a local web UI to review skills, discovered `~/.claude` assets, hooks, and agent observability |
 | `vd tui` | Browse the same inventory in an interactive terminal UI |
+| `vd obs sessions\|show\|usage` | Observe local Claude Code + Codex sessions: tokens, tool calls, and API-equivalent cost |
 
 Run `vd <command> --help` on any verb for flags, examples, and exit codes.
 
