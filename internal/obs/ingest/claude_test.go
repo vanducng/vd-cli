@@ -457,3 +457,28 @@ func TestClaudeStreamingUsageBillsFinalTotals(t *testing.T) {
 		t.Fatalf("tokens = %+v, want %+v (final streaming totals, billed once)", got, want)
 	}
 }
+
+// v5 added seq to the hook/skill PKs so repeated fires in one turn don't collapse;
+// the parser must actually number them or the upsert still overwrites.
+func TestClaudeRepeatedHooksGetDistinctSeq(t *testing.T) {
+	sid := "dddddddd-4444-4444-8444-dddddddddddd"
+	line := func(dur int) string {
+		return `{"type":"attachment","sessionId":"` + sid + `","promptId":"p1","timestamp":"2026-07-15T10:00:0` + itoa(dur) + `.000Z","attachment":{"type":"hook_success","hookName":"guard","hookEvent":"PostToolUse","durationMs":` + itoa(dur*10) + `,"exitCode":0}}`
+	}
+	jsonl := `{"type":"user","sessionId":"` + sid + `","promptId":"p1","timestamp":"2026-07-15T10:00:00.000Z","message":{"content":"go"},"origin":{"kind":"human"}}
+` + line(1) + "\n" + line(2) + "\n" + line(3) + "\n"
+	rec, _, err := ParseClaude(strings.NewReader(jsonl), &ScanState{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.HookExecs) != 3 {
+		t.Fatalf("hook execs = %d, want 3", len(rec.HookExecs))
+	}
+	seqs := map[int]bool{}
+	for _, h := range rec.HookExecs {
+		if seqs[h.Seq] {
+			t.Fatalf("duplicate Seq %d — repeats would collapse in the store", h.Seq)
+		}
+		seqs[h.Seq] = true
+	}
+}

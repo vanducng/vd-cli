@@ -156,6 +156,8 @@ type claudeParser struct {
 	turnKey   string
 	spans     map[string]int
 	billed    map[string]model.TokenUsage
+	hookSeq   map[string]int
+	skillSeq  map[string]int
 	lastTS    time.Time
 }
 
@@ -331,10 +333,17 @@ func (p *claudeParser) attachment(l *claudeLine) {
 	if t == nil {
 		return
 	}
+	if p.hookSeq == nil {
+		p.hookSeq = map[string]int{}
+	}
+	key := t.ID + "|" + l.Attachment.HookName + "|" + l.Attachment.HookEvent
+	seq := p.hookSeq[key]
+	p.hookSeq[key] = seq + 1
 	p.rec.HookExecs = append(p.rec.HookExecs, model.HookExec{
 		TurnID:     t.ID,
 		HookName:   l.Attachment.HookName,
 		Event:      l.Attachment.HookEvent,
+		Seq:        seq,
 		DurationMs: l.Attachment.DurationMs,
 		ExitCode:   l.Attachment.ExitCode,
 	})
@@ -355,8 +364,14 @@ func (p *claudeParser) toolUse(turnID string, b *claudeBlock) {
 	case "Skill":
 		var in claudeSkillInput
 		if err := json.Unmarshal(b.Input, &in); err == nil && in.Skill != "" {
+			if p.skillSeq == nil {
+				p.skillSeq = map[string]int{}
+			}
+			sk := turnID + "|" + in.Skill
+			seq := p.skillSeq[sk]
+			p.skillSeq[sk] = seq + 1
 			p.rec.Skills = append(p.rec.Skills, model.Skill{
-				TurnID: turnID, Name: in.Skill, Args: in.Args,
+				TurnID: turnID, Name: in.Skill, Seq: seq, Args: in.Args,
 			})
 		}
 	case "Task", "Agent":
