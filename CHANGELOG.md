@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.10.0](https://github.com/vanducng/vd-cli/compare/v3.9.0...v3.10.0) (2026-07-17)
+
+
+### Features
+
+* **web:** redesign portal into an agent-management console — judged 9.5/10 ([#72](https://github.com/vanducng/vd-cli/issues/72)) ([0a5405e](https://github.com/vanducng/vd-cli/commit/0a5405e219fde0ee4749694509dc6a0309e9c634))
+
 ## [3.9.0](https://github.com/vanducng/vd-cli/compare/v3.8.0...v3.9.0) (2026-07-17)
 
 
