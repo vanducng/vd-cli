@@ -22,9 +22,21 @@ interface FilterBarProps {
 }
 
 // Compact toolbar (search + selects); fastreact rule 8 forbids the old flat pill row.
+// Sticky under the top nav (top-14 matches its h-14); negative margins bleed it to the
+// content column edges so the blurred bar reads as a full-width bar, not an inset card.
 export function FilterBar(props: FilterBarProps) {
   return (
-    <div className="mb-4 flex flex-wrap gap-2">
+    <div className="sticky top-14 z-20 -mx-4 mb-4 border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+      <div className="flex flex-wrap gap-2">
+        <FilterBarControls {...props} />
+      </div>
+    </div>
+  );
+}
+
+function FilterBarControls(props: FilterBarProps) {
+  return (
+    <>
       <Input
         type="search"
         placeholder="Search name, description, source..."
@@ -101,6 +113,6 @@ export function FilterBar(props: FilterBarProps) {
           <List className="h-4 w-4" />
         </Button>
       </div>
-    </div>
+    </>
   );
 }

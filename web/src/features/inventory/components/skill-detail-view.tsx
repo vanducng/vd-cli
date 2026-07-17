@@ -27,18 +27,18 @@ export function SkillDetailView({ name, onBack }: SkillDetailViewProps) {
           </h2>
           <p className="mb-4 font-mono text-xs text-muted-foreground">{data.path}</p>
           {data.frontmatter && Object.keys(data.frontmatter).length > 0 && (
-            <table className="mb-4 w-full text-sm">
+            <table className="mb-4 w-full rounded-md border border-border bg-panel text-sm">
               <tbody>
                 {Object.entries(data.frontmatter).map(([k, v]) => (
-                  <tr key={k} className="border-b border-border/55">
-                    <th className="w-1/4 py-1.5 pr-3 text-left font-medium text-faint">{k}</th>
-                    <td className="py-1.5">{typeof v === "string" ? v : JSON.stringify(v)}</td>
+                  <tr key={k} className="border-b border-border/55 last:border-b-0">
+                    <th className="w-1/4 py-1.5 pl-3 pr-3 text-left font-medium text-faint">{k}</th>
+                    <td className="py-1.5 pr-3">{typeof v === "string" ? v : JSON.stringify(v)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
-          <div className="text-sm leading-relaxed">
+          <div className="rounded-md border border-border bg-panel p-4 text-sm leading-relaxed">
             <ReactMarkdown>{data.body}</ReactMarkdown>
           </div>
         </>

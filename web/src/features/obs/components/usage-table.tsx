@@ -24,7 +24,7 @@ const COLS = 8;
  * DATE AGENT MODEL INPUT OUTPUT CACHE R CACHE W EST $ table. */
 export function UsageTable({ rows, totals, totalCostUsd, isLoading, error }: UsageTableProps) {
   return (
-    <div className="overflow-x-auto rounded-md border border-border">
+    <div className="overflow-x-auto rounded-md border border-border bg-panel">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -64,7 +64,9 @@ export function UsageTable({ rows, totals, totalCostUsd, isLoading, error }: Usa
           ) : (
             rows.map((row, i) => (
               <TableRow key={`${row.date}-${row.agent}-${row.model}-${i}`}>
-                <TableCell className="font-mono text-muted-foreground">{row.date}</TableCell>
+                <TableCell className="font-mono text-muted-foreground">
+                  {i > 0 && rows[i - 1].date === row.date ? "" : row.date}
+                </TableCell>
                 <TableCell>
                   <AgentBadge agent={row.agent} />
                 </TableCell>

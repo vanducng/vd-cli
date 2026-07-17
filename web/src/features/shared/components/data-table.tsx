@@ -56,9 +56,9 @@ export function DataTable<TData, TValue>({
     <div className={cn("flex flex-col gap-3", className)}>
       {toolbar && <div className="flex flex-wrap gap-2">{toolbar}</div>}
 
-      <div className="overflow-x-auto rounded-md border border-border">
+      <div className="max-h-[75vh] overflow-auto rounded-md border border-border">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-panel">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
                 {headerGroup.headers.map((header) => (
@@ -112,18 +112,68 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between pt-1 text-sm text-muted-foreground">
-        <span>
-          Page {table.getState().pagination.pageIndex + 1} of {Math.max(1, table.getPageCount())}
+      <PaginationBar
+        offset={table.getState().pagination.pageIndex * table.getState().pagination.pageSize}
+        pageSize={table.getState().pagination.pageSize}
+        total={data.length}
+        canPrev={table.getCanPreviousPage()}
+        canNext={table.getCanNextPage()}
+        onPrev={() => table.previousPage()}
+        onNext={() => table.nextPage()}
+        onPageSize={(n) => table.setPageSize(n)}
+      />
+    </div>
+  );
+}
+
+interface PaginationBarProps {
+  offset: number;
+  pageSize: number;
+  total: number;
+  canPrev: boolean;
+  canNext: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  onPageSize?: (n: number) => void;
+}
+
+/** Rows selector · "1–25 of 174" · Prev/Next.
+ * Shared by client-paged DataTable and the server-paged sessions view. */
+export function PaginationBar({ offset, pageSize, total, canPrev, canNext, onPrev, onNext, onPageSize }: PaginationBarProps) {
+  const start = total === 0 ? 0 : offset + 1;
+  const end = Math.min(offset + pageSize, total);
+
+  return (
+    <div className="flex items-center justify-between gap-3 pt-1 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2">
+        {onPageSize && (
+          <>
+            <span className="text-xs uppercase tracking-wide text-faint">Rows</span>
+            <select
+              className="h-8 rounded-sm border border-border bg-panel px-2 text-sm text-foreground"
+              value={pageSize}
+              onChange={(e) => onPageSize(Number(e.target.value))}
+              aria-label="Rows per page"
+            >
+              {[10, 25, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        <span className="tabular-nums">
+          {start}–{end} of {total}
         </span>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-            Previous
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-            Next
-          </Button>
-        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={onPrev} disabled={!canPrev}>
+          Prev
+        </Button>
+        <Button variant="outline" size="sm" onClick={onNext} disabled={!canNext}>
+          Next
+        </Button>
       </div>
     </div>
   );

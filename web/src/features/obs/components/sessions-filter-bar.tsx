@@ -36,7 +36,7 @@ export function SessionsFilterBar({ value, onChange }: SessionsFilterBarProps) {
   }, [search]);
 
   return (
-    <div className="flex flex-1 flex-wrap gap-2">
+    <div className="sticky top-14 z-20 -mx-1 flex flex-wrap items-center gap-2 bg-background/90 px-1 py-2 backdrop-blur">
       <Input
         type="search"
         placeholder="Search title or cwd…"

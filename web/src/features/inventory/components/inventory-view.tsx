@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInventory } from "../queries";
+import { groupAssets, type GroupedAsset } from "../group-assets";
 import { AssetGrid } from "./asset-grid";
 import { FilterBar } from "./filter-bar";
 import { StatBar } from "./stat-bar";
@@ -40,8 +41,11 @@ export function InventoryView({ onOpen }: InventoryViewProps) {
       const q = query.toLowerCase();
       r = r.filter((x) => `${x.name} ${x.description} ${x.source ?? ""}`.toLowerCase().includes(q));
     }
-    return sortRows(r, sort);
-  }, [all, type, platform, scope, query, sort]);
+    return r;
+  }, [all, type, platform, scope, query]);
+
+  const groupedAll = useMemo(() => groupAssets(all), [all]);
+  const groupedRows = useMemo(() => sortGrouped(groupAssets(rows), sort), [rows, sort]);
 
   if (error) {
     return <p className="text-sm text-err">{error.message}</p>;
@@ -63,7 +67,7 @@ export function InventoryView({ onOpen }: InventoryViewProps) {
 
   return (
     <div>
-      <StatBar rows={all} />
+      <StatBar assets={groupedAll} />
       <FilterBar
         type={type}
         setType={setType}
@@ -79,18 +83,22 @@ export function InventoryView({ onOpen }: InventoryViewProps) {
         setView={setView}
       />
       <p className="mb-3 text-sm text-muted-foreground">
-        {rows.length} of {all.length}
+        {groupedRows.length} of {groupedAll.length}
       </p>
-      <AssetGrid rows={rows} view={view} onOpen={onOpen} />
+      <AssetGrid assets={groupedRows} view={view} onOpen={onOpen} />
     </div>
   );
 }
 
-function sortRows(r: Row[], sort: string): Row[] {
-  const s = [...r];
+function sortGrouped(items: GroupedAsset[], sort: string): GroupedAsset[] {
+  const s = [...items];
   s.sort((a, b) => {
     if (sort === "type" && a.type !== b.type) return a.type < b.type ? -1 : 1;
-    if (sort === "platform" && a.platform !== b.platform) return a.platform < b.platform ? -1 : 1;
+    if (sort === "platform") {
+      const pa = a.platforms.join(",");
+      const pb = b.platforms.join(",");
+      if (pa !== pb) return pa < pb ? -1 : 1;
+    }
     if (sort === "drift") {
       const da = hasDrift(a.drift) ? 0 : 1;
       const db = hasDrift(b.drift) ? 0 : 1;

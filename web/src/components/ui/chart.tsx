@@ -119,7 +119,7 @@ export function ChartLegendContent({ config: configProp }: { config?: ChartConfi
     <div className="mb-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
       {Object.entries(config).map(([key, entry]) => (
         <span key={key} className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-[2px]" style={{ background: `var(--color-${key})` }} />
+          <span className="h-2.5 w-2.5 rounded-[2px]" style={{ background: entry.color ?? `var(--color-${key})` }} />
           {entry.label}
         </span>
       ))}

@@ -1,0 +1,1 @@
+import{j as n}from"./index-B8UvGq-N.js";import{B as e}from"./skeleton-DKzVXj72.js";const a={none:"ok",local:"amber",missing:"err",unknown:"err",untracked:"default"};function s({drift:r}){return r?n.jsx(e,{variant:a[r]??"default",children:r}):null}export{s as D};

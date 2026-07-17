@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { TopBar } from "@/components/layout/top-bar";
-import { Button } from "@/components/ui/button";
 import {
   agentFilterSchema,
   SessionsFilterBar,
@@ -65,8 +64,6 @@ function SessionsIndexPage() {
   }
 
   const total = data?.total ?? 0;
-  const rangeStart = total === 0 ? 0 : search.offset + 1;
-  const rangeEnd = Math.min(search.offset + PAGE_SIZE, total);
 
   return (
     <div>
@@ -81,33 +78,12 @@ function SessionsIndexPage() {
         isFiltered={isFiltered}
         onClearFilters={clearFilters}
         pageSize={PAGE_SIZE}
+        offset={search.offset}
+        total={total}
+        onPrev={() => goToOffset(Math.max(0, search.offset - PAGE_SIZE))}
+        onNext={() => goToOffset(search.offset + PAGE_SIZE)}
         toolbar={<SessionsFilterBar value={filterValue} onChange={patchFilter} />}
       />
-      {total > 0 && (
-        <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
-          <span>
-            {rangeStart}-{rangeEnd} of {total}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToOffset(Math.max(0, search.offset - PAGE_SIZE))}
-              disabled={search.offset === 0}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToOffset(search.offset + PAGE_SIZE)}
-              disabled={rangeEnd >= total}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
