@@ -35,6 +35,13 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "arm64" }}arm64
       {{- else }}{{ .Arch }}{{ end }}
+    # Without an explicit files list goreleaser ships only LICENSE/README/CHANGELOG,
+    # and NOTICE carries the MIT attribution for the code ported into internal/obs.
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - NOTICE
     formats:
       - tar.gz
     format_overrides:

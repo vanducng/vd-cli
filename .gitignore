@@ -2,7 +2,8 @@
 /vd
 /vd.exe
 /dist/
-/plans/
+/.workbench/
+/.vd.json
 
 # Coverage
 *.out
@@ -24,3 +25,9 @@ docs/dist/
 
 # machine-specific MCP registration written by `vd mcp install`
 .mcp.json
+
+# desktop module build output
+desktop/desktop
+
+# e2e trace evidence (browser-trace runs)
+/.o11y/

@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vanducng/vd-cli/v2/internal/inventory"
+	"github.com/vanducng/vd-cli/v2/internal/obs"
 	"github.com/vanducng/vd-cli/v2/internal/ui/web"
 )
 
@@ -59,7 +60,20 @@ func runWeb(cmd *cobra.Command, host string, port int, noBrowser bool) error {
 	if err != nil {
 		return err
 	}
-	srv, err := web.NewServer(inventory.NewService(root, claudeHome))
+	// A broken obs cache must not take down the inventory portal: NewServer
+	// documents nil obs -> those routes answer 503.
+	obsSvc, obsErr := obs.NewService("")
+	if obsErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: obs unavailable: %v\n", obsErr)
+		obsSvc = nil
+	}
+	defer func() {
+		if obsSvc != nil {
+			_ = obsSvc.Close()
+		}
+	}()
+
+	srv, err := web.NewServer(inventory.NewService(root, claudeHome), obsSvc)
 	if err != nil {
 		return err
 	}

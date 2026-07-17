@@ -15,6 +15,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
 	"github.com/vanducng/vd-cli/v2/internal/inventory"
+	"github.com/vanducng/vd-cli/v2/internal/obs"
 	webui "github.com/vanducng/vd-cli/v2/internal/ui/web"
 )
 
@@ -23,7 +24,20 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	srv, err := webui.NewServer(inventory.NewService(repoRoot(), claudeHome))
+	// Degrade gracefully like internal/cli/web.go: a broken obs cache must not stop
+	// the whole desktop window — NewServer answers those routes 503 for a nil obs.
+	obsSvc, obsErr := obs.NewService("")
+	if obsErr != nil {
+		log.Printf("warning: obs unavailable: %v", obsErr)
+		obsSvc = nil
+	}
+	defer func() {
+		if obsSvc != nil {
+			_ = obsSvc.Close()
+		}
+	}()
+
+	srv, err := webui.NewServer(inventory.NewService(repoRoot(), claudeHome), obsSvc)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,0 +1,13 @@
+{
+  "name": "vd-web",
+  "baseUrl": "http://127.0.0.1:7777",
+  "profile": "vd-e2e",
+  "boot": {
+    "up": "zsh -lic 'go build -o /tmp/vd-e2e ./cmd/vd' && (/tmp/vd-e2e web --no-browser >/tmp/vd-e2e-web.log 2>&1 &)",
+    "down": "pkill -f 'vd-e2e web' || true"
+  },
+  "health": [
+    { "url": "http://127.0.0.1:7777/api/health", "expect": 200, "bodyContains": "ok" }
+  ],
+  "auth": { "strategy": "none" }
+}

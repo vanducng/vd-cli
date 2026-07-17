@@ -36,7 +36,7 @@ func fixtureServer(t *testing.T) http.Handler {
 
 	svc := inventory.NewService(root, claude)
 	svc.CodexHome, svc.CursorHome = t.TempDir(), t.TempDir() // hermetic
-	srv, err := NewServer(svc)
+	srv, err := NewServer(svc, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
