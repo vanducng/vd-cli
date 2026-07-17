@@ -224,7 +224,7 @@ export const errorClusterSchema = z.object({
   suggestedfocus: z.string().nullable(),
   evidence: z.array(healthEvidenceSchema),
   sample: z.string(),
-  variants: z.array(clusterVariantSchema),
+  variants: z.array(clusterVariantSchema).default([]),
 });
 export type ErrorCluster = z.infer<typeof errorClusterSchema>;
 
