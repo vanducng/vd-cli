@@ -63,14 +63,19 @@ func (s *Service) Sync(ctx context.Context, opts ingest.SyncOptions) (ingest.Syn
 	s.syncing = true
 	s.mu.Unlock()
 
-	stats, err := ingest.Sync(ctx, s.st, opts)
-
-	s.mu.Lock()
-	s.syncing = false
-	if err == nil {
-		s.syncedAt = time.Now()
-	}
-	s.mu.Unlock()
+	// Deferred so a panic inside ingest (recovered per-request by net/http) can
+	// never leave syncing stuck true and freeze obs for the process lifetime.
+	var stats ingest.SyncStats
+	var err error
+	defer func() {
+		s.mu.Lock()
+		s.syncing = false
+		if err == nil {
+			s.syncedAt = time.Now()
+		}
+		s.mu.Unlock()
+	}()
+	stats, err = ingest.Sync(ctx, s.st, opts)
 	return stats, err
 }
 

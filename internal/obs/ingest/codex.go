@@ -305,7 +305,7 @@ func (p *codexParser) turnFor(id string) *codexTurn {
 
 func (p *codexParser) open(id string, explicit bool) *codexTurn {
 	if id == "" {
-		id = p.sess.ID + ":implicit-" + strconv.Itoa(len(p.turns))
+		id = "implicit-" + strconv.Itoa(len(p.turns))
 	}
 	t := &codexTurn{id: id, explicit: explicit, started: p.last}
 	p.turns = append(p.turns, t)

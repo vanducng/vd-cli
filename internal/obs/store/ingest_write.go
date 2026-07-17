@@ -126,19 +126,19 @@ func (s *Store) IngestFile(ctx context.Context, rec model.Record, w Watermark) e
 
 	for _, h := range rec.HookExecs {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO hook_execs
-			(turn_id, session_id, hook_name, event, duration_ms, exit_code) VALUES (?,?,?,?,?,?)
-			ON CONFLICT(turn_id, hook_name, event) DO UPDATE SET
+			(turn_id, session_id, hook_name, event, seq, duration_ms, exit_code) VALUES (?,?,?,?,?,?,?)
+			ON CONFLICT(turn_id, hook_name, event, seq) DO UPDATE SET
 				duration_ms=excluded.duration_ms, exit_code=excluded.exit_code`,
-			h.TurnID, sess.ID, h.HookName, h.Event, h.DurationMs, h.ExitCode); err != nil {
+			h.TurnID, sess.ID, h.HookName, h.Event, h.Seq, h.DurationMs, h.ExitCode); err != nil {
 			return fmt.Errorf("upsert hook exec: %w", err)
 		}
 	}
 
 	for _, sk := range rec.Skills {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO skill_invocations
-			(turn_id, session_id, name, args) VALUES (?,?,?,?)
-			ON CONFLICT(turn_id, name) DO UPDATE SET args=excluded.args`,
-			sk.TurnID, sess.ID, sk.Name, sk.Args); err != nil {
+			(turn_id, session_id, name, seq, args) VALUES (?,?,?,?,?)
+			ON CONFLICT(turn_id, name, seq) DO UPDATE SET args=excluded.args`,
+			sk.TurnID, sess.ID, sk.Name, sk.Seq, sk.Args); err != nil {
 			return fmt.Errorf("upsert skill: %w", err)
 		}
 	}

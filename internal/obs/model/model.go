@@ -182,6 +182,7 @@ type HookExec struct {
 	TurnID     string `json:"turnid"`
 	HookName   string `json:"hookname"`
 	Event      string `json:"event"`
+	Seq        int    `json:"seq"`
 	DurationMs int64  `json:"durationms"`
 	ExitCode   int    `json:"exitcode"`
 }
@@ -190,6 +191,7 @@ type HookExec struct {
 type Skill struct {
 	TurnID string `json:"turnid"`
 	Name   string `json:"name"`
+	Seq    int    `json:"seq"`
 	Args   string `json:"args"`
 }
 

@@ -72,22 +72,26 @@ CREATE TABLE IF NOT EXISTS tool_span_payloads (
     error   TEXT NOT NULL DEFAULT ''
 );
 
+-- seq disambiguates repeats: PostToolUse-class hooks fire once per tool call,
+-- so (turn, hook, event) alone collapses N fires into one row.
 CREATE TABLE IF NOT EXISTS hook_execs (
     turn_id     TEXT NOT NULL,
     session_id  TEXT NOT NULL,
     hook_name   TEXT NOT NULL,
     event       TEXT NOT NULL,
+    seq         INTEGER NOT NULL DEFAULT 0,
     duration_ms INTEGER NOT NULL DEFAULT 0,
     exit_code   INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (turn_id, hook_name, event)
+    PRIMARY KEY (turn_id, hook_name, event, seq)
 );
 
 CREATE TABLE IF NOT EXISTS skill_invocations (
     turn_id    TEXT NOT NULL,
     session_id TEXT NOT NULL,
     name       TEXT NOT NULL,
+    seq        INTEGER NOT NULL DEFAULT 0,
     args       TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (turn_id, name)
+    PRIMARY KEY (turn_id, name, seq)
 );
 
 -- Watermarks. byte_offset + parser_state let a growing transcript resume mid-file.

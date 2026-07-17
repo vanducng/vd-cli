@@ -128,8 +128,14 @@ func scanSummary(r scanner) (model.SessionSummary, error) {
 // resolveID expands a session-id prefix. Codex ids are UUIDv7 and all begin with
 // the same timestamp bytes, so short prefixes are ambiguous by construction.
 func (s *Store) resolveID(ctx context.Context, idOrPrefix, agent string) (string, error) {
+	exactQ := "SELECT id FROM sessions WHERE id = ?"
+	exactArgs := []any{idOrPrefix}
+	if agent != "" {
+		exactQ += " AND agent = ?"
+		exactArgs = append(exactArgs, agent)
+	}
 	var exact string
-	err := s.db.QueryRowContext(ctx, "SELECT id FROM sessions WHERE id = ?", idOrPrefix).Scan(&exact)
+	err := s.db.QueryRowContext(ctx, exactQ, exactArgs...).Scan(&exact)
 	if err == nil {
 		return exact, nil
 	}
@@ -204,7 +210,7 @@ func (s *Store) GetSession(ctx context.Context, idOrPrefix, agent string, turnLi
 }
 
 func (s *Store) listTurns(ctx context.Context, sessionID string, limit, offset int) ([]model.Turn, error) {
-	if limit <= 0 {
+	if limit <= 0 || limit > MaxSessionLimit {
 		limit = MaxSessionLimit
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT t.id, t.session_id, t.idx, t.model, t.started_at,
@@ -291,15 +297,15 @@ func (s *Store) attachSpans(ctx context.Context, turns []model.Turn, ids []strin
 		return err
 	}
 
-	hooks, err := s.db.QueryContext(ctx, `SELECT turn_id, hook_name, event, duration_ms, exit_code
-		FROM hook_execs WHERE turn_id IN (`+ph+`)`, args...)
+	hooks, err := s.db.QueryContext(ctx, `SELECT turn_id, hook_name, event, seq, duration_ms, exit_code
+		FROM hook_execs WHERE turn_id IN (`+ph+`) ORDER BY seq`, args...)
 	if err != nil {
 		return fmt.Errorf("list hook execs: %w", err)
 	}
 	defer func() { _ = hooks.Close() }()
 	for hooks.Next() {
 		var h model.HookExec
-		if err := hooks.Scan(&h.TurnID, &h.HookName, &h.Event, &h.DurationMs, &h.ExitCode); err != nil {
+		if err := hooks.Scan(&h.TurnID, &h.HookName, &h.Event, &h.Seq, &h.DurationMs, &h.ExitCode); err != nil {
 			return fmt.Errorf("scan hook exec: %w", err)
 		}
 		if t := byTurn[h.TurnID]; t != nil {
@@ -310,15 +316,15 @@ func (s *Store) attachSpans(ctx context.Context, turns []model.Turn, ids []strin
 		return err
 	}
 
-	skills, err := s.db.QueryContext(ctx, `SELECT turn_id, name, args
-		FROM skill_invocations WHERE turn_id IN (`+ph+`)`, args...)
+	skills, err := s.db.QueryContext(ctx, `SELECT turn_id, name, seq, args
+		FROM skill_invocations WHERE turn_id IN (`+ph+`) ORDER BY seq`, args...)
 	if err != nil {
 		return fmt.Errorf("list skills: %w", err)
 	}
 	defer func() { _ = skills.Close() }()
 	for skills.Next() {
 		var sk model.Skill
-		if err := skills.Scan(&sk.TurnID, &sk.Name, &sk.Args); err != nil {
+		if err := skills.Scan(&sk.TurnID, &sk.Name, &sk.Seq, &sk.Args); err != nil {
 			return fmt.Errorf("scan skill: %w", err)
 		}
 		if t := byTurn[sk.TurnID]; t != nil {

@@ -221,6 +221,22 @@ func emitJSON(w io.Writer, v any) error {
 
 const estNote = "  est $ = API-equivalent from token counts, not a subscription bill."
 
+// sanitize strips control bytes from transcript-derived strings before they hit
+// the terminal: titles, tool names, models etc. come from files other agents
+// wrote, and raw C0/C1 output lets an injected transcript retitle the terminal,
+// clear the screen, or write the clipboard via OSC52.
+func sanitize(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\t' {
+			return ' '
+		}
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
 func renderSessions(w io.Writer, list *model.SessionList) {
 	if len(list.Sessions) == 0 {
 		_, _ = fmt.Fprintln(w, "  no sessions found")
@@ -230,7 +246,7 @@ func renderSessions(w io.Writer, list *model.SessionList) {
 	_, _ = fmt.Fprintln(tw, "  STARTED\tAGENT\tTITLE\tMODEL\tTURNS\tTOKENS\tEST $")
 	for _, s := range list.Sessions {
 		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%d\t%s\t%s\n",
-			s.StartedAt.Local().Format("01-02 15:04"), shortAgent(s.Agent), trunc(s.Title, 24),
+			s.StartedAt.Local().Format("01-02 15:04"), shortAgent(s.Agent), trunc(sanitize(s.Title), 24),
 			trunc(shortModel(s.Model), 10), s.TurnCount, humanTokens(s.Tokens.Total()), money(s.CostUSD))
 	}
 	_, _ = fmt.Fprintf(tw, "  \t\t%d of %d\t\t\t\t\n", len(list.Sessions), list.Total)
@@ -239,9 +255,9 @@ func renderSessions(w io.Writer, list *model.SessionList) {
 }
 
 func renderSession(w io.Writer, d *model.SessionDetail) {
-	_, _ = fmt.Fprintf(w, "  session  %s\tagent   %s\n", d.ID, d.Agent)
-	_, _ = fmt.Fprintf(w, "  cwd      %s\tbranch  %s\n", d.CWD, orDash(d.GitBranch))
-	_, _ = fmt.Fprintf(w, "  model    %s\tcli     %s\n", orDash(d.Model), orDash(d.CLIVersion))
+	_, _ = fmt.Fprintf(w, "  session  %s\tagent   %s\n", sanitize(d.ID), sanitize(d.Agent))
+	_, _ = fmt.Fprintf(w, "  cwd      %s\tbranch  %s\n", sanitize(d.CWD), orDash(sanitize(d.GitBranch)))
+	_, _ = fmt.Fprintf(w, "  model    %s\tcli     %s\n", orDash(sanitize(d.Model)), orDash(sanitize(d.CLIVersion)))
 	cache := "-"
 	if d.CacheHitRate != nil {
 		cache = fmt.Sprintf("%.0f%% cache hit", *d.CacheHitRate*100)
@@ -263,14 +279,14 @@ func renderSession(w io.Writer, d *model.SessionDetail) {
 			_, _ = fmt.Fprintf(w, "     tools   %s\n", joinSpans(t.ToolSpans))
 		}
 		for _, s := range t.Skills {
-			_, _ = fmt.Fprintf(w, "     skill   %s\n", s.Name)
+			_, _ = fmt.Fprintf(w, "     skill   %s\n", sanitize(s.Name))
 		}
 		for _, sp := range t.ToolSpans {
 			if sp.SubagentName == "" || sp.RollupTokens == nil {
 				continue
 			}
 			_, _ = fmt.Fprintf(w, "     agent   %s → %s tok  %s  (subagent rollup)\n",
-				sp.SubagentName, humanTokens(sp.RollupTokens.Total()), money(sp.RollupCostUSD))
+				sanitize(sp.SubagentName), humanTokens(sp.RollupTokens.Total()), money(sp.RollupCostUSD))
 		}
 	}
 	if d.TurnCount > len(d.Turns) {
@@ -298,7 +314,7 @@ func renderUsage(w io.Writer, rep *model.UsageReport) {
 
 	if len(rep.UnpricedModels) > 0 {
 		_, _ = fmt.Fprintf(w, "\n  ! %d unpriced model(s): %s   (add to ~/.vd/obs/prices.json)\n",
-			len(rep.UnpricedModels), strings.Join(rep.UnpricedModels, ", "))
+			len(rep.UnpricedModels), sanitize(strings.Join(rep.UnpricedModels, ", ")))
 	}
 	_, _ = fmt.Fprintln(w, estNote)
 }
@@ -330,10 +346,10 @@ func dur(ms int64) string {
 	return fmt.Sprintf("%.1fs", d.Seconds())
 }
 
-func shortAgent(a string) string { return strings.TrimSuffix(a, "-code") }
+func shortAgent(a string) string { return strings.TrimSuffix(sanitize(a), "-code") }
 
 func shortModel(m string) string {
-	m = strings.TrimPrefix(m, "claude-")
+	m = strings.TrimPrefix(sanitize(m), "claude-")
 	if i := strings.LastIndex(m, "-2"); i > 0 && len(m)-i >= 7 {
 		m = m[:i]
 	}
@@ -341,13 +357,14 @@ func shortModel(m string) string {
 }
 
 func trunc(s string, n int) string {
-	if len(s) <= n {
+	r := []rune(s)
+	if len(r) <= n {
 		return s
 	}
 	if n <= 1 {
-		return s[:n]
+		return string(r[:n])
 	}
-	return s[:n-1] + "…"
+	return string(r[:n-1]) + "…"
 }
 
 func firstLine(s string) string {
@@ -367,7 +384,7 @@ func orDash(s string) string {
 func joinHooks(h []model.HookExec) string {
 	parts := make([]string, 0, len(h))
 	for _, x := range h {
-		parts = append(parts, fmt.Sprintf("%s %dms", x.HookName, x.DurationMs))
+		parts = append(parts, fmt.Sprintf("%s %dms", sanitize(x.HookName), x.DurationMs))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -380,12 +397,13 @@ func joinSpans(s []model.ToolSpan) string {
 	order := []string{}
 	errs := []string{}
 	for _, x := range s {
-		if _, seen := counts[x.Name]; !seen {
-			order = append(order, x.Name)
+		name := sanitize(x.Name)
+		if _, seen := counts[name]; !seen {
+			order = append(order, name)
 		}
-		counts[x.Name]++
+		counts[name]++
 		if !x.OK {
-			errs = append(errs, x.Name)
+			errs = append(errs, name)
 		}
 	}
 	parts := make([]string, 0, len(order))

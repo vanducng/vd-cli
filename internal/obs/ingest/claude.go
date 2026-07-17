@@ -97,13 +97,12 @@ func namespaceTurnIDs(rec *model.Record) {
 	if rec.Session.ID == "" {
 		return
 	}
+	// Always prefix — a skip-if-prefixed check makes the mapping non-injective
+	// (raw key "sess:p1" would collide with key "p1" of session "sess").
 	prefix := rec.Session.ID + ":"
 	remap := make(map[string]string, len(rec.Turns))
 	for i := range rec.Turns {
 		old := rec.Turns[i].ID
-		if strings.HasPrefix(old, prefix) {
-			continue
-		}
 		id := prefix + old
 		remap[old] = id
 		rec.Turns[i].ID = id

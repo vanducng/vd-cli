@@ -56,10 +56,11 @@ func New(cfg Config) (*Store, error) {
 	if err == nil {
 		return &Store{db: db}, nil
 	}
-	// The cache is fully rebuildable from transcripts, so a corrupt file must not
-	// brick startup: delete it (and its WAL sidecars) and rebuild once. A real
-	// path/permission problem fails the retry too and surfaces normally.
-	if cfg.Path == ":memory:" {
+	// The cache is rebuildable, so an actually-corrupt file self-heals: delete and
+	// recreate once. Only for real corruption — a busy/locked error means another
+	// live vd process holds the file, and deleting it out from under that process
+	// silently forks the two onto different inodes until restart.
+	if cfg.Path == ":memory:" || !isCorruption(err) {
 		return nil, err
 	}
 	for _, p := range []string{cfg.Path, cfg.Path + "-wal", cfg.Path + "-shm"} {
@@ -70,6 +71,18 @@ func New(cfg Config) (*Store, error) {
 		return nil, fmt.Errorf("obs cache unusable (removed and rebuild also failed): %w", err2)
 	}
 	return &Store{db: db}, nil
+}
+
+// isCorruption matches SQLITE_CORRUPT / SQLITE_NOTADB, which modernc surfaces in
+// the error text; busy/locked and permission errors are not corruption.
+func isCorruption(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "not a database") ||
+		strings.Contains(msg, "database disk image is malformed") ||
+		strings.Contains(msg, "sqlite_corrupt") || strings.Contains(msg, "sqlite_notadb")
 }
 
 func openAt(path string) (*sql.DB, error) {
