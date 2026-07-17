@@ -31,3 +31,33 @@ func normalizeSignature(s string) string {
 	s = reSpaces.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
 }
+
+// clusterKeyPrefixLen bounds how much of a normalized signature two errors
+// must share to be treated as one cluster. A shared prefix this long is a
+// deliberate merge, not a coincidence: the reported scout-block hook family
+// ("PreToolUse:Bash hook error: ... NOTE: This block is intentional ...
+// Pattern: (^|\/)<name>...") shares an identical 151-char preamble up to and
+// including "Pattern: (^|\/)" and only diverges in the specific blocked
+// directory name after it (node_modules vs vendor vs .git ...) — that
+// divergence is the same category of volatile mid-message detail
+// normalizeSignature already strips for paths/ids, just past where a fixed
+// set of regexes can chase it. 140 sits below the measured 151-char
+// boundary with margin, so the family merges without the window reaching
+// into the differing pattern names themselves (which would silently
+// over-merge two genuinely distinct blocked directories, e.g. vendor vs
+// venv share a "ven" prefix). A short, distinct error is well under this
+// length and unaffected.
+const clusterKeyPrefixLen = 140
+
+// clusterKey is the grouping identity derived from a normalized signature:
+// its first clusterKeyPrefixLen runes, or the whole signature when shorter.
+// It is also the cluster's reported Signature — the truncated form is what
+// every member actually shares, so displaying anything longer would show
+// content some members in the cluster don't have.
+func clusterKey(normalized string) string {
+	r := []rune(normalized)
+	if len(r) <= clusterKeyPrefixLen {
+		return normalized
+	}
+	return string(r[:clusterKeyPrefixLen])
+}

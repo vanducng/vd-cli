@@ -113,17 +113,17 @@ func erroredSessions(events []store.ErrorEvent) int {
 func (s *Service) buildClusters(events, prevEvents []store.ErrorEvent, havePrev bool) []model.ErrorCluster {
 	groups := map[string][]store.ErrorEvent{}
 	for _, e := range events {
-		sig := normalizeSignature(e.ErrorText)
-		groups[sig] = append(groups[sig], e)
+		key := clusterKey(normalizeSignature(e.ErrorText))
+		groups[key] = append(groups[key], e)
 	}
 	prevCounts := map[string]int{}
 	for _, e := range prevEvents {
-		prevCounts[normalizeSignature(e.ErrorText)]++
+		prevCounts[clusterKey(normalizeSignature(e.ErrorText))]++
 	}
 
 	out := make([]model.ErrorCluster, 0, len(groups))
-	for sig, group := range groups {
-		out = append(out, s.buildCluster(sig, group, prevCounts[sig], havePrev))
+	for key, group := range groups {
+		out = append(out, s.buildCluster(key, group, prevCounts[key], havePrev))
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Count != out[j].Count {
@@ -134,8 +134,16 @@ func (s *Service) buildClusters(events, prevEvents []store.ErrorEvent, havePrev 
 	return out
 }
 
-func (s *Service) buildCluster(sig string, group []store.ErrorEvent, prevCount int, havePrev bool) model.ErrorCluster {
-	c := model.ErrorCluster{Signature: sig, Count: len(group)}
+func (s *Service) buildCluster(key string, group []store.ErrorEvent, prevCount int, havePrev bool) model.ErrorCluster {
+	c := model.ErrorCluster{Signature: key, Count: len(group)}
+
+	// LowSample guards the TREND comparison, not the cluster's own count: a
+	// cluster with a large current Count still gets LowSample=true (and
+	// Trend="low sample") when this signature's count in the PRIOR window is
+	// below minSample — the baseline is too small for a percentage change to
+	// mean anything, even though the current count is robust on its own. The
+	// wire value stays "low sample" for API stability; the web view relabels
+	// this chip "low baseline" for exactly that reason.
 	c.LowSample = c.Count < minSample || (havePrev && prevCount < minSample)
 
 	switch {

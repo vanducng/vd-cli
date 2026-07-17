@@ -73,10 +73,13 @@ type SkillRef struct {
 	Path string `json:"path"`
 }
 
-// ErrorCluster groups errors sharing a normalized signature — the cluster's
-// cross-run identity, stable across runs for the same underlying failure.
-// CoOccurringSkills is a co-occurrence hint, never blame: SuggestedFocus is
-// set only when the error text itself names a resolvable skill.
+// ErrorCluster groups errors sharing a normalized-signature prefix — the
+// cluster's cross-run identity, stable across runs for the same underlying
+// failure. Signature is that shared prefix (truncated, honest display: only
+// what every member actually has in common), not necessarily any one
+// member's full error text. CoOccurringSkills is a co-occurrence hint, never
+// blame: SuggestedFocus is set only when the error text itself names a
+// resolvable skill.
 type ErrorCluster struct {
 	Signature         string        `json:"signature"`
 	Count             int           `json:"count"`

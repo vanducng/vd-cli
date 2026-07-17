@@ -63,3 +63,35 @@ func TestNormalizeSignatureCollapsesVolatileDifferences(t *testing.T) {
 		t.Fatalf("same-shaped errors with different uuids produced different signatures:\n  a=%q\n  b=%q", a, b)
 	}
 }
+
+func TestClusterKeyPassesThroughShortSignaturesUnchanged(t *testing.T) {
+	short := "File does not exist."
+	if got := clusterKey(short); got != short {
+		t.Fatalf("clusterKey(%q) = %q, want unchanged", short, got)
+	}
+}
+
+func TestClusterKeyTruncatesLongSignaturesToPrefixLen(t *testing.T) {
+	long := strings.Repeat("a", clusterKeyPrefixLen+50)
+	got := clusterKey(long)
+	r := []rune(got)
+	if len(r) != clusterKeyPrefixLen {
+		t.Fatalf("clusterKey length = %d, want %d", len(r), clusterKeyPrefixLen)
+	}
+	if got != long[:clusterKeyPrefixLen] {
+		t.Fatalf("clusterKey did not keep the true prefix")
+	}
+}
+
+// Two signatures sharing more than clusterKeyPrefixLen identical characters
+// but diverging after must key to the same cluster: the reported bug was
+// exactly this — a hook-error family fragmenting into 8+ clusters because it
+// only varied past what normalizeSignature's regexes catch.
+func TestClusterKeyMergesSharedPrefixFamilies(t *testing.T) {
+	preamble := strings.Repeat("NOTE this block is intentional and protects the context window. ", 3)
+	a := clusterKey(normalizeSignature(preamble + "Pattern: alpha-specific-detail"))
+	b := clusterKey(normalizeSignature(preamble + "Pattern: totally different wording entirely"))
+	if a != b {
+		t.Fatalf("shared-prefix family did not merge to one key:\n  a=%q\n  b=%q", a, b)
+	}
+}

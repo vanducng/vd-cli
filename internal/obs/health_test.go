@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -162,5 +163,48 @@ func TestHealthCountsAndLowSample(t *testing.T) {
 	}
 	if small.Trend != "low sample" {
 		t.Fatalf("Trend = %q, want %q", small.Trend, "low sample")
+	}
+}
+
+// The reported bug: a hook-error family sharing a long identical preamble but
+// varying past it (its own "Pattern:" line) fragmented into many clusters
+// instead of ranking as the one dominant cluster it actually is. This proves
+// the fix end to end through Health(), not just the clusterKey helper.
+func TestHealthMergesSharedPrefixFamilyAcrossManyDistinctTails(t *testing.T) {
+	svc, _ := newTestService(t)
+	now := time.Now()
+	preamble := strings.Repeat("NOTE this block is intentional and protects the context window. ", 3)
+
+	for i := 0; i < 2; i++ {
+		seedError(t, svc, fmt.Sprintf("sess-fam-a-%d", i), model.AgentClaude, "vd-cli", "Bash",
+			preamble+"Pattern: alpha-specific-detail", "", now)
+	}
+	for i := 0; i < 3; i++ {
+		seedError(t, svc, fmt.Sprintf("sess-fam-b-%d", i), model.AgentClaude, "vd-cli", "Bash",
+			preamble+"Pattern: totally different wording entirely", "", now)
+	}
+	// An unrelated, much shorter error must not be swept into the family.
+	seedError(t, svc, "sess-other", model.AgentClaude, "vd-cli", "Read",
+		"File does not exist.", "", now)
+
+	rep, err := svc.Health(context.Background(), model.HealthFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Clusters) != 2 {
+		t.Fatalf("clusters = %d, want 2 (shared-prefix family merged, unrelated error separate): %+v",
+			len(rep.Clusters), rep.Clusters)
+	}
+
+	top := rep.Clusters[0]
+	if top.Count != 5 {
+		t.Fatalf("merged family count = %d, want 5 (2+3, ranked above the 1-count unrelated cluster)", top.Count)
+	}
+	wantKey := string([]rune(preamble)[:clusterKeyPrefixLen])
+	if top.Signature != wantKey {
+		t.Fatalf("cluster Signature = %q, want the shared %d-char prefix %q", top.Signature, clusterKeyPrefixLen, wantKey)
+	}
+	if len(top.Sessions) != 5 {
+		t.Fatalf("merged cluster Sessions = %d, want 5 distinct sessions", len(top.Sessions))
 	}
 }
