@@ -25,6 +25,15 @@ export function totalTokens(t: TokenUsage): number {
   return t.input + t.output + t.cacheread + t.cachewrite;
 }
 
+// Mirrors internal/obs/service.go's cacheHitRate: cache reads over everything
+// that could have been a cache read. The API only computes this server-side
+// for session totals, not per turn, so the transcript timeline derives it here
+// with the same formula rather than inventing a different one.
+export function cacheHitRate(t: TokenUsage): number | null {
+  const den = t.cacheread + t.cachewrite + t.input;
+  return den === 0 ? null : t.cacheread / den;
+}
+
 const sessionBaseSchema = z.object({
   id: z.string(),
   agent: z.string(),

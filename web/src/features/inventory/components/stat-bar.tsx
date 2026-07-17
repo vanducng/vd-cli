@@ -1,34 +1,26 @@
-import { cn } from "@/lib/utils";
-import { hasDrift, platformLabel, type Row } from "./labels";
+import { KpiStrip, type Kpi } from "@/features/shared/components/kpi-strip";
+import type { GroupedAsset } from "../group-assets";
+import { hasDrift, platformLabel } from "./labels";
 
-export function StatBar({ rows }: { rows: Row[] }) {
-  const byType = count(rows.map((r) => r.type));
-  const byPlatform = count(rows.filter((r) => r.scope === "discovered").map((r) => r.platform));
-  const managed = rows.filter((r) => r.scope === "managed").length;
-  const drift = rows.filter((r) => r.scope === "managed" && hasDrift(r.drift)).length;
+const TYPE_ORDER = ["skill", "agent", "command", "rule"] as const;
 
-  return (
-    <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-3">
-      <Stat label="Total" value={rows.length} />
-      <Stat label="Managed" value={managed} />
-      {(["skill", "agent", "command", "rule"] as const).map((t) => (
-        <Stat key={t} label={`${t}s`} value={byType[t] ?? 0} />
-      ))}
-      {Object.entries(byPlatform).map(([p, n]) => (
-        <Stat key={p} label={platformLabel(p)} value={n} />
-      ))}
-      {drift > 0 && <Stat label="Drift" value={drift} tone="warn" />}
-    </div>
-  );
-}
+export function StatBar({ assets }: { assets: GroupedAsset[] }) {
+  const byType = count(assets.map((a) => a.type));
+  const managed = assets.filter((a) => a.managed).length;
+  const claude = assets.filter((a) => a.platforms.includes("claude_code")).length;
+  const codex = assets.filter((a) => a.platforms.includes("codex")).length;
+  const drift = assets.filter((a) => hasDrift(a.drift)).length;
 
-function Stat({ label, value, tone }: { label: string; value: number; tone?: "warn" }) {
-  return (
-    <div className="rounded-md border border-border bg-panel px-4 py-3">
-      <b className={cn("block text-xl tabular-nums", tone === "warn" && "text-primary")}>{value}</b>
-      <span className="text-xs uppercase tracking-wide text-faint">{label}</span>
-    </div>
-  );
+  const items: Kpi[] = [
+    { label: "Total", value: assets.length, sublabel: "tracked assets" },
+    { label: "Managed", value: managed, tone: "accent" },
+    ...TYPE_ORDER.map((t) => ({ label: `${t}s`, value: byType[t] ?? 0 })),
+    { label: platformLabel("claude_code"), value: claude },
+    { label: platformLabel("codex"), value: codex },
+  ];
+  if (drift > 0) items.push({ label: "Drift", value: drift, tone: "warn" });
+
+  return <KpiStrip items={items} />;
 }
 
 function count(xs: string[]): Record<string, number> {
