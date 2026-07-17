@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { formatUsd } from "@/features/obs/lib/format";
 import type { UsageRow } from "@/features/obs/schemas";
 
 const PALETTE = [
@@ -20,10 +21,6 @@ const PALETTE = [
   "hsl(var(--primary))",
   "hsl(var(--err))",
 ];
-
-function formatUsd(v: number): string {
-  return `$${v.toFixed(2)}`;
-}
 
 interface UsageChartProps {
   rows: UsageRow[];

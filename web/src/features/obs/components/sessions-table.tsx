@@ -6,12 +6,8 @@ import { DataTable } from "@/features/shared/components/data-table";
 import { AgentBadge } from "@/features/obs/components/agent-badge";
 import { CostCell } from "@/features/obs/components/cost-cell";
 import { TokenCell } from "@/features/obs/components/token-cell";
+import { formatStarted } from "@/features/obs/lib/format";
 import type { SessionSummary } from "@/features/obs/schemas";
-
-function formatStarted(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function totalTokens(s: SessionSummary): number {
   return s.tokens.input + s.tokens.output + s.tokens.cacheread + s.tokens.cachewrite;
@@ -56,8 +52,7 @@ export function SessionsTable({
         cell: ({ row }) => {
           const { id, title, agent } = row.original;
           if (!title) {
-            const kind = agent === "codex" ? "codex" : agent;
-            return <span className="text-faint">— no title ({kind})</span>;
+            return <span className="text-faint">— no title ({agent})</span>;
           }
           return (
             <Link to="/obs/sessions/$id" params={{ id }} className="text-info hover:underline">

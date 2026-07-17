@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 
 const LABELS: Record<string, string> = {
   "claude-code": "claude",
-  codex: "codex",
 };
 
 const VARIANTS: Record<string, "claude" | "codex" | "default"> = {

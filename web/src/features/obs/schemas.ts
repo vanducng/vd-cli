@@ -7,6 +7,9 @@ import { z } from "zod";
 export const agentSchema = z.enum(["claude-code", "codex"]);
 export type Agent = z.infer<typeof agentSchema>;
 
+export const agentFilterSchema = z.union([z.literal("all"), agentSchema]);
+export type AgentFilter = z.infer<typeof agentFilterSchema>;
+
 export const tokenUsageSchema = z.object({
   input: z.number(),
   output: z.number(),

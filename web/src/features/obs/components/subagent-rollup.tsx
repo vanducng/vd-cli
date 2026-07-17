@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { Badge } from "@/components/ui/badge";
+import { formatUsd } from "@/features/obs/lib/format";
 import { totalTokens, type ToolSpan } from "@/features/obs/schemas";
 
 interface SubagentRollupProps {
@@ -41,7 +42,7 @@ function RollupBadge({ span }: { span: ToolSpan }) {
         <span className="text-faint">rollup pending</span>
       )}
       {span.rollupcostusd != null && (
-        <span className="tabular-nums text-muted-foreground">${span.rollupcostusd.toFixed(2)}</span>
+        <span className="tabular-nums text-muted-foreground">{formatUsd(span.rollupcostusd)}</span>
       )}
     </span>
   );

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import {
+  agentFilterSchema,
   SessionsFilterBar,
   SessionsTable,
   SINCE_OPTIONS,
@@ -16,7 +17,7 @@ const PAGE_SIZE = 25;
 
 const searchSchema = z.object({
   q: z.string().catch("").default(""),
-  agent: z.enum(["all", "claude-code", "codex"]).catch("all").default("all"),
+  agent: agentFilterSchema.catch("all").default("all"),
   since: z.enum(SINCE_OPTIONS).catch("7d").default("7d"),
   project: z.string().catch("").default(""),
   offset: z.number().int().nonnegative().catch(0).default(0),
