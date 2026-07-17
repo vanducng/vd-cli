@@ -200,6 +200,15 @@ export type CoOccurringSkill = z.infer<typeof coOccurringSkillSchema>;
 export const trendSchema = z.enum(["up", "down", "flat", "low sample", ""]);
 export type Trend = z.infer<typeof trendSchema>;
 
+// One distinct full (pre-prefix-cut) signature the prefix-key merge folded
+// into this cluster, top 5 by count. A single-cause cluster reports exactly
+// one variant; more than one means the merge is hiding distinct causes.
+export const clusterVariantSchema = z.object({
+  signature: z.string(),
+  count: z.number(),
+});
+export type ClusterVariant = z.infer<typeof clusterVariantSchema>;
+
 // count and trend are separate cues: a cluster can have count=377 and
 // trend="low sample" (baseline too small for a % comparison). Never dim a
 // row or its count because trend is unreliable — only the trend chip reads
@@ -215,6 +224,7 @@ export const errorClusterSchema = z.object({
   suggestedfocus: z.string().nullable(),
   evidence: z.array(healthEvidenceSchema),
   sample: z.string(),
+  variants: z.array(clusterVariantSchema),
 });
 export type ErrorCluster = z.infer<typeof errorClusterSchema>;
 

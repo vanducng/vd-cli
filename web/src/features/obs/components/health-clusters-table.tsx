@@ -17,6 +17,11 @@ const SKELETON_ROWS = 10;
 const SIGNATURE_TRUNCATE_THRESHOLD = 85;
 const SIGNATURE_HEAD_LEN = 32;
 const SIGNATURE_TAIL_LEN = 38;
+// Mirrors internal/obs/signature.go's clusterKeyPrefixLen: the backend hard-cuts
+// a normalized signature at this many runes with no ellipsis, mid-word, when
+// building the cluster key. A signature at/over this length is never the true
+// ending — display must always mark it as cut off.
+const BACKEND_HARD_CUT_LEN = 140;
 
 // Leading markdown/heading junk ("### ", "* ") occasionally leaks into a raw
 // error signature; strip it for display only — the underlying signature stays
@@ -25,12 +30,26 @@ function stripLeadingMarkup(s: string): string {
   return s.replace(/^[#*\s]+/, "");
 }
 
-// End-truncation hides the discriminating tail on signatures that share a long
-// common prefix (e.g. "PreToolUse:Bash hook error: [python3 <str>]: NOTE: ...").
-// Keep both ends so the differentiating detail near the tail stays visible.
-function truncateSignatureMiddle(s: string): string {
-  if (s.length <= SIGNATURE_TRUNCATE_THRESHOLD) return s;
-  return `${s.slice(0, SIGNATURE_HEAD_LEN)}…${s.slice(-SIGNATURE_TAIL_LEN)}`;
+// A hard character-level cut (ours or the backend's) can land mid-word
+// ("denied Patt"), which reads as a rendering bug rather than an intentional
+// truncation. Back up to the last word boundary so the fragment always ends
+// on a whole word before the "…" is appended.
+function trimToWordBoundary(s: string): string {
+  const lastSpace = s.lastIndexOf(" ");
+  return lastSpace > 0 ? s.slice(0, lastSpace) : s;
+}
+
+// End-truncation alone hides the discriminating tail on signatures that share
+// a long common prefix (e.g. "PreToolUse:Bash hook error: [python3 <str>]:
+// NOTE: ..."), so this keeps both ends. Every truncated result — ours or the
+// backend's 140-rune hard cut — ends with a single visible "…"; a signature
+// that fits whole keeps its true, untouched ending.
+function truncateSignatureMiddle(s: string, rawLen: number): string {
+  const backendCut = rawLen >= BACKEND_HARD_CUT_LEN;
+  if (s.length <= SIGNATURE_TRUNCATE_THRESHOLD && !backendCut) return s;
+  const head = s.slice(0, SIGNATURE_HEAD_LEN);
+  const tail = trimToWordBoundary(s.slice(-SIGNATURE_TAIL_LEN));
+  return `${head}…${tail}…`;
 }
 
 // All trend chips render as one neutral, equal-weight style: count and trend
@@ -78,6 +97,26 @@ function buildInvestigationPrompt(cluster: ErrorCluster): string {
 function ClusterDetail({ cluster }: { cluster: ErrorCluster }) {
   return (
     <div className="grid gap-4">
+      {cluster.variants.length > 1 && (
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-faint">
+            Variants ({cluster.variants.length}) — merged family, verify these are the same cause
+          </div>
+          <div className="grid gap-1.5 rounded-sm border border-border bg-panel-2 p-2">
+            {cluster.variants.map((v, i) => (
+              <div key={`${i}-${v.signature}`} className="flex items-start gap-3">
+                <span className="w-12 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                  {formatCount(v.count)}
+                </span>
+                <span className="whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
+                  {stripLeadingMarkup(v.signature).trim() || "(empty error)"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-faint">Sample</div>
         <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-sm bg-panel-2 p-3 font-mono text-xs text-muted-foreground">
@@ -213,7 +252,7 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
                 const index = page * PAGE_SIZE + i;
                 const isOpen = expanded.has(index);
                 const cleanedSignature = stripLeadingMarkup(cluster.signature).trim();
-                const displaySignature = truncateSignatureMiddle(cleanedSignature);
+                const displaySignature = truncateSignatureMiddle(cleanedSignature, cluster.signature.length);
                 return (
                   <Fragment key={index}>
                     <TableRow
@@ -241,7 +280,7 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
                       <TableCell className="max-w-[140px] truncate font-mono text-xs text-muted-foreground">
                         {cluster.affectedtools.join(", ") || "—"}
                       </TableCell>
-                      <TableCell className="max-w-[210px]">
+                      <TableCell className="max-w-[300px]">
                         {cluster.cooccurringskills.length === 0 ? (
                           <span className="text-xs text-faint">—</span>
                         ) : (
@@ -249,7 +288,7 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
                             {cluster.cooccurringskills.slice(0, SKILL_CHIP_LIMIT).map((s) => (
                               <span
                                 key={s.name}
-                                className="max-w-[90px] shrink-0 truncate rounded-pill border border-border px-1.5 py-0.5 text-xs text-muted-foreground"
+                                className="shrink-0 whitespace-nowrap rounded-pill border border-border px-1.5 py-0.5 text-xs text-muted-foreground"
                               >
                                 {s.name}
                               </span>
