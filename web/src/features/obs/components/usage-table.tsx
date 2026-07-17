@@ -24,7 +24,7 @@ const COLS = 8;
  * DATE AGENT MODEL INPUT OUTPUT CACHE R CACHE W EST $ table. */
 export function UsageTable({ rows, totals, totalCostUsd, isLoading, error }: UsageTableProps) {
   return (
-    <div className="rounded-md border border-border">
+    <div className="overflow-x-auto rounded-md border border-border">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
