@@ -32,7 +32,8 @@ from token counts, not a bill.`,
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
-	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd(), newObsSyncCmd())
+	cmd.AddCommand(newObsSessionsCmd(), newObsShowCmd(), newObsUsageCmd(),
+		newObsSkillsCmd(), newObsSyncCmd())
 	return cmd
 }
 
@@ -211,6 +212,83 @@ func newObsUsageCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&daily, "daily", true, "Group by day")
 	cmd.Flags().BoolVar(&monthly, "monthly", false, "Group by month")
 	return cmd
+}
+
+func newObsSkillsCmd() *cobra.Command {
+	var f obsFlags
+	var project string
+
+	cmd := &cobra.Command{
+		Use:   "skills",
+		Short: "Per-skill tool activity and error rates across both agents",
+		Long: `Roll up tool calls, errors and tokens by the skill invoked at each turn.
+
+Attribution is per invocation: a skill owns the turns from its invocation to the
+next invocation in the same session (or session end). Counting by session
+broadcast instead overcounts several-fold — this view never does. The (none) row
+is activity before any skill was invoked, or in sessions that invoked none.`,
+		Args: cobra.NoArgs,
+		RunE: func(c *cobra.Command, _ []string) error {
+			since, err := store.ParseSince(f.since)
+			if err != nil {
+				return err
+			}
+			svc, err := f.open(c.Context())
+			if err != nil {
+				return err
+			}
+			defer func() { _ = svc.Close() }()
+
+			rep, err := svc.Skills(c.Context(), model.SkillFilter{Agent: f.agent, Project: project, Since: since})
+			if err != nil {
+				return err
+			}
+			if f.asJSON {
+				return emitJSON(c.OutOrStdout(), rep)
+			}
+			renderSkills(c.OutOrStdout(), rep)
+			return nil
+		},
+	}
+	f.bind(cmd, "")
+	cmd.Flags().StringVar(&project, "project", "", "Filter by project name or cwd prefix")
+	return cmd
+}
+
+func renderSkills(w io.Writer, rep *model.SkillReport) {
+	if len(rep.Skills) == 0 {
+		_, _ = fmt.Fprintln(w, "  no skill activity in range")
+		return
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "  SKILL\tAGENTS\tINV\tSESS\tSOLO\tCALLS\tERRS\tERR%\tTOKENS")
+	for _, s := range rep.Skills {
+		_, _ = fmt.Fprintf(tw, "  %s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\n",
+			trunc(sanitize(s.Name), 20), shortAgents(s.Agents), s.Invocations, s.Sessions,
+			s.SoloSessions, s.ToolCalls, s.ToolErrors, pct(s.ErrRate), humanTokens(s.Tokens))
+	}
+	_ = tw.Flush()
+	_, _ = fmt.Fprintln(w, "  attribution = invocation → next invocation; (none) = pre-invocation or no-skill activity.")
+}
+
+// shortAgents renders a skill's agents compactly (claude+codex), or "-" for none.
+func shortAgents(agents []string) string {
+	if len(agents) == 0 {
+		return "-"
+	}
+	parts := make([]string, len(agents))
+	for i, a := range agents {
+		parts[i] = shortAgent(a)
+	}
+	return strings.Join(parts, "+")
+}
+
+// pct renders a nil rate as "-" (no calls yet) rather than a misleading 0%.
+func pct(v *float64) string {
+	if v == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%.1f%%", *v*100)
 }
 
 func newObsSyncCmd() *cobra.Command {
