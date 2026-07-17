@@ -17,12 +17,37 @@ interface SubagentRollupProps {
 export function SubagentRollup({ spans, workflowId }: SubagentRollupProps) {
   if (spans.length === 0) return null;
 
+  // identical name+pending pills collapse to one "×N" — two bare "debugger
+  // rollup pending" chips side by side read as a render bug, not two spawns
+  const pending = new Map<string, number>();
+  const resolved: ToolSpan[] = [];
+  for (const s of spans) {
+    if (!s.rolluptokens && !s.subagentsessionid) {
+      const name = s.subagentname ?? "subagent";
+      pending.set(name, (pending.get(name) ?? 0) + 1);
+    } else {
+      resolved.push(s);
+    }
+  }
+
   return (
     <div className="grid gap-1.5">
       {workflowId && <span className="text-xs text-faint">workflow {workflowId}</span>}
       <div className="flex flex-wrap gap-2">
-        {spans.map((s) => (
+        {resolved.map((s) => (
           <RollupBadge key={s.id} span={s} />
+        ))}
+        {[...pending.entries()].map(([name, n]) => (
+          <span
+            key={name}
+            className="inline-flex items-center gap-2 rounded-pill border border-codex/40 bg-codex/10 px-3 py-1 font-mono text-xs text-codex"
+          >
+            <b className="font-bold">
+              {name}
+              {n > 1 && ` ×${n}`}
+            </b>
+            <span className="text-faint">rollup pending</span>
+          </span>
         ))}
       </div>
     </div>

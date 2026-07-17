@@ -37,13 +37,14 @@ export function TopNav() {
               <Link
                 key={to}
                 to={to}
+                aria-label={label}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-pill px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground",
+                  "flex shrink-0 items-center gap-1.5 rounded-pill px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground sm:px-3",
                   active && "bg-panel-2 font-medium text-foreground",
                 )}
               >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
+                <Icon className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                <span className="hidden sm:inline">{label}</span>
               </Link>
             );
           })}

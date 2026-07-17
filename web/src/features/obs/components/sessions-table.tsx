@@ -58,7 +58,7 @@ export function SessionsTable({
       {/* sticky thead binds to the nearest scroll container, so that container
           must own vertical scroll too — viewport-sticky inside overflow-x breaks */}
       <div className="max-h-[75vh] overflow-auto rounded-md border border-border bg-panel">
-        <Table>
+        <Table className="min-w-[760px]">
           <TableHeader className="sticky top-0 z-10 bg-panel">
             <TableRow className="hover:bg-transparent">
               <TableHead>Started</TableHead>
@@ -105,7 +105,7 @@ export function SessionsTable({
               </TableRow>
             ) : (
               sessions.map((s) => (
-                <TableRow key={s.id} className="hover:bg-panel-2">
+                <TableRow key={s.id} className="even:bg-panel-2/30 hover:bg-panel-2">
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {formatStarted(s.startedat)}
                   </TableCell>

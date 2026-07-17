@@ -54,7 +54,7 @@ function CardsView({ assets, onOpen }: { assets: GroupedAsset[]; onOpen: (n: str
         return (
           <Card
             key={assetKey(a)}
-            className={cn("flex flex-col gap-3", openable && "cursor-pointer hover:border-primary/50")}
+            className={cn("flex h-full flex-col gap-3", openable && "cursor-pointer hover:border-primary/50")}
             onClick={openable ? () => onOpen(a.name) : undefined}
             role={openable ? "button" : undefined}
             tabIndex={openable ? 0 : undefined}

@@ -33,18 +33,22 @@ interface UsageChartProps {
  * warning banner above the chart is what keeps that non-silent. */
 export function UsageChart({ rows, isLoading, error }: UsageChartProps) {
   const { config, chartData } = useMemo(() => {
+    // Recharts reads a dotted dataKey ("gpt-5.6-sol") as a nested path and a
+    // dotted CSS var name is an invalid ident — sanitize keys, keep the real
+    // model name as the config label
+    const safe = (m: string) => m.replace(/[^a-zA-Z0-9_-]/g, "_");
     const models = [...new Set(rows.map((r) => r.model || "(unknown)"))].sort();
     const cfg: ChartConfig = {};
     models.forEach((m, i) => {
-      cfg[m] = { label: m, color: PALETTE[i % PALETTE.length] };
+      cfg[safe(m)] = { label: m, color: PALETTE[i % PALETTE.length] };
     });
 
     const byDate = new Map<string, Record<string, number>>();
     for (const row of rows) {
       if (row.costusd === null) continue;
-      const model = row.model || "(unknown)";
+      const key = safe(row.model || "(unknown)");
       const bucket = byDate.get(row.date) ?? {};
-      bucket[model] = (bucket[model] ?? 0) + row.costusd;
+      bucket[key] = (bucket[key] ?? 0) + row.costusd;
       byDate.set(row.date, bucket);
     }
     const data = [...byDate.entries()]
@@ -91,8 +95,17 @@ export function UsageChart({ rows, isLoading, error }: UsageChartProps) {
           />
           <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={formatUsd} width={56} />
           <ChartTooltip content={<ChartTooltipContent formatter={formatUsd} />} cursor={{ fill: "hsl(var(--panel-2))" }} />
-          {models.map((m) => (
-            <Bar key={m} dataKey={m} stackId="cost" fill={`var(--color-${m})`} radius={[2, 2, 0, 0]} />
+          {/* model names ("gpt-5.6-sol") are invalid CSS idents, so var(--color-…)
+              silently drops the fill — pass the palette color directly */}
+          {models.map((m, i) => (
+            <Bar
+              key={m}
+              dataKey={m}
+              stackId="cost"
+              fill={PALETTE[i % PALETTE.length]}
+              radius={[2, 2, 0, 0]}
+              isAnimationActive={false}
+            />
           ))}
         </BarChart>
       </ChartContainer>
