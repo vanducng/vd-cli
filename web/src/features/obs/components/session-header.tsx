@@ -21,9 +21,8 @@ interface SessionHeaderProps {
 }
 
 /** Compact session header: agent + title + raw id, a fact line (cwd/branch/model/
- * started), and a single totals row. Judges flagged the old design's duplicate
- * stat cards (this row plus a second cwd/branch tile in the same grid), so totals
- * live here only — turns/tokens/cost/cache hit, nothing else. */
+ * started), and one totals row (turns/tokens/cost/cache hit). Totals render only
+ * here — no separate stat-card grid — so the two can never disagree. */
 export function SessionHeader({ session }: SessionHeaderProps) {
   const tokens = totalTokens(session.tokens);
   const cacheHit = session.cachehitrate === null ? null : Math.round(session.cachehitrate * 100);

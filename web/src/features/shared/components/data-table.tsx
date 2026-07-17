@@ -137,7 +137,7 @@ interface PaginationBarProps {
   onPageSize?: (n: number) => void;
 }
 
-/** The winning mock's pagination bar: Rows selector · "1–25 of 174" · Prev/Next.
+/** Rows selector · "1–25 of 174" · Prev/Next.
  * Shared by client-paged DataTable and the server-paged sessions view. */
 export function PaginationBar({ offset, pageSize, total, canPrev, canNext, onPrev, onNext, onPageSize }: PaginationBarProps) {
   const start = total === 0 ? 0 : offset + 1;

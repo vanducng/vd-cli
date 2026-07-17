@@ -22,6 +22,7 @@ export function ToolSpanBlock({ span }: ToolSpanBlockProps) {
           type="button"
           className="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-xs font-semibold text-err"
           onClick={() => hasBody && setExpanded((v) => !v)}
+          disabled={!hasBody}
         >
           <span className="truncate">{span.name} — failed</span>
           <span className="ml-auto shrink-0 font-normal text-err/80">{formatMs(span.durationms)}</span>
