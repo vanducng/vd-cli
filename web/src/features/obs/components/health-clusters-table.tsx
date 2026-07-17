@@ -35,19 +35,30 @@ function truncateSignatureMiddle(s: string): string {
 
 // All trend chips render as one neutral, equal-weight style: count and trend
 // reliability are independent cues, so no color/italic may imply a verdict.
+// "low sample" (the API value) is displayed as "low baseline" — the small
+// number is the *prior* window used for comparison, not this cluster's count,
+// which reads self-contradictory next to a high-count row.
 const TREND_LABEL: Record<Trend, string> = {
   up: "↑",
   down: "↓",
   flat: "→",
-  "low sample": "low sample",
+  "low sample": "low baseline",
   "": "—",
+};
+
+const TREND_TITLE: Record<Trend, string> = {
+  up: "trending up vs the prior window",
+  down: "trending down vs the prior window",
+  flat: "flat vs the prior window",
+  "low sample": "the prior window's baseline was too small for a reliable trend",
+  "": "no trend data",
 };
 
 function TrendChip({ trend }: { trend: Trend }) {
   return (
     <span
       className="rounded-pill border border-border px-2 py-0.5 text-xs text-muted-foreground"
-      title={trend || "no trend data"}
+      title={TREND_TITLE[trend] ?? "no trend data"}
     >
       {TREND_LABEL[trend] ?? "—"}
     </span>
@@ -244,7 +255,13 @@ export function HealthClustersTable({ clusters, isLoading, error }: HealthCluste
                               </span>
                             ))}
                             {cluster.cooccurringskills.length > SKILL_CHIP_LIMIT && (
-                              <span className="shrink-0 text-xs text-faint">
+                              <span
+                                className="shrink-0 text-xs text-faint"
+                                title={cluster.cooccurringskills
+                                  .slice(SKILL_CHIP_LIMIT)
+                                  .map((s) => s.name)
+                                  .join(", ")}
+                              >
                                 +{cluster.cooccurringskills.length - SKILL_CHIP_LIMIT}
                               </span>
                             )}

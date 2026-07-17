@@ -1,0 +1,1 @@
+import{j as n}from"./index-iB-4lnSR.js";import{B as e}from"./badge-DmD7DIae.js";const a={none:"ok",local:"amber",missing:"err",unknown:"err",untracked:"default"};function s({drift:r}){return r?n.jsx(e,{variant:a[r]??"default",children:r}):null}export{s as D};
