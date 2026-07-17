@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.9.0](https://github.com/vanducng/vd-cli/compare/v3.8.0...v3.9.0) (2026-07-17)
+
+
+### Features
+
+* **web:** vd obs web portal — sessions, transcript, usage on the fastreact SPA ([#68](https://github.com/vanducng/vd-cli/issues/68)) ([97c73a9](https://github.com/vanducng/vd-cli/commit/97c73a95befd91c06aef6099ce96870e78ebcd09))
+
 ## [3.8.0](https://github.com/vanducng/vd-cli/compare/v3.7.0...v3.8.0) (2026-07-17)
 
 
