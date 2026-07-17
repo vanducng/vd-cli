@@ -11,6 +11,7 @@ title: "vd obs — observability"
 - `vd obs usage [--daily|--monthly] [--agent …] [--since 3d] [--json]` — tokens and estimated cost grouped by day or month, per model.
 - `vd obs skills [--agent …] [--project <p>] [--since …] [--json]` — per-skill tool calls, error rate, corrections, aborts and tokens across both agents.
 - `vd obs hooks [--agent …] [--project <p>] [--since …] [--json]` — hook fire counts, block rates and their share of same-turn tool errors (Claude-only).
+- `vd obs health [--agent …] [--project <p>] [--since 7d] [--json]` — recurring tool-error clusters ranked by count, with a variant breakdown, fetchable evidence refs, co-occurring skill file paths and a machine-readable diagnosis. An **investigate signal, not a health verdict** — agents fail-probe routinely, so a count says "look here", never "this is broken". `--json` is the self-heal entry point: an agent picks a cluster, fetches evidence via `vd obs show <sessionid> --json`, edits the linked skill file, then re-checks with a tight post-fix `--since` window (the cluster `signature` is stable across runs, so it doubles as the tracking key).
 - `vd obs sync [--full] [--agent …] [--since …]` — fold new or changed transcripts into the cache. `--full` drops the cache and re-reads everything (use it after upgrading past an ingest change so historical rollouts are re-parsed).
 
 Costs are labeled **API-equivalent** — computed from token counts, not a subscription bill. An unpriced model renders `?`, never `$0.00`. Add rates in `~/.vd/obs/prices.json` to override the built-in table.
