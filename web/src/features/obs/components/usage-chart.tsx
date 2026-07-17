@@ -22,6 +22,17 @@ const PALETTE = [
   "hsl(var(--err))",
 ];
 
+/** 10% headroom snapped to 1/2/5×10^k so gridline ticks stay evenly spaced. */
+function niceMax(dataMax: number): number {
+  const padded = dataMax * 1.1;
+  if (padded <= 0) return 1;
+  const mag = 10 ** Math.floor(Math.log10(padded));
+  for (const m of [1, 2, 2.5, 5, 10]) {
+    if (padded <= m * mag) return m * mag;
+  }
+  return 10 * mag;
+}
+
 interface UsageChartProps {
   rows: UsageRow[];
   isLoading?: boolean;
@@ -93,7 +104,7 @@ export function UsageChart({ rows, isLoading, error }: UsageChartProps) {
             fontSize={11}
             tickFormatter={(d: string) => d.slice(5)}
           />
-          <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={formatUsd} width={56} domain={[0, (max: number) => Math.ceil((max * 1.1) / 100) * 100]} />
+          <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={formatUsd} width={56} domain={[0, niceMax]} />
           <ChartTooltip content={<ChartTooltipContent formatter={formatUsd} />} cursor={{ fill: "hsl(var(--panel-2))" }} />
           {/* model names ("gpt-5.6-sol") are invalid CSS idents, so var(--color-…)
               silently drops the fill — pass the palette color directly */}
