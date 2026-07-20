@@ -135,6 +135,50 @@ func TestReplaceDroidCopyPreservesDestinationOnStageFailure(t *testing.T) {
 	}
 }
 
+func TestReplaceDroidCopyPreservesBackupWhenRestoreFails(t *testing.T) {
+	tmp := t.TempDir()
+	src := filepath.Join(tmp, "source")
+	dst := filepath.Join(tmp, "skills", "alpha")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "new"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dst, "keep"), []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalRename := renameDroidPath
+	t.Cleanup(func() { renameDroidPath = originalRename })
+	calls := 0
+	renameDroidPath = func(oldPath, newPath string) error {
+		calls++
+		if calls > 1 {
+			return os.ErrPermission
+		}
+		return os.Rename(oldPath, newPath)
+	}
+
+	err := replaceDroidCopy(tmp, src, dst)
+	if err == nil {
+		t.Fatal("expected replace and restore failure")
+	}
+	matches, globErr := filepath.Glob(filepath.Join(tmp, ".vd-droid-stage-*", "old", "keep"))
+	if globErr != nil {
+		t.Fatal(globErr)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("preserved backup matches = %v, want one", matches)
+	}
+	if data, readErr := os.ReadFile(matches[0]); readErr != nil || string(data) != "keep" {
+		t.Fatalf("preserved backup = %q, %v", data, readErr)
+	}
+}
+
 func TestDroidEmitterRejectsSymlinkedFactoryPath(t *testing.T) {
 	tmp := t.TempDir()
 	makeTestSkillDir(t, tmp, "alpha")

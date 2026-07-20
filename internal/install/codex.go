@@ -57,7 +57,7 @@ func Codex(repoRoot string, opts CodexOptions) ([]Result, error) {
 	})
 }
 
-type skillClaim func(name string) (rollback func(), err error)
+type skillClaim func(name string) (rollback func() error, err error)
 
 func installSkillLinks(repoRoot, destRoot string, skills []string, opts LinkOptions) ([]Result, error) {
 	return installSkillLinksClaimed(repoRoot, destRoot, skills, opts, nil)
@@ -88,7 +88,7 @@ func installSkillLinksClaimed(repoRoot, destRoot string, skills []string, opts L
 		if err := assertInsideRoot(src, repoRoot); err != nil {
 			return nil, err
 		}
-		rollback := func() {}
+		rollback := func() error { return nil }
 		if claim != nil && !opts.DryRun {
 			rollback, err = claim(name)
 			if err != nil {
@@ -97,7 +97,9 @@ func installSkillLinksClaimed(repoRoot, destRoot string, skills []string, opts L
 		}
 		action, err := LinkSkill(src, dst, destRoot, opts)
 		if err != nil {
-			rollback()
+			if rollbackErr := rollback(); rollbackErr != nil {
+				return nil, fmt.Errorf("install %s: %w; rollback ownership: %v", name, err, rollbackErr)
+			}
 			return nil, fmt.Errorf("install %s: %w", name, err)
 		}
 		results = append(results, Result{Name: name, Source: src, Dest: dst, Action: action})

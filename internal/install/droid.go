@@ -52,12 +52,12 @@ func Droid(repoRoot string, opts DroidOptions) ([]Result, error) {
 	if scope != "repo" || !managedRepoDest {
 		return installSkillLinks(repoRoot, destRoot, opts.Skills, linkOpts)
 	}
-	claim := func(name string) (func(), error) {
+	claim := func(name string) (func() error, error) {
 		created, err := target.ClaimDroidSkill(repoRoot, name)
 		if err != nil || !created {
-			return func() {}, err
+			return func() error { return nil }, err
 		}
-		return func() { _ = target.UnclaimDroidSkill(repoRoot, name) }, nil
+		return func() error { return target.UnclaimDroidSkill(repoRoot, name) }, nil
 	}
 	return installSkillLinksClaimed(repoRoot, destRoot, opts.Skills, linkOpts, claim)
 }
@@ -71,7 +71,7 @@ func sameCleanPath(a, b string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("resolve destination %s: %w", b, err)
 	}
-	return filepath.Clean(absA) == filepath.Clean(absB), nil
+	return absA == absB, nil
 }
 
 func droidDest(repoRoot, scope string) (string, error) {

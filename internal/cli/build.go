@@ -10,7 +10,6 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/target"
 )
 
-// defaultTargets lists the emitters run when no explicit target is given.
 var defaultTargets = []string{"claude", "agents", "droid"}
 
 func newBuildCmd() *cobra.Command {

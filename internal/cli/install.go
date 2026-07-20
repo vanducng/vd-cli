@@ -566,9 +566,6 @@ func promptInstallSelection(cmd *cobra.Command, opts installOptions) ([]installT
 	return resolveInstallSelections(text, opts)
 }
 
-// resolveInstallSelections parses a comma-separated picker response (e.g.
-// "1,3,5", "codex repo, claude", or "all") into install targets, expanding
-// "all" to every menu entry and dropping duplicates while preserving order.
 func resolveInstallSelections(selection string, opts installOptions) ([]installTarget, error) {
 	tokens := splitInstallSelections(selection)
 	if len(tokens) == 0 {
@@ -623,7 +620,7 @@ func rejectInstallTargetConflicts(targets []installTarget) error {
 }
 
 func splitInstallSelections(selection string) []string {
-	tokens := make([]string, 0, 5)
+	tokens := make([]string, 0, 8)
 	for _, part := range strings.Split(selection, ",") {
 		part = strings.TrimSpace(part)
 		part = strings.Trim(part, "[]")

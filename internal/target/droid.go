@@ -12,6 +12,8 @@ const droidManagedDir = ".vd-managed-skills"
 
 type droidEmitter struct{}
 
+var renameDroidPath = os.Rename
+
 func (e *droidEmitter) Name() string { return "droid" }
 
 func (e *droidEmitter) Emit(ctx Context) error {
@@ -76,7 +78,9 @@ func emitDroid(ctx Context, copyMode bool) error {
 		}
 		if publishErr != nil {
 			if markerCreated {
-				_ = UnclaimDroidSkill(ctx.RepoRoot, name)
+				if unclaimErr := UnclaimDroidSkill(ctx.RepoRoot, name); unclaimErr != nil {
+					return fmt.Errorf("droid emitter: publish %s: %w; rollback ownership: %v", name, publishErr, unclaimErr)
+				}
 			}
 			return fmt.Errorf("droid emitter: publish %s: %w", name, publishErr)
 		}
@@ -180,23 +184,29 @@ func replaceDroidCopy(factoryDir, src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("create staging dir: %w", err)
 	}
-	defer func() { _ = os.RemoveAll(stageRoot) }()
+	cleanupStage := true
+	defer func() {
+		if cleanupStage {
+			_ = os.RemoveAll(stageRoot)
+		}
+	}()
 	staged := filepath.Join(stageRoot, "new")
 	if err := syncCopyDir(src, staged); err != nil {
 		return err
 	}
 	if _, err := os.Lstat(dst); os.IsNotExist(err) {
-		return os.Rename(staged, dst)
+		return renameDroidPath(staged, dst)
 	} else if err != nil {
 		return fmt.Errorf("inspect destination: %w", err)
 	}
 	backup := filepath.Join(stageRoot, "old")
-	if err := os.Rename(dst, backup); err != nil {
+	if err := renameDroidPath(dst, backup); err != nil {
 		return fmt.Errorf("stage old destination: %w", err)
 	}
-	if err := os.Rename(staged, dst); err != nil {
-		if restoreErr := os.Rename(backup, dst); restoreErr != nil {
-			return fmt.Errorf("replace destination: %w; restore failed: %v", err, restoreErr)
+	if err := renameDroidPath(staged, dst); err != nil {
+		if restoreErr := renameDroidPath(backup, dst); restoreErr != nil {
+			cleanupStage = false
+			return fmt.Errorf("replace destination: %w; restore failed, original preserved at %s: %v", err, backup, restoreErr)
 		}
 		return fmt.Errorf("replace destination: %w", err)
 	}
