@@ -8,6 +8,7 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/target"
 )
 
+// DroidOptions keeps skill installation independent from Droid runtime configuration.
 type DroidOptions struct {
 	Scope  string
 	Dest   string
@@ -17,6 +18,7 @@ type DroidOptions struct {
 	DryRun bool
 }
 
+// Droid installs skills without requiring a running Droid session.
 func Droid(repoRoot string, opts DroidOptions) ([]Result, error) {
 	scope := opts.Scope
 	if scope == "" {
