@@ -50,19 +50,31 @@ func Codex(repoRoot string, opts CodexOptions) ([]Result, error) {
 		return nil, err
 	}
 
+	return installSkillLinks(repoRoot, destRoot, opts.Skills, LinkOptions{
+		Copy:   opts.Copy,
+		Force:  opts.Force,
+		DryRun: opts.DryRun,
+	})
+}
+
+type skillClaim func(name string) (rollback func(), err error)
+
+func installSkillLinks(repoRoot, destRoot string, skills []string, opts LinkOptions) ([]Result, error) {
+	return installSkillLinksClaimed(repoRoot, destRoot, skills, opts, nil)
+}
+
+func installSkillLinksClaimed(repoRoot, destRoot string, skills []string, opts LinkOptions, claim skillClaim) ([]Result, error) {
 	skillsDir := filepath.Join(repoRoot, "skills")
-	names, err := resolveSkillNames(skillsDir, opts.Skills)
+	names, err := resolveSkillNames(skillsDir, skills)
 	if err != nil {
 		return nil, err
 	}
-
 	if len(names) == 0 {
 		return nil, fmt.Errorf("no local skills found in %s", skillsDir)
 	}
-
 	if !opts.DryRun {
 		if err := os.MkdirAll(destRoot, 0o755); err != nil {
-			return nil, fmt.Errorf("create codex skills dir %s: %w", destRoot, err)
+			return nil, fmt.Errorf("create skills dir %s: %w", destRoot, err)
 		}
 	}
 
@@ -76,18 +88,20 @@ func Codex(repoRoot string, opts CodexOptions) ([]Result, error) {
 		if err := assertInsideRoot(src, repoRoot); err != nil {
 			return nil, err
 		}
-
-		action, err := LinkSkill(src, dst, destRoot, LinkOptions{
-			Copy:   opts.Copy,
-			Force:  opts.Force,
-			DryRun: opts.DryRun,
-		})
+		rollback := func() {}
+		if claim != nil && !opts.DryRun {
+			rollback, err = claim(name)
+			if err != nil {
+				return nil, fmt.Errorf("install %s: record ownership: %w", name, err)
+			}
+		}
+		action, err := LinkSkill(src, dst, destRoot, opts)
 		if err != nil {
+			rollback()
 			return nil, fmt.Errorf("install %s: %w", name, err)
 		}
 		results = append(results, Result{Name: name, Source: src, Dest: dst, Action: action})
 	}
-
 	return results, nil
 }
 
