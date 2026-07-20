@@ -10,16 +10,15 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/target"
 )
 
-// defaultTargets lists the emitters run when no explicit target is given.
-var defaultTargets = []string{"claude", "agents"}
+var defaultTargets = []string{"claude", "agents", "droid"}
 
 func newBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build [target...]",
-		Short: "Emit plugin files for configured targets (claude, agents)",
+		Short: "Emit skill files for configured targets (claude, agents, droid)",
 		Long: `Read skills.toml + skills.lock and emit output files for each target.
 
-Targets: claude (marketplace.json + plugin.json), agents (.agents/ symlinks).
+Targets: claude (marketplace.json + plugin.json), agents (.agents/ symlinks), droid (.factory/skills).
 With no arguments all enabled targets are built.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := resolveRepoRoot(flagRoot)
