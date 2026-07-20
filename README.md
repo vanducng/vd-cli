@@ -56,11 +56,6 @@ brew install vanducng/tap/vd
 ```
 Homebrew 5.x requires trusting third-party taps first: `brew trust vanducng/tap`.
 
-**Install script:**
-```sh
-curl -fsSL https://raw.githubusercontent.com/vanducng/vd-cli/main/install.sh | sh
-```
-
 **Pre-built binaries:** see [releases](https://github.com/vanducng/vd-cli/releases) for darwin/linux/windows × amd64/arm64.
 
 Windows release archives are zip files. In PowerShell:
