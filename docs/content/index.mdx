@@ -30,10 +30,11 @@ vd sync                                          # vendor it locally (fetch, has
 vd build                                         # emit manifests for every configured agent
 vd install codex                                 # (optional) install into Codex user scope
 vd install droid                                 # (optional) install into Droid user scope
+vd install pi                                    # (optional) install into Pi user scope
 ```
 
 :::note
-After these, `skills/browser/` holds the vendored source, the Claude, Codex, and Droid targets are written, and `skills.lock` pins every byte deterministically.
+After these, `skills/browser/` holds the vendored source, the Claude, Codex, Droid, and Pi targets are written, and `skills.lock` pins every byte deterministically.
 :::
 
 :::tip[Just want the published skills?]
@@ -49,8 +50,9 @@ If you only want to install the maintained skill set (no repo of your own), run 
 | **Claude Code** | `.claude-plugin/marketplace.json` + `plugin.json` |
 | **OpenAI Codex** | `.agents/skills/<name>` repo-scope symlinks; `vd install codex` for user scope |
 | **Factory Droid** | `.factory/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install droid` for user scope |
+| **Pi** | `.pi/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install pi` for user scope |
 
-Droid support covers skills only, not plugins, hooks, custom droids, or observability.
+Droid and Pi support covers skills only, not plugins, hooks, extensions, or observability.
 
 ## What's inside
 
