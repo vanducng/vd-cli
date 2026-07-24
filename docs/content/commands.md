@@ -313,8 +313,9 @@ Emit plugin files for all configured targets. Reads `skills.toml` and `skills.lo
 - `claude` — writes `.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json`.
 - `agents` — writes `.agents/skills/<name>` symlinks pointing at `skills/<name>/`.
 - `droid` - writes `.factory/skills/<name>` entries pointing at `skills/<name>/`: relative symlinks on Unix and copies on Windows. Only vd-owned entries are cleaned up.
+- `pi` - writes `.pi/skills/<name>` entries pointing at `skills/<name>/`: relative symlinks on Unix and copies on Windows. Only vd-owned entries are cleaned up.
 
-With no arguments, all three targets are built. Pass target names to build only those.
+With no arguments, all four targets are built. Pass target names to build only those.
 
 **Signature:**
 ```
@@ -323,13 +324,14 @@ vd build [target...]
 
 **Examples:**
 ```sh
-vd build                  # build all targets (claude + agents + droid)
+vd build                  # build all targets (claude + agents + droid + pi)
 vd build claude           # regenerate marketplace.json and plugin.json only
 vd build agents           # regenerate .agents/skills/ symlinks only
 vd build droid            # regenerate vd-owned .factory/skills/ entries only
+vd build pi               # regenerate vd-owned .pi/skills/ entries only
 ```
 
-**Side effects:** writes `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, `.agents/skills/<name>` symlinks, and vd-owned `.factory/skills/<name>` entries. Droid entries are relative symlinks on Unix and copies on Windows. Unmanaged `.factory/skills` entries are preserved. In bundle mode, output is byte-equal to the live files when manifest is seeded correctly.
+**Side effects:** writes `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, `.agents/skills/<name>` symlinks, and vd-owned `.factory/skills/<name>` and `.pi/skills/<name>` entries. Droid and Pi entries are relative symlinks on Unix and copies on Windows. Unmanaged `.factory/skills` and `.pi/skills` entries are preserved. In bundle mode, output is byte-equal to the live files when manifest is seeded correctly.
 
 **Exit codes:** `0` success, `1` unknown target name, `1` `skills.toml` not found.
 
@@ -381,6 +383,9 @@ Install local skills into an agent environment. With no agent argument, `vd inst
 6. Droid user skills - symlink to `$HOME/.factory/skills`
 7. Droid repo skills - symlink to `.factory/skills`
 8. Droid snapshot copy - copy to `$HOME/.factory/skills`
+9. Pi user skills - symlink to `$HOME/.pi/agent/skills`
+10. Pi repo skills - symlink to `.pi/skills`
+11. Pi snapshot copy - copy to `$HOME/.pi/agent/skills`
 
 Pick several at once with a comma-separated list (e.g. `1,5,7`). Link and snapshot-copy variants for the same destination cannot be combined. `all` selects every non-conflicting agent environment. Passing the agent is recommended for scripts.
 
@@ -389,6 +394,7 @@ If no skills are found locally (no `--root`/`VD_ROOT`/`.git` repo and no `~/.vd/
 **Agents:**
 - `codex` — installs local `skills/<name>/` directories into Codex discovery paths. Default scope is user, which writes symlinks to `$HOME/.agents/skills`. Use `--scope repo` to write `.agents/skills/<name>` in the current repo.
 - `droid` - installs local `skills/<name>/` directories into Factory Droid discovery paths. Default scope is user at `$HOME/.factory/skills`; `--scope repo` writes `.factory/skills/<name>` in the current repo. Installs use relative symlinks on Unix and copies on Windows.
+- `pi` - installs local `skills/<name>/` directories into Pi discovery paths. Default scope is user at `$HOME/.pi/agent/skills`; `--scope repo` writes `.pi/skills/<name>` in the current repo. Installs use relative symlinks on Unix and copies on Windows.
 - `claude` — runs `vd build claude`, registers this repo as a Claude Code marketplace, and installs the configured plugin bundle.
 - `claude --dev` — per-skill symlinks into `$HOME/.claude/skills` (mirrors the codex symlink flow) instead of the marketplace plugin install. Accepts skill-name arguments.
 - `hooks` — install Claude Code hooks and declared Codex context hooks from a local manifest (`<root>/hooks/hooks.toml`). See [vd hooks](#vd-hooks).
@@ -402,10 +408,10 @@ vd install [agent] [skill...]
 
 | Flag | Description |
 |------|-------------|
-| `--scope` | `codex`/`droid`: `user` or `repo`; `claude`: `user`, `project`, or `local`. |
+| `--scope` | `codex`/`droid`/`pi`: `user` or `repo`; `claude`: `user`, `project`, or `local`. |
 | `--dest` | Override the destination directory for a single skill install target. |
-| `--copy` | Copy Codex or Droid skills instead of symlinking. |
-| `--force` | Replace existing Codex or Droid destination entries. |
+| `--copy` | Copy Codex, Droid, or Pi skills instead of symlinking. |
+| `--force` | Replace existing Codex, Droid, or Pi destination entries. |
 | `--dev` | Claude only: per-skill symlink into `$HOME/.claude/skills` instead of the marketplace plugin install. |
 | `--dry-run` | Print planned actions without changing files. |
 
@@ -420,6 +426,11 @@ vd install droid research plan           # install selected skills only
 vd install droid --scope repo            # install all skills into .factory/skills
 vd install droid --copy --force          # replace existing installs with copies
 vd install droid --dry-run               # preview Droid changes
+vd install pi                            # install all skills into $HOME/.pi/agent/skills
+vd install pi research plan              # install selected skills only
+vd install pi --scope repo               # install all skills into .pi/skills
+vd install pi --copy --force             # replace existing installs with copies
+vd install pi --dry-run                  # preview Pi changes
 vd install                               # picker: enter 1,5,7 or all at the prompt
 vd install claude                        # install configured Claude Code plugin bundle
 vd install claude --dev research         # symlink selected skills into ~/.claude/skills
@@ -427,9 +438,9 @@ vd install claude --dry-run              # print Claude plugin commands
 vd install hooks --root ~/skills         # install hooks from a local manifest
 ```
 
-On Windows, Droid installs are copies; rerun with `--force` to refresh an existing destination. Restart Droid after installation, run `/skills` to verify discovery, and invoke an installed skill with `/skill-name`. Droid support is skills-only; it does not install plugins, hooks, custom droids, or observability.
+On Windows, Droid and Pi installs are copies; rerun with `--force` to refresh an existing destination. Restart Droid or Pi after installation, run `/skills` to verify discovery, and invoke an installed skill with `/skill-name`. Droid and Pi support is skills-only; it does not install plugins, hooks, extensions, or observability.
 
-**Side effects:** `codex` and `droid` write symlinks or copies under their destination skill directories. `claude` may mutate Claude Code marketplace and plugin installation state. `hooks` writes to `~/.claude/hooks/` and `~/.claude/settings.json`; manifest entries with `event = "codex.UserPromptSubmit"` also write to `~/.codex/hooks/` and `~/.codex/hooks.json` (see [vd hooks](#vd-hooks)).
+**Side effects:** `codex`, `droid`, and `pi` write symlinks or copies under their destination skill directories. `claude` may mutate Claude Code marketplace and plugin installation state. `hooks` writes to `~/.claude/hooks/` and `~/.claude/settings.json`; manifest entries with `event = "codex.UserPromptSubmit"` also write to `~/.codex/hooks/` and `~/.codex/hooks.json` (see [vd hooks](#vd-hooks)).
 
 **Exit codes:** `0` success, `1` invalid agent/scope, missing skill, existing destination without `--force`, or external Claude command failure.
 

@@ -39,20 +39,24 @@ func newInstallCmd() *cobra.Command {
 		Long: `Install skills from this repository into a local agent environment.
 
 Run without an agent to select one or more install targets:
-  1) Codex user skills            symlink to $HOME/.agents/skills
-  2) Codex repo skills            symlink to .agents/skills
-  3) Codex snapshot copy          copy to $HOME/.agents/skills
-  4) Claude Code plugin           marketplace/plugin install
-  5) Claude Code dev symlinks     symlink to $HOME/.claude/skills
-  6) Droid user skills            symlink to $HOME/.factory/skills
-  7) Droid repo skills            symlink to .factory/skills
-  8) Droid snapshot copy          copy to $HOME/.factory/skills
+   1) Codex user skills            symlink to $HOME/.agents/skills
+   2) Codex repo skills            symlink to .agents/skills
+   3) Codex snapshot copy          copy to $HOME/.agents/skills
+   4) Claude Code plugin           marketplace/plugin install
+   5) Claude Code dev symlinks     symlink to $HOME/.claude/skills
+   6) Droid user skills            symlink to $HOME/.factory/skills
+   7) Droid repo skills            symlink to .factory/skills
+   8) Droid snapshot copy          copy to $HOME/.factory/skills
+   9) Pi user skills               symlink to $HOME/.pi/agent/skills
+  10) Pi repo skills               symlink to .pi/skills
+  11) Pi snapshot copy             copy to $HOME/.pi/agent/skills
 
 Pick several at once with a comma-separated list (e.g. 1,5,7). Use 'all' for every non-conflicting agent environment.
 
 Agents:
   codex          installs skills into Codex discovery paths
   droid          installs skills into Factory Droid discovery paths
+  pi             installs skills into Pi discovery paths
   claude         registers and installs this repo as a Claude Code plugin
   claude --dev   per-skill symlink into $HOME/.claude/skills (mirrors codex)
   hooks          deploys hooks from hooks/hooks.toml to $HOME/.claude/hooks`,
@@ -66,7 +70,7 @@ Agents:
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.scope, "scope", "user", "Install scope: codex/droid user|repo, claude user|project|local")
+	cmd.Flags().StringVar(&opts.scope, "scope", "user", "Install scope: codex/droid/pi user|repo, claude user|project|local")
 	cmd.Flags().StringVar(&opts.dest, "dest", "", "Override destination directory")
 	cmd.Flags().BoolVar(&opts.copy, "copy", false, "Copy skills instead of symlinking them")
 	cmd.Flags().BoolVar(&opts.force, "force", false, "Replace existing installed skill directories")
@@ -88,7 +92,7 @@ func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts install
 			// typo'd agent name. Fail fast with a clear hint instead of
 			// silently treating it as a skill and confusing the user
 			// downstream.
-			return fmt.Errorf("unknown agent or skill %q (valid agents: codex, droid, claude, hooks)", args[0])
+			return fmt.Errorf("unknown agent or skill %q (valid agents: codex, droid, pi, claude, hooks)", args[0])
 		}
 	}
 
@@ -117,6 +121,8 @@ func runInstallTarget(cmd *cobra.Command, repoRoot, agent string, skills []strin
 		return runInstallCodex(cmd, repoRoot, skills, opts)
 	case "droid":
 		return runInstallDroid(cmd, repoRoot, skills, opts)
+	case "pi":
+		return runInstallPi(cmd, repoRoot, skills, opts)
 	case "claude":
 		if opts.dev {
 			return runInstallClaudeDev(cmd, repoRoot, skills, opts)
@@ -131,7 +137,7 @@ func runInstallTarget(cmd *cobra.Command, repoRoot, agent string, skills []strin
 		}
 		return runInstallHooks(cmd, repoRoot, opts)
 	default:
-		return fmt.Errorf("unknown agent %q (valid: codex, droid, claude, hooks)", agent)
+		return fmt.Errorf("unknown agent %q (valid: codex, droid, pi, claude, hooks)", agent)
 	}
 }
 
@@ -160,6 +166,15 @@ func describeInstallTarget(t installTarget) string {
 		default:
 			return "Droid user skills"
 		}
+	case "pi":
+		switch {
+		case t.opts.copy:
+			return "Pi snapshot copy"
+		case t.opts.scope == "repo":
+			return "Pi repo skills"
+		default:
+			return "Pi user skills"
+		}
 	default:
 		return t.agent
 	}
@@ -185,6 +200,30 @@ func runInstallDroid(cmd *cobra.Command, repoRoot string, skills []string, opts 
 	}
 	if !opts.dryRun {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "restart Droid to pick up newly installed skills")
+	}
+	return nil
+}
+
+func runInstallPi(cmd *cobra.Command, repoRoot string, skills []string, opts installOptions) error {
+	results, err := agentinstall.Pi(repoRoot, agentinstall.PiOptions{
+		Scope:  opts.scope,
+		Dest:   opts.dest,
+		Skills: skills,
+		Copy:   opts.copy,
+		Force:  opts.force,
+		DryRun: opts.dryRun,
+	})
+	if err != nil {
+		return err
+	}
+	if flagQuiet {
+		return nil
+	}
+	for _, result := range results {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s pi skill %s -> %s\n", result.Action, result.Name, result.Dest)
+	}
+	if !opts.dryRun {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "restart Pi to pick up newly installed skills")
 	}
 	return nil
 }
@@ -518,7 +557,7 @@ func runExternal(cmd *cobra.Command, name string, args ...string) error {
 
 func isKnownInstallAgent(s string) bool {
 	switch normalizeInstallAgent(s) {
-	case "codex", "droid", "claude", "hooks":
+	case "codex", "droid", "pi", "claude", "hooks":
 		return true
 	default:
 		return false
@@ -531,6 +570,8 @@ func normalizeInstallAgent(s string) string {
 		return "codex"
 	case "droid":
 		return "droid"
+	case "pi":
+		return "pi"
 	case "claude", "claude-code", "claudecode":
 		return "claude"
 	case "hooks":
@@ -548,15 +589,18 @@ func promptInstallSelection(cmd *cobra.Command, opts installOptions) ([]installT
 
 	out := cmd.OutOrStdout()
 	_, _ = fmt.Fprintln(out, "Install skills for:")
-	_, _ = fmt.Fprintln(out, "  1) Codex user skills            symlink to $HOME/.agents/skills")
-	_, _ = fmt.Fprintln(out, "  2) Codex repo skills            symlink to .agents/skills")
-	_, _ = fmt.Fprintln(out, "  3) Codex snapshot copy          copy to $HOME/.agents/skills")
-	_, _ = fmt.Fprintln(out, "  4) Claude Code plugin           marketplace/plugin install")
-	_, _ = fmt.Fprintln(out, "  5) Claude Code dev symlinks     symlink to $HOME/.claude/skills")
-	_, _ = fmt.Fprintln(out, "  6) Droid user skills            symlink to $HOME/.factory/skills")
-	_, _ = fmt.Fprintln(out, "  7) Droid repo skills            symlink to .factory/skills")
-	_, _ = fmt.Fprintln(out, "  8) Droid snapshot copy          copy to $HOME/.factory/skills")
-	_, _ = fmt.Fprint(out, "Select install target(s) [1-8, comma-separated, or 'all' environments]: ")
+	_, _ = fmt.Fprintln(out, "   1) Codex user skills            symlink to $HOME/.agents/skills")
+	_, _ = fmt.Fprintln(out, "   2) Codex repo skills            symlink to .agents/skills")
+	_, _ = fmt.Fprintln(out, "   3) Codex snapshot copy          copy to $HOME/.agents/skills")
+	_, _ = fmt.Fprintln(out, "   4) Claude Code plugin           marketplace/plugin install")
+	_, _ = fmt.Fprintln(out, "   5) Claude Code dev symlinks     symlink to $HOME/.claude/skills")
+	_, _ = fmt.Fprintln(out, "   6) Droid user skills            symlink to $HOME/.factory/skills")
+	_, _ = fmt.Fprintln(out, "   7) Droid repo skills            symlink to .factory/skills")
+	_, _ = fmt.Fprintln(out, "   8) Droid snapshot copy          copy to $HOME/.factory/skills")
+	_, _ = fmt.Fprintln(out, "   9) Pi user skills               symlink to $HOME/.pi/agent/skills")
+	_, _ = fmt.Fprintln(out, "  10) Pi repo skills               symlink to .pi/skills")
+	_, _ = fmt.Fprintln(out, "  11) Pi snapshot copy             copy to $HOME/.pi/agent/skills")
+	_, _ = fmt.Fprint(out, "Select install target(s) [1-11, comma-separated, or 'all' environments]: ")
 
 	reader := bufio.NewReader(in)
 	text, err := reader.ReadString('\n')
@@ -575,7 +619,7 @@ func resolveInstallSelections(selection string, opts installOptions) ([]installT
 	expanded := make([]string, 0, len(tokens))
 	for _, tok := range tokens {
 		if normalizeInstallSelection(tok) == "all" {
-			expanded = append(expanded, "1", "2", "4", "5", "6", "7")
+			expanded = append(expanded, "1", "2", "4", "5", "6", "7", "9", "10")
 			continue
 		}
 		expanded = append(expanded, tok)
@@ -607,7 +651,7 @@ func resolveInstallSelections(selection string, opts installOptions) ([]installT
 func rejectInstallTargetConflicts(targets []installTarget) error {
 	types := make(map[string]bool)
 	for _, target := range targets {
-		if target.agent != "codex" && target.agent != "droid" {
+		if target.agent != "codex" && target.agent != "droid" && target.agent != "pi" {
 			continue
 		}
 		key := target.agent + ":" + target.opts.scope
@@ -677,6 +721,21 @@ func resolveInstallSelection(selection string, opts installOptions) (string, ins
 		opts.copy = true
 		opts.dev = false
 		return "droid", opts, nil
+	case "pi-user":
+		opts.scope = "user"
+		opts.copy = false
+		opts.dev = false
+		return "pi", opts, nil
+	case "pi-repo":
+		opts.scope = "repo"
+		opts.copy = false
+		opts.dev = false
+		return "pi", opts, nil
+	case "pi-copy":
+		opts.scope = "user"
+		opts.copy = true
+		opts.dev = false
+		return "pi", opts, nil
 	default:
 		return "", opts, fmt.Errorf("invalid selection %q", strings.TrimSpace(selection))
 	}
@@ -703,6 +762,12 @@ func normalizeInstallSelection(selection string) string {
 		return "droid-repo"
 	case "8", "droid-copy", "droid-snapshot", "droid-snapshot-copy":
 		return "droid-copy"
+	case "9", "pi", "pi-user", "pi-user-skills":
+		return "pi-user"
+	case "10", "pi-repo", "pi-repo-skills":
+		return "pi-repo"
+	case "11", "pi-copy", "pi-snapshot", "pi-snapshot-copy":
+		return "pi-copy"
 	case "all", "a", "*":
 		return "all"
 	default:

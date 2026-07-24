@@ -103,6 +103,11 @@ func TestBuildCmd_WritesOutputFiles(t *testing.T) {
 	if _, err := os.Lstat(droidFoo); err != nil {
 		t.Errorf(".factory/skills/foo missing: %v", err)
 	}
+
+	piFoo := filepath.Join(root, ".pi", "skills", "foo")
+	if _, err := os.Lstat(piFoo); err != nil {
+		t.Errorf(".pi/skills/foo missing: %v", err)
+	}
 }
 
 func TestBuildCmd_ExplicitTarget(t *testing.T) {
@@ -123,6 +128,9 @@ func TestBuildCmd_ExplicitTarget(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(root, ".factory", "skills", "foo")); !os.IsNotExist(err) {
 		t.Error(".factory/skills/foo should not exist after claude-only build")
 	}
+	if _, err := os.Lstat(filepath.Join(root, ".pi", "skills", "foo")); !os.IsNotExist(err) {
+		t.Error(".pi/skills/foo should not exist after claude-only build")
+	}
 }
 
 func TestBuildCmdExplicitDroidTarget(t *testing.T) {
@@ -139,6 +147,26 @@ func TestBuildCmdExplicitDroidTarget(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, ".agents")); !os.IsNotExist(err) {
 		t.Error(".agents should not exist after droid-only build")
+	}
+}
+
+func TestBuildCmdExplicitPiTarget(t *testing.T) {
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	if err := runBuild(cmd, root, []string{"pi"}); err != nil {
+		t.Fatalf("runBuild pi: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(root, ".pi", "skills", "foo")); err != nil {
+		t.Fatalf(".pi/skills/foo missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".claude-plugin")); !os.IsNotExist(err) {
+		t.Error(".claude-plugin should not exist after pi-only build")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".agents")); !os.IsNotExist(err) {
+		t.Error(".agents should not exist after pi-only build")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".factory")); !os.IsNotExist(err) {
+		t.Error(".factory should not exist after pi-only build")
 	}
 }
 
