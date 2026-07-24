@@ -208,3 +208,19 @@ func TestPiEmitterRejectsInvalidOwnershipMarker(t *testing.T) {
 		t.Fatal("expected invalid ownership marker error")
 	}
 }
+
+func TestUnclaimPiSkillRejectsPathTraversal(t *testing.T) {
+	tmp := t.TempDir()
+	sentinel := filepath.Join(tmp, "sentinel")
+	if err := os.WriteFile(sentinel, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"", ".", "..", "../sentinel", `a\b`} {
+		if err := UnclaimPiSkill(tmp, name); err == nil {
+			t.Fatalf("expected rejection for name %q", name)
+		}
+	}
+	if _, err := os.Stat(sentinel); err != nil {
+		t.Fatalf("guard let os.Remove escape the managed dir: %v", err)
+	}
+}

@@ -138,6 +138,9 @@ func ClaimPiSkill(repoRoot, name string) (bool, error) {
 
 // UnclaimPiSkill rolls back ownership when publishing a repo install fails.
 func UnclaimPiSkill(repoRoot, name string) error {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid skill name %q", name)
+	}
 	return os.Remove(filepath.Join(repoRoot, ".pi", piManagedDir, name))
 }
 
