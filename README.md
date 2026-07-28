@@ -28,8 +28,9 @@
 | **Claude Code** | ✅ first-class | `.claude-plugin/marketplace.json` + `plugin.json` (bundle or per-skill mode) |
 | **OpenAI Codex** | ✅ first-class | `.agents/skills/<name>` repo-scope symlinks; `vd install codex` for user scope; prompt-context hooks via `vd install hooks` |
 | **Factory Droid** | ✅ skills | `.factory/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install droid` for user scope |
+| **Pi** | ✅ skills | `.pi/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install pi` for user scope |
 
-Droid support is skills-only. It does not install Droid plugins, hooks, custom droids, or observability integrations.
+Droid and Pi support is skills-only. It does not install their plugins, hooks, extensions, or observability integrations.
 
 ## Why vd-cli
 
@@ -97,14 +98,18 @@ vd install codex
 
 # 6. (Optional) install local skills into Droid user scope
 vd install droid
+
+# 7. (Optional) install local skills into Pi user scope
+vd install pi
 ```
 
-After these six commands:
+After these commands:
 
 - `skills/browser/` — the vendored skill source, ready to edit.
 - `.claude-plugin/marketplace.json` + `plugin.json` — Claude Code picks it up automatically.
 - `.agents/skills/browser` — Codex repo-scope symlink resolves to `skills/browser/`.
 - `.factory/skills/browser` - Droid repo entry links to `skills/browser/` on Unix and copies it on Windows.
+- `.pi/skills/browser` - Pi repo entry links to `skills/browser/` on Unix and copies it on Windows.
 - `skills.lock` — pinned commit SHA, content hash, every byte deterministic.
 
 ## Commands
@@ -122,7 +127,7 @@ After these six commands:
 | `vd detach <skill>` | Stop tracking; leave files on disk |
 | `vd remove <skill>` | Remove from manifest, lock, and (default) disk |
 | `vd build [target...]` | Emit manifests + symlinks for each agent target |
-| `vd install [agent] [skill...]` | Install local skills into Codex, Factory Droid, or Claude Code |
+| `vd install [agent] [skill...]` | Install local skills into Codex, Factory Droid, Pi, or Claude Code |
 | `vd install hooks` | Install Claude hooks and declared Codex context hooks from `hooks/hooks.toml` |
 | `vd hooks uninstall\|rollback` | Manage installed hooks |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |

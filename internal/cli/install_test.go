@@ -49,6 +49,26 @@ func TestRunInstallDroid_DryRunOutput(t *testing.T) {
 	}
 }
 
+func TestRunInstallPi_DryRunOutput(t *testing.T) {
+	root := setupE2ERepo(t)
+	dest := filepath.Join(t.TempDir(), "pi-skills")
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstallPi(cmd, root, []string{"foo"}, installOptions{
+		dest:   dest,
+		dryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("runInstallPi: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "would symlink pi skill foo -> "+filepath.Join(dest, "foo")) {
+		t.Fatalf("output = %q", got)
+	}
+}
+
 func TestRunInstallClaude_DryRunOutput(t *testing.T) {
 	root := setupE2ERepo(t)
 	cmd := &cobra.Command{}
@@ -113,6 +133,25 @@ func TestResolveInstallSelection(t *testing.T) {
 			name:      "droid snapshot copy",
 			selection: "droid snapshot",
 			wantAgent: "droid",
+			wantScope: "user",
+			wantCopy:  true,
+		},
+		{
+			name:      "pi user symlink",
+			selection: "9",
+			wantAgent: "pi",
+			wantScope: "user",
+		},
+		{
+			name:      "pi repo symlink",
+			selection: "pi repo",
+			wantAgent: "pi",
+			wantScope: "repo",
+		},
+		{
+			name:      "pi snapshot copy",
+			selection: "pi snapshot",
+			wantAgent: "pi",
 			wantScope: "user",
 			wantCopy:  true,
 		},
@@ -226,12 +265,12 @@ func TestRunInstall_ClaudeWithoutDevRejectsSkillNames(t *testing.T) {
 }
 
 func TestResolveInstallSelections_Multiple(t *testing.T) {
-	targets, err := resolveInstallSelections("1,7,5", installOptions{scope: "user"})
+	targets, err := resolveInstallSelections("1,7,5,9", installOptions{scope: "user"})
 	if err != nil {
 		t.Fatalf("resolveInstallSelections: %v", err)
 	}
-	if len(targets) != 3 {
-		t.Fatalf("len(targets) = %d, want 3", len(targets))
+	if len(targets) != 4 {
+		t.Fatalf("len(targets) = %d, want 4", len(targets))
 	}
 	if targets[0].agent != "codex" || targets[0].opts.copy {
 		t.Fatalf("target[0] = %+v, want codex user symlink", targets[0])
@@ -242,6 +281,9 @@ func TestResolveInstallSelections_Multiple(t *testing.T) {
 	if targets[2].agent != "claude" || !targets[2].opts.dev {
 		t.Fatalf("target[2] = %+v, want claude dev", targets[2])
 	}
+	if targets[3].agent != "pi" || targets[3].opts.scope != "user" || targets[3].opts.copy {
+		t.Fatalf("target[3] = %+v, want pi user symlink", targets[3])
+	}
 }
 
 func TestResolveInstallSelections_All(t *testing.T) {
@@ -250,8 +292,8 @@ func TestResolveInstallSelections_All(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolveInstallSelections(%q): %v", in, err)
 		}
-		if len(targets) != 6 {
-			t.Fatalf("resolveInstallSelections(%q) len = %d, want 6", in, len(targets))
+		if len(targets) != 8 {
+			t.Fatalf("resolveInstallSelections(%q) len = %d, want 8", in, len(targets))
 		}
 		for _, target := range targets {
 			if target.opts.copy {
@@ -262,7 +304,7 @@ func TestResolveInstallSelections_All(t *testing.T) {
 }
 
 func TestResolveInstallSelections_RejectsConflictingVariants(t *testing.T) {
-	for _, in := range []string{"1,3", "6,8", "droid,droid snapshot"} {
+	for _, in := range []string{"1,3", "6,8", "droid,droid snapshot", "9,11", "pi,pi snapshot"} {
 		if _, err := resolveInstallSelections(in, installOptions{scope: "user"}); err == nil {
 			t.Fatalf("resolveInstallSelections(%q) accepted conflicting variants", in)
 		}
@@ -270,7 +312,7 @@ func TestResolveInstallSelections_RejectsConflictingVariants(t *testing.T) {
 }
 
 func TestResolveInstallSelections_RejectsDestWithMultipleTargets(t *testing.T) {
-	_, err := resolveInstallSelections("1,7", installOptions{scope: "user", dest: t.TempDir()})
+	_, err := resolveInstallSelections("1,7,9", installOptions{scope: "user", dest: t.TempDir()})
 	if err == nil || !strings.Contains(err.Error(), "--dest requires a single") {
 		t.Fatalf("error = %v, want multi-target --dest rejection", err)
 	}
@@ -341,6 +383,25 @@ func TestRunInstall_DroidAcceptsSkillNames(t *testing.T) {
 		t.Fatalf("runInstall droid foo: %v", err)
 	}
 	if !strings.Contains(out.String(), "would symlink droid skill foo") {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestRunInstall_PiAcceptsSkillNames(t *testing.T) {
+	root := setupE2ERepo(t)
+	dest := filepath.Join(t.TempDir(), "pi-skills")
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"pi", "foo"}, installOptions{
+		dest:   dest,
+		dryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("runInstall pi foo: %v", err)
+	}
+	if !strings.Contains(out.String(), "would symlink pi skill foo") {
 		t.Fatalf("output = %q", out.String())
 	}
 }
