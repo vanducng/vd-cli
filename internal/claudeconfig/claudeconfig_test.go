@@ -2,6 +2,7 @@ package claudeconfig
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -202,6 +203,36 @@ func TestWriteSettingsDryRun(t *testing.T) {
 	// No backup created during dry-run.
 	if _, err := os.Stat(path + ".bak"); err == nil {
 		t.Error("dry-run created a backup file — it should not")
+	}
+}
+
+func TestWriteSettingsDryRunDoesNotPrintSettings(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	secret := "secret-that-must-not-reach-dry-run-output"
+	writeFixture(t, path, `{"mcpServers":{"private":{"token":"`+secret+`"}}}`)
+
+	s := mustReadSettings(t, path)
+	RegisterHooks(s, testHooks())
+
+	readEnd, writeEnd, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout := os.Stdout
+	os.Stdout = writeEnd
+	err = writeSettingsAt(path, s, true)
+	_ = writeEnd.Close()
+	os.Stdout = stdout
+	output, readErr := io.ReadAll(readEnd)
+	_ = readEnd.Close()
+	if err != nil {
+		t.Fatalf("dry-run write: %v", err)
+	}
+	if readErr != nil {
+		t.Fatalf("read dry-run output: %v", readErr)
+	}
+	if len(output) != 0 {
+		t.Fatal("dry-run printed settings content")
 	}
 }
 

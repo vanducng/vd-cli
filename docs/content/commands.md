@@ -438,7 +438,7 @@ Reads `<root>/hooks/hooks.toml`, copies each listed file into `~/.claude/hooks/`
 
 ```sh
 vd install hooks --root ~/skills            # install the hooks defined in ~/skills/hooks/
-vd install hooks --root ~/skills --dry-run  # preview the settings.json diff, change nothing
+vd install hooks --root ~/skills --dry-run  # preview hook actions without printing settings contents
 ```
 
 ### The manifest — `hooks/hooks.toml`
