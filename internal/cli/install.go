@@ -273,7 +273,7 @@ func runInstallHooks(cmd *cobra.Command, repoRoot string, opts installOptions) e
 
 	if opts.dryRun {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "would install hooks to %s\n", dest)
-		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "would register hooks in settings.json (dry-run):")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "would register hooks in settings.json (contents omitted)")
 		s, err := claudeconfig.ReadSettings()
 		if err != nil {
 			return fmt.Errorf("read settings: %w", err)
@@ -374,7 +374,7 @@ func dryRunCodexHooks(cmd *cobra.Command, manifestHooks []claudeconfig.Hook) err
 		return err
 	}
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "would install Codex hooks to %s\n", codexDest)
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "would register Codex hooks in hooks.json (dry-run):")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "would register Codex hooks in hooks.json (contents omitted)")
 	s, err := claudeconfig.ReadSettingsAt(codexPath)
 	if err != nil {
 		return fmt.Errorf("read codex hooks.json: %w", err)
