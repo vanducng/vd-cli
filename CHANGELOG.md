@@ -4,6 +4,18 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.13.0](https://github.com/vanducng/vd-cli/compare/v3.12.0...v3.13.0) (2026-07-28)
+
+
+### Features
+
+* added Factory Droid skill support ([#80](https://github.com/vanducng/vd-cli/issues/80)) ([ec50124](https://github.com/vanducng/vd-cli/commit/ec501242b0a933ca51b169314b333c020611175b))
+
+
+### Bug Fixes
+
+* **vd:** suppress settings contents in hook dry-run ([#82](https://github.com/vanducng/vd-cli/issues/82)) ([75c250a](https://github.com/vanducng/vd-cli/commit/75c250ac7c489c4665030f769df578bdd6021b3e))
+
 ## [3.12.0](https://github.com/vanducng/vd-cli/compare/v3.11.1...v3.12.0) (2026-07-17)
 
 
