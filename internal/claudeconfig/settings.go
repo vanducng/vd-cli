@@ -180,7 +180,7 @@ func removeHookCommand(entries []HookEntry, hookFile string) []HookEntry {
 type WriteOptions struct {
 	// Path overrides the default ~/.claude/settings.json (used in tests).
 	Path string
-	// DryRun prints the diff without writing.
+	// DryRun validates the proposed settings without writing.
 	DryRun bool
 }
 
@@ -188,7 +188,7 @@ type WriteOptions struct {
 // It patches ONLY the hooks key in the raw file — all other keys stay
 // byte-for-byte identical in their original positions.
 // Backs up the original file once before the first mutation.
-// On DryRun it prints the diff to stdout and returns nil.
+// On DryRun it validates the proposed settings and returns nil.
 func WriteSettings(s *Settings, opts WriteOptions) error {
 	path := opts.Path
 	if path == "" {
@@ -213,7 +213,6 @@ func writeSettingsAt(path string, s *Settings, dryRun bool) error {
 	}
 
 	if dryRun {
-		printDiff(path, existing, newData)
 		return nil
 	}
 
@@ -293,44 +292,6 @@ func detectIndent(data []byte) string {
 		}
 	}
 	return ""
-}
-
-// printDiff prints a simple line-level diff of old vs new to stdout.
-func printDiff(path string, old, new []byte) {
-	oldLines := splitLines(old)
-	newLines := splitLines(new)
-
-	fmt.Printf("--- %s (current)\n", path)
-	fmt.Printf("+++ %s (proposed)\n", path)
-
-	maxLen := len(oldLines)
-	if len(newLines) > maxLen {
-		maxLen = len(newLines)
-	}
-	for i := 0; i < maxLen; i++ {
-		var ol, nl string
-		if i < len(oldLines) {
-			ol = oldLines[i]
-		}
-		if i < len(newLines) {
-			nl = newLines[i]
-		}
-		if ol != nl {
-			if ol != "" {
-				fmt.Printf("- %s\n", ol)
-			}
-			if nl != "" {
-				fmt.Printf("+ %s\n", nl)
-			}
-		}
-	}
-}
-
-func splitLines(data []byte) []string {
-	if len(data) == 0 {
-		return nil
-	}
-	return strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 }
 
 // atomicWrite writes data to path via a temp file + rename.
