@@ -17,7 +17,7 @@ vd sync
 vd build
 ```
 
-`vd init` creates `skills.toml`. `vd add` records an upstream skill source. `vd sync` vendors tracked skills into `skills/<name>/`, updates `skills.lock`, and runs `vd build` unless `--no-build` is set. `vd build` regenerates Claude plugin metadata and repo-scoped Codex symlinks.
+`vd init` creates `skills.toml`. `vd add` records an upstream skill source. `vd sync` vendors tracked skills into `skills/<name>/`, updates `skills.lock`, and runs `vd build` unless `--no-build` is set. `vd build` regenerates Claude plugin metadata plus repo-scoped Codex symlinks and Droid entries.
 
 ## Main Features
 
@@ -28,8 +28,8 @@ vd build
 | Upstream tracking | `vd add`, `vd sync`, `vd update` | Register skills, vendor them locally, and move tracked skills to upstream HEAD. |
 | Version control | `vd pin`, `vd detach`, `vd remove` | Freeze a skill at a SHA, stop tracking it, or remove it cleanly. |
 | Inspection | `vd list`, `vd diff`, `vd doctor` | Review tracked skills, compare local edits, and detect drift from `skills.lock`. |
-| Target builds | `vd build claude`, `vd build agents` | Generate `.claude-plugin/` files and `.agents/skills/` symlinks. |
-| Agent install | `vd install codex`, `vd install claude` | Install local skills into Codex or Claude Code. |
+| Target builds | `vd build claude`, `vd build agents`, `vd build droid` | Generate `.claude-plugin/` files, `.agents/skills/` symlinks, and `.factory/skills/` entries. |
+| Agent install | `vd install codex`, `vd install droid`, `vd install claude` | Install local skills into Codex, Factory Droid, or Claude Code. |
 | Cache control | `vd cache clean` | Remove `.vd-cache/` and force future fetches to repopulate it. |
 | Self-update | `vd upgrade` | Replace the running binary with the latest release (`brew update && brew upgrade vanducng/tap/vd` for Homebrew). |
 
@@ -61,6 +61,18 @@ vd install codex --scope repo       # symlink into .agents/skills for this repo
 vd install codex --copy --force     # replace existing entries with copied snapshots
 vd install                          # open the picker (single, comma-separated, or 'all')
 ```
+
+Droid uses the same guarded symlink/copy flow with Factory's native discovery paths:
+
+```sh
+vd install droid                    # install all skills to $HOME/.factory/skills
+vd install droid research plan      # install selected skills
+vd install droid --scope repo       # install into .factory/skills for this repo
+vd install droid --copy --force     # replace existing entries with copied snapshots
+vd install droid --dry-run          # preview without writing files
+```
+
+On Unix, Droid entries are relative symlinks by default. On Windows, vd creates copies; rerun with `--force` to refresh an existing copy. Restart Droid, run `/skills`, and invoke an installed skill with `/skill-name`. Droid support is skills-only; plugins, hooks, custom droids, and observability are not installed.
 
 Claude Code installs build the plugin bundle, register this repository as a marketplace, and install the configured plugin. Use `--dev` for per-skill symlinks into `$HOME/.claude/skills` instead:
 
