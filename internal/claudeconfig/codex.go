@@ -12,11 +12,10 @@ import (
 
 const codexConfigFile = "config.toml"
 
-// notifyLineRe matches the top-level `notify = ...` assignment, including a
-// multi-line array value (`notify = [\n "a",\n "b"\n]`). We replace the whole
-// match surgically and leave every other byte untouched.
+// notifyAssignRe matches the top-level notify assignment prefix.
 var notifyAssignRe = regexp.MustCompile(`(?m)^[ \t]*notify[ \t]*=[ \t]*`)
 
+// findNotifyAssignment returns the full assignment range, including multi-line arrays.
 func findNotifyAssignment(data []byte) ([]int, error) {
 	loc := notifyAssignRe.FindIndex(data)
 	if loc == nil {
