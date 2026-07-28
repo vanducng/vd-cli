@@ -10,15 +10,15 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/target"
 )
 
-var defaultTargets = []string{"claude", "agents", "droid"}
+var defaultTargets = []string{"claude", "agents", "droid", "pi"}
 
 func newBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build [target...]",
-		Short: "Emit skill files for configured targets (claude, agents, droid)",
+		Short: "Emit skill files for configured targets (claude, agents, droid, pi)",
 		Long: `Read skills.toml + skills.lock and emit output files for each target.
 
-Targets: claude (marketplace.json + plugin.json), agents (.agents/ symlinks), droid (.factory/skills).
+Targets: claude (marketplace.json + plugin.json), agents (.agents/ symlinks), droid (.factory/skills), pi (.pi/skills).
 With no arguments all enabled targets are built.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := resolveRepoRoot(flagRoot)
