@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.13.1](https://github.com/vanducng/vd-cli/compare/v3.13.0...v3.13.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **vd:** preserved wrapped Codex notify arrays ([#85](https://github.com/vanducng/vd-cli/issues/85)) ([8ebaab0](https://github.com/vanducng/vd-cli/commit/8ebaab033decb1022e6a617d6b732af028d8db23))
+
 ## [3.13.0](https://github.com/vanducng/vd-cli/compare/v3.12.0...v3.13.0) (2026-07-28)
 
 
