@@ -15,7 +15,85 @@ const codexConfigFile = "config.toml"
 // notifyLineRe matches the top-level `notify = ...` assignment, including a
 // multi-line array value (`notify = [\n "a",\n "b"\n]`). We replace the whole
 // match surgically and leave every other byte untouched.
-var notifyLineRe = regexp.MustCompile(`(?m)^[ \t]*notify[ \t]*=[ \t]*(?:\[[^\]]*\]|[^\n]*)`)
+var notifyAssignRe = regexp.MustCompile(`(?m)^[ \t]*notify[ \t]*=[ \t]*`)
+
+func findNotifyAssignment(data []byte) ([]int, error) {
+	loc := notifyAssignRe.FindIndex(data)
+	if loc == nil {
+		return nil, nil
+	}
+	if loc[1] >= len(data) || data[loc[1]] != '[' {
+		end := loc[1]
+		for end < len(data) && data[end] != '\n' {
+			end++
+		}
+		return []int{loc[0], end}, nil
+	}
+
+	depth := 0
+	var quote byte
+	triple := false
+	escaped := false
+	comment := false
+	for i := loc[1]; i < len(data); i++ {
+		char := data[i]
+		if comment {
+			if char == '\n' {
+				comment = false
+			}
+			continue
+		}
+		if quote != 0 {
+			if quote == '"' && escaped {
+				escaped = false
+				continue
+			}
+			if quote == '"' && char == '\\' {
+				escaped = true
+				continue
+			}
+			if triple {
+				if char == quote {
+					end := i + 1
+					for end < len(data) && data[end] == quote {
+						end++
+					}
+					if end-i >= 3 {
+						quote = 0
+						triple = false
+					}
+					i = end - 1
+				}
+			} else if char == quote {
+				quote = 0
+			}
+			continue
+		}
+
+		switch char {
+		case '#':
+			comment = true
+		case '"', '\'':
+			quote = char
+			if i+2 < len(data) && data[i+1] == char && data[i+2] == char {
+				triple = true
+				i += 2
+			}
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth == 0 {
+				end := i + 1
+				for end+1 < len(data) && (data[end] == '"' || data[end] == '\'') && data[end+1] == ']' {
+					end += 2
+				}
+				return []int{loc[0], end}, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("unterminated codex notify array")
+}
 
 // CodexConfigPath returns the absolute path to ~/.codex/config.toml.
 func CodexConfigPath() (string, error) {
@@ -105,8 +183,12 @@ func WireCodexNotify(path string, command []string) (replacedPrev string, err er
 		return "", atomicWrite(path, []byte(newLine+"\n"))
 	}
 
+	loc, err := findNotifyAssignment(existing)
+	if err != nil {
+		return "", err
+	}
 	var out []byte
-	if loc := notifyLineRe.FindIndex(existing); loc != nil {
+	if loc != nil {
 		prev := strings.TrimRight(string(existing[loc[0]:loc[1]]), "\r")
 		if !strings.Contains(prev, programPath) {
 			replacedPrev = prev
@@ -145,7 +227,10 @@ func UnwireCodexNotify(path, programPath string) error {
 		return fmt.Errorf("read %s: %w", path, readErr)
 	}
 
-	loc := notifyLineRe.FindIndex(existing)
+	loc, err := findNotifyAssignment(existing)
+	if err != nil {
+		return err
+	}
 	if loc == nil {
 		return nil
 	}
