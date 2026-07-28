@@ -31,6 +31,31 @@ func TestWireCodexNotifyMultiLineArray(t *testing.T) {
 	}
 }
 
+func TestWireCodexNotifyConsumesWholeAssignment(t *testing.T) {
+	cases := map[string]string{
+		"wrapped array":       `notify = ["/Applications/notifier", "turn-ended", "--previous-notify", "[\"python3\",\"/abs/notify.py\",\"codex\"]"]`,
+		"legacy suffix":       `notify = ["python3", "/abs/notify.py", "codex"]"]`,
+		"multiline comment":   "notify = [\n  \"/Applications/notifier\", # previous ] wrapper\n  \"turn-ended\"\n]",
+		"basic four quotes":   `notify = ["""abc""""]`,
+		"literal four quotes": `notify = ['''abc'''']`,
+	}
+	for name, original := range cases {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.toml")
+			if err := os.WriteFile(path, []byte(original+"\nmodel = \"x\"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := WireCodexNotify(path, []string{"python3", "/abs/notify.py", "codex"}); err != nil {
+				t.Fatal(err)
+			}
+			want := "notify = [\"python3\", \"/abs/notify.py\", \"codex\"]\nmodel = \"x\"\n"
+			if got := readFile(t, path); got != want {
+				t.Fatalf("config mismatch:\n got: %q\nwant: %q", got, want)
+			}
+		})
+	}
+}
+
 func TestTomlQuoteControlChars(t *testing.T) {
 	if got := tomlQuote("a\tb\nc"); got != `"a\tb\nc"` {
 		t.Errorf("tab/newline = %q", got)
