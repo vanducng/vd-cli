@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.13.6](https://github.com/vanducng/vd-cli/compare/v3.13.5...v3.13.6) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** keep header search clickable ([#95](https://github.com/vanducng/vd-cli/issues/95)) ([da069c1](https://github.com/vanducng/vd-cli/commit/da069c1a81bcf6c35e1a2e9b766e583bf4dcc68c))
+
 ## [3.13.5](https://github.com/vanducng/vd-cli/compare/v3.13.4...v3.13.5) (2026-07-29)
 
 
