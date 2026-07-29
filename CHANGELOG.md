@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.13.4](https://github.com/vanducng/vd-cli/compare/v3.13.3...v3.13.4) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** restore shell spacing ([#91](https://github.com/vanducng/vd-cli/issues/91)) ([52de31a](https://github.com/vanducng/vd-cli/commit/52de31a533dad5af35d79bff217198d2a52c5cd8))
+
 ## [3.13.3](https://github.com/vanducng/vd-cli/compare/v3.13.2...v3.13.3) (2026-07-29)
 
 
