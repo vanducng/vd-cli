@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.13.2](https://github.com/vanducng/vd-cli/compare/v3.13.1...v3.13.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** restore Starlight layout ([#87](https://github.com/vanducng/vd-cli/issues/87)) ([3d133fe](https://github.com/vanducng/vd-cli/commit/3d133fe1af5a100dc0c7272f4f2973e4f10138b9))
+
 ## [3.13.1](https://github.com/vanducng/vd-cli/compare/v3.13.0...v3.13.1) (2026-07-28)
 
 
