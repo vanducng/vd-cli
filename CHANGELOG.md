@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.13.5](https://github.com/vanducng/vd-cli/compare/v3.13.4...v3.13.5) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** scope search trigger sizing ([#93](https://github.com/vanducng/vd-cli/issues/93)) ([e2a087f](https://github.com/vanducng/vd-cli/commit/e2a087f78eaaa9d4bfe45e7583c51e8b1232eaa0))
+
 ## [3.13.4](https://github.com/vanducng/vd-cli/compare/v3.13.3...v3.13.4) (2026-07-29)
 
 
