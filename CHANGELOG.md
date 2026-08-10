@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.13.7](https://github.com/vanducng/vd-cli/compare/v3.13.6...v3.13.7) (2026-08-10)
+
+
+### Bug Fixes
+
+* **codex-workflow:** use login provider for workflow steps ([#97](https://github.com/vanducng/vd-cli/issues/97)) ([f43db7e](https://github.com/vanducng/vd-cli/commit/f43db7efab3156280be99cd642c5c124d2fa2a7a))
+
 ## [3.13.6](https://github.com/vanducng/vd-cli/compare/v3.13.5...v3.13.6) (2026-07-29)
 
 
