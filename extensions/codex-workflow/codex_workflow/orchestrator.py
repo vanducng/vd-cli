@@ -124,6 +124,15 @@ def _step_prompt(step: dict) -> str:
     return prompt
 
 
+def _step_args(step: dict) -> dict:
+    return {
+        "prompt": _step_prompt(step),
+        "approval-policy": "never",
+        "sandbox": "workspace-write",
+        "config": {"model_provider": "openai"},
+    }
+
+
 def _result_text(call_result) -> str:
     parts = []
     for item in getattr(call_result, "content", []) or []:
@@ -138,10 +147,7 @@ async def _run_step(session: ClientSession, step: dict) -> dict:
     t0 = time.monotonic()
     log.info("step start id=%s agent=%s", sid, step.get("agent") or "-")
     try:
-        res = await session.call_tool(
-            "codex",
-            {"prompt": _step_prompt(step), "approval-policy": "never", "sandbox": "workspace-write"},
-        )
+        res = await session.call_tool("codex", _step_args(step))
         status = "error" if getattr(res, "isError", False) else "ok"
         out = _result_text(res) or ("tool error" if status == "error" else "")
         log.info("step done  id=%s status=%s dur=%.1fs out=%dch", sid, status, time.monotonic() - t0, len(out))
