@@ -11,8 +11,8 @@ import (
 const maxAssetBytes = 1 << 20 // 1 MiB
 
 // Adapter scans one agent's home directory for assets, tagging them with a
-// platform. The same path conventions (skills/, agents/, commands/, rules/)
-// cover Claude Code, Codex, and Cursor; missing dirs are simply skipped.
+// platform. The same path conventions (skills/, agents/) cover Claude Code,
+// Codex, and Cursor; missing dirs are simply skipped.
 type Adapter struct {
 	Platform string
 	Home     string // the agent home dir (e.g. ~/.claude, ~/.agents, ~/.cursor)
@@ -28,28 +28,18 @@ func NewClaudeAdapter(claudeDir string) Adapter {
 	return Adapter{Platform: platformClaude, Home: claudeDir}
 }
 
-// Scan enumerates skills, agents, commands, and rules under the home dir.
+// Scan enumerates skills and agents under the home dir.
 // Read-only — never writes. Symlinked skill dirs (Codex) are followed.
 func (a Adapter) Scan() ([]Asset, error) {
 	out, err := a.scanSkills()
 	if err != nil {
 		return nil, err
 	}
-	for _, f := range []struct {
-		dir string
-		typ AssetType
-	}{
-		{"agents", Agent},
-		{"commands", Command},
-		{"rules", Rule},
-	} {
-		assets, err := a.scanFlat(f.dir, f.typ)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, assets...)
+	agents, err := a.scanFlat("agents", Agent)
+	if err != nil {
+		return nil, err
 	}
-	return out, nil
+	return append(out, agents...), nil
 }
 
 // scanSkills reads skills/<name>/SKILL.md(.disabled). Entry may be a symlink.

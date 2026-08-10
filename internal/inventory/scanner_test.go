@@ -25,8 +25,6 @@ func fixtureClaude(t *testing.T) string {
 		"---\nname: beta\ndescription: beta skill\n---\nbody\n")
 	writeFile(t, filepath.Join(home, "agents", "rev.md"),
 		"---\nname: rev\ndescription: reviewer\n---\nx\n")
-	writeFile(t, filepath.Join(home, "commands", "ship.md"), "do it\n")
-	// no rules/ dir on purpose
 	return home
 }
 
@@ -48,9 +46,6 @@ func TestScan_SkillsEnabledDisabled(t *testing.T) {
 	}
 	if _, ok := byName["agent/rev"]; !ok {
 		t.Error("agent rev not found")
-	}
-	if a := byName["command/ship"]; a.Name != "ship" {
-		t.Errorf("command ship missing: %+v", a)
 	}
 }
 

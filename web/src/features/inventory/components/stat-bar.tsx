@@ -2,7 +2,7 @@ import { KpiStrip, type Kpi } from "@/features/shared/components/kpi-strip";
 import type { GroupedAsset } from "../group-assets";
 import { hasDrift, platformLabel } from "./labels";
 
-const TYPE_ORDER = ["skill", "agent", "command", "rule"] as const;
+const TYPE_ORDER = ["skill", "agent"] as const;
 
 export function StatBar({ assets }: { assets: GroupedAsset[] }) {
   const byType = count(assets.map((a) => a.type));

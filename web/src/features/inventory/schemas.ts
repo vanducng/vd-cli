@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Mirrors internal/inventory/types.go AssetSummary. `omitempty` Go tags → .optional()
 // (key absent when zero-valued); Platform/Enabled have no `omitempty` → always present.
-export const assetTypeSchema = z.enum(["skill", "agent", "command", "hook", "rule"]);
+export const assetTypeSchema = z.enum(["skill", "agent", "hook"]);
 
 export const assetSummarySchema = z.object({
   type: assetTypeSchema,

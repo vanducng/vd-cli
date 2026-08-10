@@ -6,7 +6,7 @@ export interface Row extends AssetSummary {
   scope: Scope;
 }
 
-export const TYPES: (AssetType | "all")[] = ["all", "skill", "agent", "command", "rule"];
+export const TYPES: (AssetType | "all")[] = ["all", "skill", "agent"];
 export const PLATFORMS = ["all", "claude_code", "codex", "cursor"] as const;
 export const SCOPES = ["all", "managed", "discovered"] as const;
 

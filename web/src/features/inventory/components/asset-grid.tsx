@@ -7,7 +7,7 @@ import type { GroupedAsset } from "../group-assets";
 import { PlatformBadgeRow } from "./platform-badge";
 import { hasDrift, typeLabel } from "./labels";
 
-const TYPE_ORDER = ["skill", "agent", "command", "hook", "rule"];
+const TYPE_ORDER = ["skill", "agent", "hook"];
 
 interface AssetGridProps {
   assets: GroupedAsset[];

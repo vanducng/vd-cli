@@ -9,11 +9,9 @@ type AssetType string
 
 // Asset type constants, one per supported Claude asset kind.
 const (
-	Skill   AssetType = "skill"
-	Agent   AssetType = "agent"
-	Command AssetType = "command"
-	Hook    AssetType = "hook"
-	Rule    AssetType = "rule"
+	Skill AssetType = "skill"
+	Agent AssetType = "agent"
+	Hook  AssetType = "hook"
 )
 
 // Supported agent platforms. Each tags discovered assets so the UI can filter

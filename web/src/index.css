@@ -95,3 +95,74 @@
     @apply text-info no-underline;
   }
 }
+
+/* Rendered markdown (skill detail bodies). Preflight strips element styles,
+   so restore a compact document look using the design tokens. */
+@layer components {
+  .markdown-body {
+    @apply text-muted-foreground;
+  }
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4 {
+    @apply mb-2 mt-6 font-semibold text-foreground first:mt-0;
+  }
+  .markdown-body h1 {
+    @apply border-b border-border pb-2 text-lg;
+  }
+  .markdown-body h2 {
+    @apply text-base;
+  }
+  .markdown-body h3,
+  .markdown-body h4 {
+    @apply text-sm;
+  }
+  .markdown-body p {
+    @apply my-2.5;
+  }
+  .markdown-body ul,
+  .markdown-body ol {
+    @apply my-2.5 space-y-1 pl-5;
+  }
+  .markdown-body ul {
+    @apply list-disc;
+  }
+  .markdown-body ol {
+    @apply list-decimal;
+  }
+  .markdown-body li > ul,
+  .markdown-body li > ol {
+    @apply my-1;
+  }
+  .markdown-body code {
+    @apply rounded-sm bg-panel-2 px-1.5 py-0.5 font-mono text-xs text-foreground;
+  }
+  .markdown-body pre {
+    @apply my-3 overflow-x-auto rounded-md border border-border bg-panel-2 p-3;
+  }
+  .markdown-body pre code {
+    @apply bg-transparent p-0 text-muted-foreground;
+  }
+  .markdown-body table {
+    @apply my-3 block w-max max-w-full overflow-x-auto border-collapse text-xs;
+  }
+  .markdown-body th {
+    @apply border border-border bg-panel-2 px-3 py-1.5 text-left font-medium text-foreground;
+  }
+  .markdown-body td {
+    @apply border border-border px-3 py-1.5 align-top;
+  }
+  .markdown-body blockquote {
+    @apply my-3 border-l-2 border-primary/50 pl-3 text-faint;
+  }
+  .markdown-body hr {
+    @apply my-5 border-border;
+  }
+  .markdown-body strong {
+    @apply font-semibold text-foreground;
+  }
+  .markdown-body a {
+    @apply text-info hover:underline;
+  }
+}

@@ -40,7 +40,7 @@ func newSvc(t *testing.T, root, claude string) *Service {
 
 func TestInventory_ManagedCleanAndDiscovered(t *testing.T) {
 	root := fixtureRepo(t)
-	claude := fixtureClaude(t) // has skills alpha?no -> beta + agents/commands
+	claude := fixtureClaude(t) // has skills alpha?no -> beta + agents
 
 	inv, err := newSvc(t, root, claude).Inventory()
 	if err != nil {
@@ -137,8 +137,8 @@ func TestInventory_MultiPlatform(t *testing.T) {
 	claude, codex, cursor := t.TempDir(), t.TempDir(), t.TempDir()
 	writeFile(t, filepath.Join(codex, "skills", "cdx", "SKILL.md"),
 		"---\nname: cdx\ndescription: codex skill\n---\nx\n")
-	writeFile(t, filepath.Join(cursor, "rules", "style.mdc"),
-		"---\ndescription: cursor rule\n---\nbe nice\n")
+	writeFile(t, filepath.Join(cursor, "skills", "style", "SKILL.md"),
+		"---\nname: style\ndescription: cursor skill\n---\nbe nice\n")
 
 	svc := NewService(root, claude)
 	svc.CodexHome, svc.CursorHome = codex, cursor
@@ -153,8 +153,8 @@ func TestInventory_MultiPlatform(t *testing.T) {
 	if plat["skill/cdx"] != PlatformCodex {
 		t.Errorf("codex skill platform = %q, want %q", plat["skill/cdx"], PlatformCodex)
 	}
-	if plat["rule/style"] != PlatformCursor {
-		t.Errorf("cursor rule platform = %q, want %q", plat["rule/style"], PlatformCursor)
+	if plat["skill/style"] != PlatformCursor {
+		t.Errorf("cursor skill platform = %q, want %q", plat["skill/style"], PlatformCursor)
 	}
 }
 

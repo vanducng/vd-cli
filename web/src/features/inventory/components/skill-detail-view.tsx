@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,8 +39,8 @@ export function SkillDetailView({ name, onBack }: SkillDetailViewProps) {
               </tbody>
             </table>
           )}
-          <div className="rounded-md border border-border bg-panel p-4 text-sm leading-relaxed">
-            <ReactMarkdown>{data.body}</ReactMarkdown>
+          <div className="markdown-body rounded-md border border-border bg-panel p-5 text-sm leading-relaxed">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.body}</ReactMarkdown>
           </div>
         </>
       )}
