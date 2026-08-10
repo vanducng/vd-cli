@@ -180,7 +180,7 @@ func removeHookCommand(entries []HookEntry, hookFile string) []HookEntry {
 type WriteOptions struct {
 	// Path overrides the default ~/.claude/settings.json (used in tests).
 	Path string
-	// DryRun validates the update without writing.
+	// DryRun validates the proposed settings without writing.
 	DryRun bool
 }
 
@@ -188,7 +188,7 @@ type WriteOptions struct {
 // It patches ONLY the hooks key in the raw file — all other keys stay
 // byte-for-byte identical in their original positions.
 // Backs up the original file once before the first mutation.
-// On DryRun it validates the update and returns nil.
+// On DryRun it validates the proposed settings and returns nil.
 func WriteSettings(s *Settings, opts WriteOptions) error {
 	path := opts.Path
 	if path == "" {

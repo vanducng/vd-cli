@@ -4,6 +4,60 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.13.6](https://github.com/vanducng/vd-cli/compare/v3.13.5...v3.13.6) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** keep header search clickable ([#95](https://github.com/vanducng/vd-cli/issues/95)) ([da069c1](https://github.com/vanducng/vd-cli/commit/da069c1a81bcf6c35e1a2e9b766e583bf4dcc68c))
+
+## [3.13.5](https://github.com/vanducng/vd-cli/compare/v3.13.4...v3.13.5) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** scope search trigger sizing ([#93](https://github.com/vanducng/vd-cli/issues/93)) ([e2a087f](https://github.com/vanducng/vd-cli/commit/e2a087f78eaaa9d4bfe45e7583c51e8b1232eaa0))
+
+## [3.13.4](https://github.com/vanducng/vd-cli/compare/v3.13.3...v3.13.4) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** restore shell spacing ([#91](https://github.com/vanducng/vd-cli/issues/91)) ([52de31a](https://github.com/vanducng/vd-cli/commit/52de31a533dad5af35d79bff217198d2a52c5cd8))
+
+## [3.13.3](https://github.com/vanducng/vd-cli/compare/v3.13.2...v3.13.3) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** center navigation shell ([#89](https://github.com/vanducng/vd-cli/issues/89)) ([dd92db8](https://github.com/vanducng/vd-cli/commit/dd92db8e9a44c2455c6d2f85ec85e52f26b91b8f))
+
+## [3.13.2](https://github.com/vanducng/vd-cli/compare/v3.13.1...v3.13.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docs:** restore Starlight layout ([#87](https://github.com/vanducng/vd-cli/issues/87)) ([3d133fe](https://github.com/vanducng/vd-cli/commit/3d133fe1af5a100dc0c7272f4f2973e4f10138b9))
+
+## [3.13.1](https://github.com/vanducng/vd-cli/compare/v3.13.0...v3.13.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **vd:** preserved wrapped Codex notify arrays ([#85](https://github.com/vanducng/vd-cli/issues/85)) ([8ebaab0](https://github.com/vanducng/vd-cli/commit/8ebaab033decb1022e6a617d6b732af028d8db23))
+
+## [3.13.0](https://github.com/vanducng/vd-cli/compare/v3.12.0...v3.13.0) (2026-07-28)
+
+
+### Features
+
+* added Factory Droid skill support ([#80](https://github.com/vanducng/vd-cli/issues/80)) ([ec50124](https://github.com/vanducng/vd-cli/commit/ec501242b0a933ca51b169314b333c020611175b))
+
+
+### Bug Fixes
+
+* **vd:** suppress settings contents in hook dry-run ([#82](https://github.com/vanducng/vd-cli/issues/82)) ([75c250a](https://github.com/vanducng/vd-cli/commit/75c250ac7c489c4665030f769df578bdd6021b3e))
+
 ## [3.12.0](https://github.com/vanducng/vd-cli/compare/v3.11.1...v3.12.0) (2026-07-17)
 
 

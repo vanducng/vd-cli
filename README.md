@@ -27,8 +27,10 @@
 |---|---|---|
 | **Claude Code** | ✅ first-class | `.claude-plugin/marketplace.json` + `plugin.json` (bundle or per-skill mode) |
 | **OpenAI Codex** | ✅ first-class | `.agents/skills/<name>` repo-scope symlinks; `vd install codex` for user scope; prompt-context hooks via `vd install hooks` |
+| **Factory Droid** | ✅ skills | `.factory/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install droid` for user scope |
+| **Pi** | ✅ skills | `.pi/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install pi` for user scope |
 
-More targets land as the coding-agent ecosystem grows — the emitter interface (`internal/target/iface.go`) is intentionally small so adding a new agent is a single file.
+Droid and Pi support is skills-only. It does not install their plugins, hooks, extensions, or observability integrations.
 
 ## Why vd-cli
 
@@ -54,11 +56,6 @@ Installs to `~/.local/bin` (override with `VD_INSTALL_DIR`, pin with `VD_VERSION
 brew install vanducng/tap/vd
 ```
 Homebrew 5.x requires trusting third-party taps first: `brew trust vanducng/tap`.
-
-**go install:**
-```sh
-go install github.com/vanducng/vd-cli/v2/cmd/vd@latest
-```
 
 **Pre-built binaries:** see [releases](https://github.com/vanducng/vd-cli/releases) for darwin/linux/windows × amd64/arm64.
 
@@ -98,13 +95,21 @@ vd build
 
 # 5. (Optional) install local skills into Codex user scope
 vd install codex
+
+# 6. (Optional) install local skills into Droid user scope
+vd install droid
+
+# 7. (Optional) install local skills into Pi user scope
+vd install pi
 ```
 
-After these five commands:
+After these commands:
 
 - `skills/browser/` — the vendored skill source, ready to edit.
 - `.claude-plugin/marketplace.json` + `plugin.json` — Claude Code picks it up automatically.
 - `.agents/skills/browser` — Codex repo-scope symlink resolves to `skills/browser/`.
+- `.factory/skills/browser` - Droid repo entry links to `skills/browser/` on Unix and copies it on Windows.
+- `.pi/skills/browser` - Pi repo entry links to `skills/browser/` on Unix and copies it on Windows.
 - `skills.lock` — pinned commit SHA, content hash, every byte deterministic.
 
 ## Commands
@@ -122,7 +127,7 @@ After these five commands:
 | `vd detach <skill>` | Stop tracking; leave files on disk |
 | `vd remove <skill>` | Remove from manifest, lock, and (default) disk |
 | `vd build [target...]` | Emit manifests + symlinks for each agent target |
-| `vd install [agent] [skill...]` | Install local skills into Codex or Claude Code user scope |
+| `vd install [agent] [skill...]` | Install local skills into Codex, Factory Droid, Pi, or Claude Code |
 | `vd install hooks` | Install Claude hooks and declared Codex context hooks from `hooks/hooks.toml` |
 | `vd hooks uninstall\|rollback` | Manage installed hooks |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |

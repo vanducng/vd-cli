@@ -1,5 +1,5 @@
 /* ============================================================
-   dotfiles docs theme — Prefab-inspired: deep-dark surface,
+   Shared docs theme - Prefab-inspired: deep-dark surface,
    pink/magenta accent, refined code. Layered over Starlight.
    ============================================================ */
 
@@ -39,22 +39,6 @@ starlight-theme-toggle {
   font-size: 0.84em;
 }
 
-/* ---- Center the article column. Starlight reserves half the leftover space
-   as TOC padding (content hugs left); give the TOC its natural width and let
-   the article center in the remaining area with symmetric margins.
-   NOTE: targets Starlight-private classes — verified against @astrojs/starlight
-   0.39.3; re-check on minor upgrades. ---- */
-@media (min-width: 72rem) {
-  [data-has-sidebar][data-has-toc] .main-pane {
-    width: calc(100% - 2 * var(--sl-sidebar-width)) !important;
-    --sl-content-margin-inline: auto;
-  }
-  [data-has-sidebar][data-has-toc] .right-sidebar,
-  [data-has-sidebar][data-has-toc] .right-sidebar-container {
-    width: var(--sl-sidebar-width) !important;
-  }
-}
-
 /* ---- Search modal: narrower, calmer than the full-width default ---- */
 .dialog-frame:has(#starlight__search) {
   max-inline-size: 42rem;
@@ -82,4 +66,60 @@ starlight-toc a[aria-current='true'] {
 /* ---- Comfortable reading measure ---- */
 :root {
   --sl-content-width: 45rem;
+}
+
+@media (min-width: 72rem) {
+  :root {
+    --docs-shell-offset: max(
+      var(--sl-nav-pad-x),
+      calc(
+        (100vw - (2 * var(--sl-sidebar-width)) - var(--sl-content-width)) / 2 -
+          var(--sl-nav-pad-x)
+      )
+    );
+    --docs-article-width: min(
+      var(--sl-content-width),
+      calc(
+        50vw + (var(--sl-content-width) / 2) - var(--sl-sidebar-width) -
+          var(--docs-shell-offset) - var(--sl-nav-gap, 1.5rem)
+      )
+    );
+    --docs-sidebar-offset: max(0rem, calc(var(--docs-shell-offset) - 2rem));
+    --docs-search-width: min(22rem, var(--docs-article-width));
+  }
+
+  .sidebar-pane {
+    inset-inline-start: var(--docs-sidebar-offset);
+  }
+
+  .title-wrapper > .site-title {
+    transform: translateX(var(--docs-sidebar-offset));
+  }
+
+  site-search > button {
+    inline-size: var(--docs-search-width);
+    margin-inline-start: calc(
+      (var(--docs-article-width) - var(--docs-search-width)) / 2
+    );
+  }
+
+  .main-pane main > .content-panel + .content-panel {
+    border-top: 0;
+    position: relative;
+  }
+
+  .main-pane main > .content-panel + .content-panel::before {
+    content: '';
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: max(
+      var(--sl-content-pad-x),
+      calc(100% - var(--sl-content-width) - var(--sl-content-pad-x))
+    );
+    inline-size: min(
+      var(--sl-content-width),
+      calc(100% - (2 * var(--sl-content-pad-x)))
+    );
+    border-top: 1px solid var(--sl-color-hairline);
+  }
 }

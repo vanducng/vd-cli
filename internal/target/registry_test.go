@@ -3,7 +3,7 @@ package target
 import "testing"
 
 func TestNewEmitter_KnownNames(t *testing.T) {
-	for _, name := range []string{"claude", "agents"} {
+	for _, name := range []string{"claude", "agents", "droid", "pi"} {
 		e, err := NewEmitter(name)
 		if err != nil {
 			t.Errorf("NewEmitter(%q): unexpected error: %v", name, err)
