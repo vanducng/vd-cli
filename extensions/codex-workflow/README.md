@@ -4,7 +4,7 @@ Deterministic multi-agent workflow orchestrator for Codex, exposed as an MCP ser
 
 ## Design (ADR-0002, refined)
 
-A **deterministic sequencer**, not an Agents-SDK manager: `run_workflow` dispatches each step to Codex's own `codex` MCP tool (`codex mcp-server`), so all model work runs through your **Codex login** — no second API key, no extra LLM bill. Steps run sequentially; consecutive steps sharing a `parallel_group` run concurrently (capped by `[agents].max_threads`).
+A **deterministic sequencer**, not an Agents-SDK manager: `run_workflow` dispatches each step to Codex's own `codex` MCP tool (`codex mcp-server`), so all model work runs through your **Codex login** - no second API key, no extra LLM bill. Each workflow step explicitly selects Codex's built-in `openai` provider, even when the user's interactive default is a custom provider. Steps run sequentially; consecutive steps sharing a `parallel_group` run concurrently (capped by `[agents].max_threads`).
 
 ## Tool
 

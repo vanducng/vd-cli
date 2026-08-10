@@ -7,6 +7,7 @@ import pytest
 from codex_workflow.orchestrator import (
     _batches,
     _nested_mcp_override,
+    _step_args,
     _toml_inline,
     run_workflow_spec,
 )
@@ -26,6 +27,15 @@ def test_nested_override_default_and_recursion_guard():
     assert _nested_mcp_override(["codex-workflow"]) == "{}"
     # an unconfigured name is skipped → empty
     assert _nested_mcp_override(["definitely-not-a-real-server-xyz"]) == "{}"
+
+
+def test_workflow_step_uses_login_provider():
+    assert _step_args({"id": "a", "prompt": "ping"}) == {
+        "prompt": "ping",
+        "approval-policy": "never",
+        "sandbox": "workspace-write",
+        "config": {"model_provider": "openai"},
+    }
 
 
 def test_batches_grouping():
