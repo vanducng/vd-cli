@@ -29,8 +29,9 @@
 | **OpenAI Codex** | ✅ first-class | `.agents/skills/<name>` repo-scope symlinks; `vd install codex` for user scope; prompt-context hooks via `vd install hooks` |
 | **Factory Droid** | ✅ skills | `.factory/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install droid` for user scope |
 | **Pi** | ✅ skills | `.pi/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install pi` for user scope |
+| **Cursor** | ✅ skills | `vd install cursor` writes `$HOME/.cursor/skills/<name>` (or `$VD_CURSOR_HOME/skills`); `--scope repo` writes `.cursor/skills/<name>` (relative symlinks on Unix, copies on Windows) |
 
-Droid and Pi support is skills-only. It does not install their plugins, hooks, extensions, or observability integrations.
+Droid, Pi, and Cursor support is skills-only. It does not install their plugins, hooks, extensions, or observability integrations.
 
 ## Why vd-cli
 
@@ -101,6 +102,9 @@ vd install droid
 
 # 7. (Optional) install local skills into Pi user scope
 vd install pi
+
+# 8. (Optional) install local skills into Cursor user scope
+vd install cursor
 ```
 
 After these commands:
@@ -110,6 +114,7 @@ After these commands:
 - `.agents/skills/browser` — Codex repo-scope symlink resolves to `skills/browser/`.
 - `.factory/skills/browser` - Droid repo entry links to `skills/browser/` on Unix and copies it on Windows.
 - `.pi/skills/browser` - Pi repo entry links to `skills/browser/` on Unix and copies it on Windows.
+- `$HOME/.cursor/skills/browser` — Cursor user-scope entry from `vd install cursor` (or `.cursor/skills/browser` with `--scope repo`).
 - `skills.lock` — pinned commit SHA, content hash, every byte deterministic.
 
 ## Commands
@@ -127,7 +132,7 @@ After these commands:
 | `vd detach <skill>` | Stop tracking; leave files on disk |
 | `vd remove <skill>` | Remove from manifest, lock, and (default) disk |
 | `vd build [target...]` | Emit manifests + symlinks for each agent target |
-| `vd install [agent] [skill...]` | Install local skills into Codex, Factory Droid, Pi, or Claude Code |
+| `vd install [agent] [skill...]` | Install local skills into Codex, Factory Droid, Pi, Cursor, or Claude Code |
 | `vd install hooks` | Install Claude hooks and declared Codex context hooks from `hooks/hooks.toml` |
 | `vd hooks uninstall\|rollback` | Manage installed hooks |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |
@@ -156,6 +161,7 @@ A native **[desktop app](desktop/README.md)** (Wails) is available as a third fr
 | Var | Effect |
 |---|---|
 | `VD_ROOT` | Pin a default repo root |
+| `VD_CURSOR_HOME` | Override Cursor's discovery root (default `~/.cursor`); `vd install cursor` writes skills under `$VD_CURSOR_HOME/skills` |
 | `VD_NO_UPDATE_CHECK` | Disable the upstream version check |
 | `XDG_CACHE_HOME` | Override the cache directory (default `~/.cache`) |
 | `CI` | When set, the version check is auto-disabled |

@@ -69,6 +69,26 @@ func TestRunInstallPi_DryRunOutput(t *testing.T) {
 	}
 }
 
+func TestRunInstallCursor_DryRunOutput(t *testing.T) {
+	root := setupE2ERepo(t)
+	dest := filepath.Join(t.TempDir(), "cursor-skills")
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstallCursor(cmd, root, []string{"foo"}, installOptions{
+		dest:   dest,
+		dryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("runInstallCursor: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "would symlink cursor skill foo -> "+filepath.Join(dest, "foo")) {
+		t.Fatalf("output = %q", got)
+	}
+}
+
 func TestRunInstallClaude_DryRunOutput(t *testing.T) {
 	root := setupE2ERepo(t)
 	cmd := &cobra.Command{}
@@ -152,6 +172,25 @@ func TestResolveInstallSelection(t *testing.T) {
 			name:      "pi snapshot copy",
 			selection: "pi snapshot",
 			wantAgent: "pi",
+			wantScope: "user",
+			wantCopy:  true,
+		},
+		{
+			name:      "cursor user symlink",
+			selection: "12",
+			wantAgent: "cursor",
+			wantScope: "user",
+		},
+		{
+			name:      "cursor repo symlink",
+			selection: "cursor repo",
+			wantAgent: "cursor",
+			wantScope: "repo",
+		},
+		{
+			name:      "cursor snapshot copy",
+			selection: "cursor snapshot",
+			wantAgent: "cursor",
 			wantScope: "user",
 			wantCopy:  true,
 		},
@@ -292,19 +331,29 @@ func TestResolveInstallSelections_All(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolveInstallSelections(%q): %v", in, err)
 		}
-		if len(targets) != 8 {
-			t.Fatalf("resolveInstallSelections(%q) len = %d, want 8", in, len(targets))
+		if len(targets) != 10 {
+			t.Fatalf("resolveInstallSelections(%q) len = %d, want 10", in, len(targets))
 		}
+		var sawCursorUser, sawCursorRepo bool
 		for _, target := range targets {
 			if target.opts.copy {
 				t.Fatalf("resolveInstallSelections(%q) included conflicting copy target: %+v", in, target)
 			}
+			if target.agent == "cursor" && target.opts.scope == "user" {
+				sawCursorUser = true
+			}
+			if target.agent == "cursor" && target.opts.scope == "repo" {
+				sawCursorRepo = true
+			}
+		}
+		if !sawCursorUser || !sawCursorRepo {
+			t.Fatalf("resolveInstallSelections(%q) missing cursor user/repo targets: %+v", in, targets)
 		}
 	}
 }
 
 func TestResolveInstallSelections_RejectsConflictingVariants(t *testing.T) {
-	for _, in := range []string{"1,3", "6,8", "droid,droid snapshot", "9,11", "pi,pi snapshot"} {
+	for _, in := range []string{"1,3", "6,8", "droid,droid snapshot", "9,11", "pi,pi snapshot", "12,14", "cursor,cursor snapshot"} {
 		if _, err := resolveInstallSelections(in, installOptions{scope: "user"}); err == nil {
 			t.Fatalf("resolveInstallSelections(%q) accepted conflicting variants", in)
 		}
@@ -402,6 +451,25 @@ func TestRunInstall_PiAcceptsSkillNames(t *testing.T) {
 		t.Fatalf("runInstall pi foo: %v", err)
 	}
 	if !strings.Contains(out.String(), "would symlink pi skill foo") {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestRunInstall_CursorAcceptsSkillNames(t *testing.T) {
+	root := setupE2ERepo(t)
+	dest := filepath.Join(t.TempDir(), "cursor-skills")
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"cursor", "foo"}, installOptions{
+		dest:   dest,
+		dryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("runInstall cursor foo: %v", err)
+	}
+	if !strings.Contains(out.String(), "would symlink cursor skill foo") {
 		t.Fatalf("output = %q", out.String())
 	}
 }
