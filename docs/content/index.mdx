@@ -28,13 +28,12 @@ vd init                                          # bootstrap skills.toml at the 
 vd add browserbase/skills/browser --as browser   # track an upstream skill
 vd sync                                          # vendor it locally (fetch, hash, lock)
 vd build                                         # emit manifests for every configured agent
-vd install codex                                 # (optional) install into Codex user scope
-vd install droid                                 # (optional) install into Droid user scope
-vd install pi                                    # (optional) install into Pi user scope
+vd install                                       # (optional) detect local agents; install user-level
+vd install cursor                                # (optional) or target Cursor only
 ```
 
 :::note
-After these, `skills/browser/` holds the vendored source, the Claude, Codex, Droid, and Pi targets are written, and `skills.lock` pins every byte deterministically.
+After these, `skills/browser/` holds the vendored source, the Claude, Codex, Droid, and Pi build targets are written, Cursor user-scope skills land under `$HOME/.cursor/skills` (or `.cursor/skills` with `--scope repo`), and `skills.lock` pins every byte deterministically.
 :::
 
 :::tip[Just want the published skills?]
@@ -51,8 +50,9 @@ If you only want to install the maintained skill set (no repo of your own), run 
 | **OpenAI Codex** | `.agents/skills/<name>` repo-scope symlinks; `vd install codex` for user scope |
 | **Factory Droid** | `.factory/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install droid` for user scope |
 | **Pi** | `.pi/skills/<name>` repo entries (relative symlinks on Unix, copies on Windows); `vd install pi` for user scope |
+| **Cursor** | `vd install cursor` writes `$HOME/.cursor/skills/<name>` (or `$VD_CURSOR_HOME/skills`); `--scope repo` writes `.cursor/skills/<name>` (relative symlinks on Unix, copies on Windows) |
 
-Droid and Pi support covers skills only, not plugins, hooks, extensions, or observability.
+Droid, Pi, and Cursor support covers skills only, not plugins, hooks, extensions, or observability. `vd install` with no agent detects which of these homes exist and installs at user scope.
 
 ## What's inside
 

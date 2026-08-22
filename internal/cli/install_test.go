@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -65,6 +66,26 @@ func TestRunInstallPi_DryRunOutput(t *testing.T) {
 	}
 	got := out.String()
 	if !strings.Contains(got, "would symlink pi skill foo -> "+filepath.Join(dest, "foo")) {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestRunInstallCursor_DryRunOutput(t *testing.T) {
+	root := setupE2ERepo(t)
+	dest := filepath.Join(t.TempDir(), "cursor-skills")
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstallCursor(cmd, root, []string{"foo"}, installOptions{
+		dest:   dest,
+		dryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("runInstallCursor: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "would symlink cursor skill foo -> "+filepath.Join(dest, "foo")) {
 		t.Fatalf("output = %q", got)
 	}
 }
@@ -152,6 +173,25 @@ func TestResolveInstallSelection(t *testing.T) {
 			name:      "pi snapshot copy",
 			selection: "pi snapshot",
 			wantAgent: "pi",
+			wantScope: "user",
+			wantCopy:  true,
+		},
+		{
+			name:      "cursor user symlink",
+			selection: "12",
+			wantAgent: "cursor",
+			wantScope: "user",
+		},
+		{
+			name:      "cursor repo symlink",
+			selection: "cursor repo",
+			wantAgent: "cursor",
+			wantScope: "repo",
+		},
+		{
+			name:      "cursor snapshot copy",
+			selection: "cursor snapshot",
+			wantAgent: "cursor",
 			wantScope: "user",
 			wantCopy:  true,
 		},
@@ -292,19 +332,29 @@ func TestResolveInstallSelections_All(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolveInstallSelections(%q): %v", in, err)
 		}
-		if len(targets) != 8 {
-			t.Fatalf("resolveInstallSelections(%q) len = %d, want 8", in, len(targets))
+		if len(targets) != 10 {
+			t.Fatalf("resolveInstallSelections(%q) len = %d, want 10", in, len(targets))
 		}
+		var sawCursorUser, sawCursorRepo bool
 		for _, target := range targets {
 			if target.opts.copy {
 				t.Fatalf("resolveInstallSelections(%q) included conflicting copy target: %+v", in, target)
 			}
+			if target.agent == "cursor" && target.opts.scope == "user" {
+				sawCursorUser = true
+			}
+			if target.agent == "cursor" && target.opts.scope == "repo" {
+				sawCursorRepo = true
+			}
+		}
+		if !sawCursorUser || !sawCursorRepo {
+			t.Fatalf("resolveInstallSelections(%q) missing cursor user/repo targets: %+v", in, targets)
 		}
 	}
 }
 
 func TestResolveInstallSelections_RejectsConflictingVariants(t *testing.T) {
-	for _, in := range []string{"1,3", "6,8", "droid,droid snapshot", "9,11", "pi,pi snapshot"} {
+	for _, in := range []string{"1,3", "6,8", "droid,droid snapshot", "9,11", "pi,pi snapshot", "12,14", "cursor,cursor snapshot"} {
 		if _, err := resolveInstallSelections(in, installOptions{scope: "user"}); err == nil {
 			t.Fatalf("resolveInstallSelections(%q) accepted conflicting variants", in)
 		}
@@ -403,5 +453,165 @@ func TestRunInstall_PiAcceptsSkillNames(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "would symlink pi skill foo") {
 		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestRunInstall_CursorAcceptsSkillNames(t *testing.T) {
+	root := setupE2ERepo(t)
+	dest := filepath.Join(t.TempDir(), "cursor-skills")
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"cursor", "foo"}, installOptions{
+		dest:   dest,
+		dryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("runInstall cursor foo: %v", err)
+	}
+	if !strings.Contains(out.String(), "would symlink cursor skill foo") {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func isolateAgentHomes(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("VD_CODEX_HOME", "")
+	t.Setenv("VD_CURSOR_HOME", "")
+	return home
+}
+
+func TestRunInstall_AutoNoAgents(t *testing.T) {
+	isolateAgentHomes(t)
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, nil, installOptions{scope: "user", dryRun: true})
+	if err == nil {
+		t.Fatal("expected error when no local agents exist")
+	}
+	if !strings.Contains(err.Error(), "no local agents detected") {
+		t.Fatalf("error = %v", err)
+	}
+	if !strings.Contains(err.Error(), "vd install --pick") {
+		t.Fatalf("error should mention --pick, got: %v", err)
+	}
+}
+
+func TestRunInstall_AutoCursorOnly(t *testing.T) {
+	home := isolateAgentHomes(t)
+	if err := os.Mkdir(filepath.Join(home, ".cursor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, nil, installOptions{scope: "user", dryRun: true})
+	if err != nil {
+		t.Fatalf("runInstall auto: %v", err)
+	}
+	want := "would symlink cursor skill foo -> " + filepath.Join(home, ".cursor", "skills", "foo")
+	if !strings.Contains(out.String(), want) {
+		t.Fatalf("output = %q, want %q", out.String(), want)
+	}
+	if strings.Contains(out.String(), "codex skill") || strings.Contains(out.String(), "Select install") {
+		t.Fatalf("should install Cursor only with no picker: %q", out.String())
+	}
+}
+
+func TestRunInstall_AutoSeveralAgents(t *testing.T) {
+	home := isolateAgentHomes(t)
+	for _, dir := range []string{".cursor", ".agents", ".claude"} {
+		if err := os.Mkdir(filepath.Join(home, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"foo"}, installOptions{scope: "user", dryRun: true})
+	if err != nil {
+		t.Fatalf("runInstall auto: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"would symlink claude skill foo -> " + filepath.Join(home, ".claude", "skills", "foo"),
+		"would symlink codex skill foo -> " + filepath.Join(home, ".agents", "skills", "foo"),
+		"would symlink cursor skill foo -> " + filepath.Join(home, ".cursor", "skills", "foo"),
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("output missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Select install") || strings.Contains(got, "marketplace") {
+		t.Fatalf("auto path used picker or Claude plugin install:\n%s", got)
+	}
+}
+
+func TestRunInstall_AutoRejectsRepoScope(t *testing.T) {
+	home := isolateAgentHomes(t)
+	if err := os.Mkdir(filepath.Join(home, ".cursor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+
+	err := runInstall(cmd, root, nil, installOptions{scope: "repo", dryRun: true})
+	if err == nil || !strings.Contains(err.Error(), "--scope repo requires an explicit agent") {
+		t.Fatalf("error = %v, want repo-scope rejection", err)
+	}
+}
+
+func TestRunInstall_AutoCopyAppliesToDetected(t *testing.T) {
+	home := isolateAgentHomes(t)
+	if err := os.Mkdir(filepath.Join(home, ".cursor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"foo"}, installOptions{scope: "user", copy: true, dryRun: true})
+	if err != nil {
+		t.Fatalf("runInstall auto --copy: %v", err)
+	}
+	if !strings.Contains(out.String(), "would copy cursor skill foo -> "+filepath.Join(home, ".cursor", "skills", "foo")) {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestRunInstall_AutoPickStillRequiresInteractive(t *testing.T) {
+	isolateAgentHomes(t)
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+
+	err := runInstall(cmd, root, nil, installOptions{scope: "user", pick: true, dryRun: true})
+	if err == nil || !strings.Contains(err.Error(), "agent argument required") {
+		t.Fatalf("error = %v, want picker interactive requirement", err)
+	}
+}
+
+func TestAutoInstallTargets_ClaudeUsesDev(t *testing.T) {
+	home := isolateAgentHomes(t)
+	if err := os.Mkdir(filepath.Join(home, ".claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := autoInstallTargets(installOptions{scope: "user"})
+	if err != nil {
+		t.Fatalf("autoInstallTargets: %v", err)
+	}
+	if len(got) != 1 || got[0].agent != "claude" || !got[0].opts.dev || got[0].opts.scope != "user" {
+		t.Fatalf("targets = %+v, want claude --dev user", got)
 	}
 }

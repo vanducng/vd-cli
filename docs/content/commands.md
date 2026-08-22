@@ -373,7 +373,21 @@ VD_SKILLS_REPO=me/skills vd bootstrap   # use a fork
 
 ## vd install
 
-Install local skills into an agent environment. With no agent argument, `vd install` opens a terminal picker with these choices:
+Install local skills into an agent environment. With no agent argument, `vd install` detects which agents exist on this machine and installs skills at **user scope** into each one. Missing agent homes are skipped.
+
+Detection reuses the same homes as inventory:
+
+| Agent | Present when this directory exists | User-scope destination |
+|------|--------------------------------------|------------------------|
+| Claude Code | `$HOME/.claude` | `$HOME/.claude/skills` via `claude --dev` (per-skill symlinks; not the marketplace plugin) |
+| Codex | `$HOME/.agents` or `$VD_CODEX_HOME` | `$HOME/.agents/skills` |
+| Cursor | `$HOME/.cursor` or `$VD_CURSOR_HOME` | `$HOME/.cursor/skills` (or `$VD_CURSOR_HOME/skills`) |
+| Droid | `$HOME/.factory` | `$HOME/.factory/skills` |
+| Pi | `$HOME/.pi` | `$HOME/.pi/agent/skills` |
+
+`--scope repo` and snapshot-copy are not guessed on the auto path. Pass an explicit agent (`vd install cursor --scope repo`) or open the old picker with `--pick` / `--interactive`.
+
+`--pick` choices:
 
 1. Codex user skills — symlink to `$HOME/.agents/skills` (default recommendation)
 2. Codex repo skills — symlink to `.agents/skills`
@@ -386,15 +400,19 @@ Install local skills into an agent environment. With no agent argument, `vd inst
 9. Pi user skills - symlink to `$HOME/.pi/agent/skills`
 10. Pi repo skills - symlink to `.pi/skills`
 11. Pi snapshot copy - copy to `$HOME/.pi/agent/skills`
+12. Cursor user skills - symlink to `$HOME/.cursor/skills` (or `$VD_CURSOR_HOME/skills`)
+13. Cursor repo skills - symlink to `.cursor/skills`
+14. Cursor snapshot copy - copy to `$HOME/.cursor/skills`
 
-Pick several at once with a comma-separated list (e.g. `1,5,7`). Link and snapshot-copy variants for the same destination cannot be combined. `all` selects every non-conflicting agent environment. Passing the agent is recommended for scripts.
+Pick several at once with a comma-separated list (e.g. `1,5,7`). Link and snapshot-copy variants for the same destination cannot be combined. `all` selects every non-conflicting agent environment. Passing the agent is still the most explicit path for scripts.
 
-If no skills are found locally (no `--root`/`VD_ROOT`/`.git` repo and no `~/.vd/skills`), `vd install` offers to run [`vd bootstrap`](#vd-bootstrap) first; in non-interactive contexts it errors with that hint instead.
+If no skills are found locally (no `--root`/`VD_ROOT`/`.git` repo and no `~/.vd/skills`), `vd install` offers to run [`vd bootstrap`](#vd-bootstrap) first; in non-interactive contexts it errors with that hint instead. If skills exist but no agent homes are present, it prints a clear message and suggests `vd install <agent>` or `vd install --pick` instead of opening the picker.
 
 **Agents:**
 - `codex` — installs local `skills/<name>/` directories into Codex discovery paths. Default scope is user, which writes symlinks to `$HOME/.agents/skills`. Use `--scope repo` to write `.agents/skills/<name>` in the current repo.
 - `droid` - installs local `skills/<name>/` directories into Factory Droid discovery paths. Default scope is user at `$HOME/.factory/skills`; `--scope repo` writes `.factory/skills/<name>` in the current repo. Installs use relative symlinks on Unix and copies on Windows.
 - `pi` - installs local `skills/<name>/` directories into Pi discovery paths. Default scope is user at `$HOME/.pi/agent/skills`; `--scope repo` writes `.pi/skills/<name>` in the current repo. Installs use relative symlinks on Unix and copies on Windows.
+- `cursor` - installs local `skills/<name>/` directories into Cursor discovery paths used by local Cursor and Cursor Cloud Agents. Default scope is user at `$HOME/.cursor/skills` (or `$VD_CURSOR_HOME/skills` when that inventory override is set); `--scope repo` writes `.cursor/skills/<name>` in the current repo. Installs use relative symlinks on Unix and copies on Windows. This is a first-class Cursor target, not an alias of `codex`.
 - `claude` — runs `vd build claude`, registers this repo as a Claude Code marketplace, and installs the configured plugin bundle.
 - `claude --dev` — per-skill symlinks into `$HOME/.claude/skills` (mirrors the codex symlink flow) instead of the marketplace plugin install. Accepts skill-name arguments.
 - `hooks` — install Claude Code hooks and declared Codex context hooks from a local manifest (`<root>/hooks/hooks.toml`). See [vd hooks](#vd-hooks).
@@ -408,15 +426,19 @@ vd install [agent] [skill...]
 
 | Flag | Description |
 |------|-------------|
-| `--scope` | `codex`/`droid`/`pi`: `user` or `repo`; `claude`: `user`, `project`, or `local`. |
+| `--scope` | `codex`/`droid`/`pi`/`cursor`: `user` or `repo`; `claude`: `user`, `project`, or `local`. |
 | `--dest` | Override the destination directory for a single skill install target. |
-| `--copy` | Copy Codex, Droid, or Pi skills instead of symlinking. |
-| `--force` | Replace existing Codex, Droid, or Pi destination entries. |
-| `--dev` | Claude only: per-skill symlink into `$HOME/.claude/skills` instead of the marketplace plugin install. |
+| `--copy` | Copy Codex, Droid, Pi, or Cursor skills instead of symlinking. |
+| `--force` | Replace existing Codex, Droid, Pi, or Cursor destination entries. |
+| `--dev` | Claude only: per-skill symlink into `$HOME/.claude/skills` instead of the marketplace plugin install. Auto-detect uses this when `~/.claude` is present. |
 | `--dry-run` | Print planned actions without changing files. |
+| `--pick` / `--interactive` | Open the numbered target picker instead of auto-detecting local agents. |
 
 **Examples:**
 ```sh
+vd install                               # detect local agents; install user-level into each
+vd install --dry-run                     # preview every detected user destination
+vd install --pick                        # old numbered picker (user / repo / copy)
 vd install codex                         # symlink all skills into $HOME/.agents/skills
 vd install codex research plan           # install selected skills only
 vd install codex --scope repo            # symlink all skills into .agents/skills
@@ -431,16 +453,20 @@ vd install pi research plan              # install selected skills only
 vd install pi --scope repo               # install all skills into .pi/skills
 vd install pi --copy --force             # replace existing installs with copies
 vd install pi --dry-run                  # preview Pi changes
-vd install                               # picker: enter 1,5,7 or all at the prompt
+vd install cursor                        # install all skills into $HOME/.cursor/skills
+vd install cursor research plan          # install selected skills only
+vd install cursor --scope repo           # install all skills into .cursor/skills
+vd install cursor --copy --force         # replace existing installs with copies
+vd install cursor --dry-run              # preview Cursor changes
 vd install claude                        # install configured Claude Code plugin bundle
 vd install claude --dev research         # symlink selected skills into ~/.claude/skills
 vd install claude --dry-run              # print Claude plugin commands
 vd install hooks --root ~/skills         # install hooks from a local manifest
 ```
 
-On Windows, Droid and Pi installs are copies; rerun with `--force` to refresh an existing destination. Restart Droid or Pi after installation, run `/skills` to verify discovery, and invoke an installed skill with `/skill-name`. Droid and Pi support is skills-only; it does not install plugins, hooks, extensions, or observability.
+On Windows, Droid, Pi, and Cursor installs are copies; rerun with `--force` to refresh an existing destination. Restart Droid, Pi, or Cursor after installation, run `/skills` to verify discovery, and invoke an installed skill with `/skill-name`. Droid, Pi, and Cursor support is skills-only; it does not install plugins, hooks, extensions, or observability.
 
-**Side effects:** `codex`, `droid`, and `pi` write symlinks or copies under their destination skill directories. `claude` may mutate Claude Code marketplace and plugin installation state. `hooks` writes to `~/.claude/hooks/` and `~/.claude/settings.json`; manifest entries with `event = "codex.UserPromptSubmit"` also write to `~/.codex/hooks/` and `~/.codex/hooks.json` (see [vd hooks](#vd-hooks)).
+**Side effects:** `codex`, `droid`, `pi`, and `cursor` write symlinks or copies under their destination skill directories. `claude` may mutate Claude Code marketplace and plugin installation state. `hooks` writes to `~/.claude/hooks/` and `~/.claude/settings.json`; manifest entries with `event = "codex.UserPromptSubmit"` also write to `~/.codex/hooks/` and `~/.codex/hooks.json` (see [vd hooks](#vd-hooks)).
 
 **Exit codes:** `0` success, `1` invalid agent/scope, missing skill, existing destination without `--force`, or external Claude command failure.
 

@@ -29,7 +29,7 @@ vd build
 | Version control | `vd pin`, `vd detach`, `vd remove` | Freeze a skill at a SHA, stop tracking it, or remove it cleanly. |
 | Inspection | `vd list`, `vd diff`, `vd doctor` | Review tracked skills, compare local edits, and detect drift from `skills.lock`. |
 | Target builds | `vd build claude`, `vd build agents`, `vd build droid`, `vd build pi` | Generate `.claude-plugin/` files, `.agents/skills/` symlinks, and `.factory/skills/` and `.pi/skills/` entries. |
-| Agent install | `vd install codex`, `vd install droid`, `vd install pi`, `vd install claude` | Install local skills into Codex, Factory Droid, Pi, or Claude Code. |
+| Agent install | `vd install codex`, `vd install droid`, `vd install pi`, `vd install cursor`, `vd install claude` | Install local skills into Codex, Factory Droid, Pi, Cursor, or Claude Code. |
 | Cache control | `vd cache clean` | Remove `.vd-cache/` and force future fetches to repopulate it. |
 | Self-update | `vd upgrade` | Replace the running binary with the latest release (`brew update && brew upgrade vanducng/tap/vd` for Homebrew). |
 
@@ -52,6 +52,8 @@ Use `--root <path>` or `VD_ROOT=/path/to/repo` when running `vd` outside the rep
 
 No skills repo of your own? Run `vd bootstrap` first to fetch the maintained skill set into `~/.vd/skills`; `vd install` then resolves it automatically (and offers to bootstrap if nothing is found).
 
+With no agent argument, `vd install` detects which agents exist on this machine (`~/.claude`, `~/.agents`, `~/.cursor`, `~/.factory`, `~/.pi`) and installs skills at user scope into each one. `--scope repo` still requires an explicit agent. Use `--pick` for the old interactive list.
+
 Codex installs use symlinks by default so local edits in `skills/<name>/` are visible after restarting Codex:
 
 ```sh
@@ -59,7 +61,8 @@ vd install codex                    # symlink all skills to $HOME/.agents/skills
 vd install codex research plan      # install selected skills
 vd install codex --scope repo       # symlink into .agents/skills for this repo
 vd install codex --copy --force     # replace existing entries with copied snapshots
-vd install                          # open the picker (single, comma-separated, or 'all')
+vd install                          # detect local agents; install user-level into each
+vd install --pick                   # old numbered picker (user / repo / copy)
 ```
 
 Droid uses the same guarded symlink/copy flow with Factory's native discovery paths:
@@ -85,6 +88,18 @@ vd install pi --dry-run             # preview without writing files
 ```
 
 On Unix, Pi entries are relative symlinks by default. On Windows, vd creates copies; rerun with `--force` to refresh an existing copy. Restart Pi, run `/skills`, and invoke an installed skill with `/skill-name`. Pi support is skills-only; prompts, extensions, and observability are not installed.
+
+Cursor uses the same guarded symlink/copy flow with Cursor's native discovery paths. User scope writes `$HOME/.cursor/skills` (or `$VD_CURSOR_HOME/skills` when that inventory override is set); repo scope writes `.cursor/skills`. This is a first-class Cursor target for local Cursor and Cursor Cloud Agents — not an alias of `vd install codex`:
+
+```sh
+vd install cursor                    # install all skills to $HOME/.cursor/skills
+vd install cursor research plan      # install selected skills
+vd install cursor --scope repo       # install into .cursor/skills for this repo
+vd install cursor --copy --force     # replace existing entries with copied snapshots
+vd install cursor --dry-run          # preview without writing files
+```
+
+On Unix, Cursor entries are relative symlinks by default. On Windows, vd creates copies; rerun with `--force` to refresh an existing copy. Restart Cursor (or start a new Cloud Agent) to pick up newly installed skills. Cursor support is skills-only; it does not install plugins, marketplace bundles, or hooks.
 
 Claude Code installs build the plugin bundle, register this repository as a marketplace, and install the configured plugin. Use `--dev` for per-skill symlinks into `$HOME/.claude/skills` instead:
 

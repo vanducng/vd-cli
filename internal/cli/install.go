@@ -14,6 +14,7 @@ import (
 	"github.com/vanducng/vd-cli/v2/internal/config"
 	"github.com/vanducng/vd-cli/v2/internal/hooks"
 	agentinstall "github.com/vanducng/vd-cli/v2/internal/install"
+	"github.com/vanducng/vd-cli/v2/internal/inventory"
 )
 
 type installOptions struct {
@@ -23,6 +24,7 @@ type installOptions struct {
 	force  bool
 	dryRun bool
 	dev    bool
+	pick   bool
 }
 
 type installTarget struct {
@@ -36,9 +38,31 @@ func newInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install [agent] [skill...]",
 		Short: "Install local skills into an agent environment",
-		Long: `Install skills from this repository into a local agent environment.
+		Long: `Install skills from this repository into local agent environments.
 
-Run without an agent to select one or more install targets:
+With no agent argument, vd install detects which agents exist on this
+machine and installs skills at user scope into each one:
+
+  claude   $HOME/.claude/skills     (per-skill --dev symlinks)
+  codex    $HOME/.agents/skills
+  cursor   $HOME/.cursor/skills     (or $VD_CURSOR_HOME/skills)
+  droid    $HOME/.factory/skills
+  pi       $HOME/.pi/agent/skills
+
+Missing agent homes are skipped. --scope repo and snapshot-copy are not
+guessed; pass an agent (or --pick) for those. Use --pick for the
+interactive target list.
+
+Agents:
+  codex          installs skills into Codex discovery paths
+  droid          installs skills into Factory Droid discovery paths
+  pi             installs skills into Pi discovery paths
+  cursor         installs skills into Cursor discovery paths
+  claude         registers and installs this repo as a Claude Code plugin
+  claude --dev   per-skill symlink into $HOME/.claude/skills (mirrors codex)
+  hooks          deploys hooks from hooks/hooks.toml to $HOME/.claude/hooks
+
+--pick choices:
    1) Codex user skills            symlink to $HOME/.agents/skills
    2) Codex repo skills            symlink to .agents/skills
    3) Codex snapshot copy          copy to $HOME/.agents/skills
@@ -50,16 +74,9 @@ Run without an agent to select one or more install targets:
    9) Pi user skills               symlink to $HOME/.pi/agent/skills
   10) Pi repo skills               symlink to .pi/skills
   11) Pi snapshot copy             copy to $HOME/.pi/agent/skills
-
-Pick several at once with a comma-separated list (e.g. 1,5,7). Use 'all' for every non-conflicting agent environment.
-
-Agents:
-  codex          installs skills into Codex discovery paths
-  droid          installs skills into Factory Droid discovery paths
-  pi             installs skills into Pi discovery paths
-  claude         registers and installs this repo as a Claude Code plugin
-  claude --dev   per-skill symlink into $HOME/.claude/skills (mirrors codex)
-  hooks          deploys hooks from hooks/hooks.toml to $HOME/.claude/hooks`,
+  12) Cursor user skills          symlink to $HOME/.cursor/skills
+  13) Cursor repo skills          symlink to .cursor/skills
+  14) Cursor snapshot copy        copy to $HOME/.cursor/skills`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := resolveInstallRoot(cmd, flagRoot, opts.dryRun)
@@ -70,12 +87,14 @@ Agents:
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.scope, "scope", "user", "Install scope: codex/droid/pi user|repo, claude user|project|local")
+	cmd.Flags().StringVar(&opts.scope, "scope", "user", "Install scope: codex/droid/pi/cursor user|repo, claude user|project|local")
 	cmd.Flags().StringVar(&opts.dest, "dest", "", "Override destination directory")
 	cmd.Flags().BoolVar(&opts.copy, "copy", false, "Copy skills instead of symlinking them")
 	cmd.Flags().BoolVar(&opts.force, "force", false, "Replace existing installed skill directories")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Print actions without changing files")
 	cmd.Flags().BoolVar(&opts.dev, "dev", false, "Claude only: per-skill symlink into $HOME/.claude/skills instead of marketplace plugin install")
+	cmd.Flags().BoolVar(&opts.pick, "pick", false, "Choose install targets interactively instead of auto-detecting local agents")
+	cmd.Flags().BoolVar(&opts.pick, "interactive", false, "Alias for --pick")
 
 	return cmd
 }
@@ -92,7 +111,7 @@ func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts install
 			// typo'd agent name. Fail fast with a clear hint instead of
 			// silently treating it as a skill and confusing the user
 			// downstream.
-			return fmt.Errorf("unknown agent or skill %q (valid agents: codex, droid, pi, claude, hooks)", args[0])
+			return fmt.Errorf("unknown agent or skill %q (valid agents: codex, droid, pi, cursor, claude, hooks)", args[0])
 		}
 	}
 
@@ -100,7 +119,7 @@ func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts install
 		return runInstallTarget(cmd, repoRoot, agent, skills, opts)
 	}
 
-	targets, err := promptInstallSelection(cmd, opts)
+	targets, err := resolveNoAgentInstallTargets(cmd, opts)
 	if err != nil {
 		return err
 	}
@@ -115,6 +134,45 @@ func runInstall(cmd *cobra.Command, repoRoot string, args []string, opts install
 	return nil
 }
 
+func resolveNoAgentInstallTargets(cmd *cobra.Command, opts installOptions) ([]installTarget, error) {
+	if opts.pick {
+		return promptInstallSelection(cmd, opts)
+	}
+	return autoInstallTargets(opts)
+}
+
+func autoInstallTargets(opts installOptions) ([]installTarget, error) {
+	if opts.scope != "" && opts.scope != "user" {
+		return nil, fmt.Errorf("--scope %s requires an explicit agent (e.g. vd install cursor --scope repo)", opts.scope)
+	}
+
+	detected, err := inventory.DetectInstallAgents()
+	if err != nil {
+		return nil, err
+	}
+	if len(detected) == 0 {
+		return nil, fmt.Errorf("no local agents detected (looked for ~/.claude, ~/.agents, ~/.cursor, ~/.factory, ~/.pi)\ninstall an agent, pass one explicitly (vd install cursor), or choose interactively (vd install --pick)")
+	}
+
+	targets := make([]installTarget, 0, len(detected))
+	for _, a := range detected {
+		tOpts := opts
+		tOpts.scope = "user"
+		tOpts.pick = false
+		if a.Name == "claude" {
+			// User-level analog: per-skill symlinks into ~/.claude/skills.
+			// The marketplace plugin install is not a filesystem user-scope
+			// skill dest and rejects named skills.
+			tOpts.dev = true
+		}
+		targets = append(targets, installTarget{agent: a.Name, opts: tOpts})
+	}
+	if len(targets) > 1 && opts.dest != "" {
+		return nil, fmt.Errorf("--dest requires a single install target")
+	}
+	return targets, nil
+}
+
 func runInstallTarget(cmd *cobra.Command, repoRoot, agent string, skills []string, opts installOptions) error {
 	switch agent {
 	case "codex":
@@ -123,6 +181,8 @@ func runInstallTarget(cmd *cobra.Command, repoRoot, agent string, skills []strin
 		return runInstallDroid(cmd, repoRoot, skills, opts)
 	case "pi":
 		return runInstallPi(cmd, repoRoot, skills, opts)
+	case "cursor":
+		return runInstallCursor(cmd, repoRoot, skills, opts)
 	case "claude":
 		if opts.dev {
 			return runInstallClaudeDev(cmd, repoRoot, skills, opts)
@@ -137,7 +197,7 @@ func runInstallTarget(cmd *cobra.Command, repoRoot, agent string, skills []strin
 		}
 		return runInstallHooks(cmd, repoRoot, opts)
 	default:
-		return fmt.Errorf("unknown agent %q (valid: codex, droid, pi, claude, hooks)", agent)
+		return fmt.Errorf("unknown agent %q (valid: codex, droid, pi, cursor, claude, hooks)", agent)
 	}
 }
 
@@ -174,6 +234,15 @@ func describeInstallTarget(t installTarget) string {
 			return "Pi repo skills"
 		default:
 			return "Pi user skills"
+		}
+	case "cursor":
+		switch {
+		case t.opts.copy:
+			return "Cursor snapshot copy"
+		case t.opts.scope == "repo":
+			return "Cursor repo skills"
+		default:
+			return "Cursor user skills"
 		}
 	default:
 		return t.agent
@@ -224,6 +293,30 @@ func runInstallPi(cmd *cobra.Command, repoRoot string, skills []string, opts ins
 	}
 	if !opts.dryRun {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "restart Pi to pick up newly installed skills")
+	}
+	return nil
+}
+
+func runInstallCursor(cmd *cobra.Command, repoRoot string, skills []string, opts installOptions) error {
+	results, err := agentinstall.Cursor(repoRoot, agentinstall.CursorOptions{
+		Scope:  opts.scope,
+		Dest:   opts.dest,
+		Skills: skills,
+		Copy:   opts.copy,
+		Force:  opts.force,
+		DryRun: opts.dryRun,
+	})
+	if err != nil {
+		return err
+	}
+	if flagQuiet {
+		return nil
+	}
+	for _, result := range results {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s cursor skill %s -> %s\n", result.Action, result.Name, result.Dest)
+	}
+	if !opts.dryRun {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "restart Cursor to pick up newly installed skills")
 	}
 	return nil
 }
@@ -557,7 +650,7 @@ func runExternal(cmd *cobra.Command, name string, args ...string) error {
 
 func isKnownInstallAgent(s string) bool {
 	switch normalizeInstallAgent(s) {
-	case "codex", "droid", "pi", "claude", "hooks":
+	case "codex", "droid", "pi", "cursor", "claude", "hooks":
 		return true
 	default:
 		return false
@@ -572,6 +665,8 @@ func normalizeInstallAgent(s string) string {
 		return "droid"
 	case "pi":
 		return "pi"
+	case "cursor":
+		return "cursor"
 	case "claude", "claude-code", "claudecode":
 		return "claude"
 	case "hooks":
@@ -600,7 +695,10 @@ func promptInstallSelection(cmd *cobra.Command, opts installOptions) ([]installT
 	_, _ = fmt.Fprintln(out, "   9) Pi user skills               symlink to $HOME/.pi/agent/skills")
 	_, _ = fmt.Fprintln(out, "  10) Pi repo skills               symlink to .pi/skills")
 	_, _ = fmt.Fprintln(out, "  11) Pi snapshot copy             copy to $HOME/.pi/agent/skills")
-	_, _ = fmt.Fprint(out, "Select install target(s) [1-11, comma-separated, or 'all' environments]: ")
+	_, _ = fmt.Fprintln(out, "  12) Cursor user skills          symlink to $HOME/.cursor/skills")
+	_, _ = fmt.Fprintln(out, "  13) Cursor repo skills          symlink to .cursor/skills")
+	_, _ = fmt.Fprintln(out, "  14) Cursor snapshot copy        copy to $HOME/.cursor/skills")
+	_, _ = fmt.Fprint(out, "Select install target(s) [1-14, comma-separated, or 'all' environments]: ")
 
 	reader := bufio.NewReader(in)
 	text, err := reader.ReadString('\n')
@@ -619,7 +717,7 @@ func resolveInstallSelections(selection string, opts installOptions) ([]installT
 	expanded := make([]string, 0, len(tokens))
 	for _, tok := range tokens {
 		if normalizeInstallSelection(tok) == "all" {
-			expanded = append(expanded, "1", "2", "4", "5", "6", "7", "9", "10")
+			expanded = append(expanded, "1", "2", "4", "5", "6", "7", "9", "10", "12", "13")
 			continue
 		}
 		expanded = append(expanded, tok)
@@ -651,7 +749,7 @@ func resolveInstallSelections(selection string, opts installOptions) ([]installT
 func rejectInstallTargetConflicts(targets []installTarget) error {
 	types := make(map[string]bool)
 	for _, target := range targets {
-		if target.agent != "codex" && target.agent != "droid" && target.agent != "pi" {
+		if target.agent != "codex" && target.agent != "droid" && target.agent != "pi" && target.agent != "cursor" {
 			continue
 		}
 		key := target.agent + ":" + target.opts.scope
@@ -736,6 +834,21 @@ func resolveInstallSelection(selection string, opts installOptions) (string, ins
 		opts.copy = true
 		opts.dev = false
 		return "pi", opts, nil
+	case "cursor-user":
+		opts.scope = "user"
+		opts.copy = false
+		opts.dev = false
+		return "cursor", opts, nil
+	case "cursor-repo":
+		opts.scope = "repo"
+		opts.copy = false
+		opts.dev = false
+		return "cursor", opts, nil
+	case "cursor-copy":
+		opts.scope = "user"
+		opts.copy = true
+		opts.dev = false
+		return "cursor", opts, nil
 	default:
 		return "", opts, fmt.Errorf("invalid selection %q", strings.TrimSpace(selection))
 	}
@@ -768,6 +881,12 @@ func normalizeInstallSelection(selection string) string {
 		return "pi-repo"
 	case "11", "pi-copy", "pi-snapshot", "pi-snapshot-copy":
 		return "pi-copy"
+	case "12", "cursor", "cursor-user", "cursor-user-skills":
+		return "cursor-user"
+	case "13", "cursor-repo", "cursor-repo-skills":
+		return "cursor-repo"
+	case "14", "cursor-copy", "cursor-snapshot", "cursor-snapshot-copy":
+		return "cursor-copy"
 	case "all", "a", "*":
 		return "all"
 	default:
