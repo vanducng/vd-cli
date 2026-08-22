@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.14.0](https://github.com/vanducng/vd-cli/compare/v3.13.7...v3.14.0) (2026-08-22)
+
+
+### Features
+
+* **vd:** add vd install cursor ([#99](https://github.com/vanducng/vd-cli/issues/99)) ([9c54cee](https://github.com/vanducng/vd-cli/commit/9c54ceee169183c981d3635fb73f772108e0b3ae))
+
 ## [3.13.7](https://github.com/vanducng/vd-cli/compare/v3.13.6...v3.13.7) (2026-08-10)
 
 
