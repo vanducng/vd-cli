@@ -94,17 +94,14 @@ vd sync
 # 4. Emit manifests for every configured agent
 vd build
 
-# 5. (Optional) install local skills into Codex user scope
-vd install codex
+# 5. (Optional) detect local agents and install user-level skills
+vd install
 
-# 6. (Optional) install local skills into Droid user scope
-vd install droid
-
-# 7. (Optional) install local skills into Pi user scope
-vd install pi
-
-# 8. (Optional) install local skills into Cursor user scope
+# 6. (Optional) or target one agent
 vd install cursor
+vd install codex
+vd install droid
+vd install pi
 ```
 
 After these commands:
@@ -132,7 +129,7 @@ After these commands:
 | `vd detach <skill>` | Stop tracking; leave files on disk |
 | `vd remove <skill>` | Remove from manifest, lock, and (default) disk |
 | `vd build [target...]` | Emit manifests + symlinks for each agent target |
-| `vd install [agent] [skill...]` | Install local skills into Codex, Factory Droid, Pi, Cursor, or Claude Code |
+| `vd install [agent] [skill...]` | Detect local agents and install user-level skills, or target Codex, Droid, Pi, Cursor, or Claude Code |
 | `vd install hooks` | Install Claude hooks and declared Codex context hooks from `hooks/hooks.toml` |
 | `vd hooks uninstall\|rollback` | Manage installed hooks |
 | `vd cache clean` | Delete the `.vd-cache/` download cache |

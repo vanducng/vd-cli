@@ -52,6 +52,8 @@ Use `--root <path>` or `VD_ROOT=/path/to/repo` when running `vd` outside the rep
 
 No skills repo of your own? Run `vd bootstrap` first to fetch the maintained skill set into `~/.vd/skills`; `vd install` then resolves it automatically (and offers to bootstrap if nothing is found).
 
+With no agent argument, `vd install` detects which agents exist on this machine (`~/.claude`, `~/.agents`, `~/.cursor`, `~/.factory`, `~/.pi`) and installs skills at user scope into each one. `--scope repo` still requires an explicit agent. Use `--pick` for the old interactive list.
+
 Codex installs use symlinks by default so local edits in `skills/<name>/` are visible after restarting Codex:
 
 ```sh
@@ -59,7 +61,8 @@ vd install codex                    # symlink all skills to $HOME/.agents/skills
 vd install codex research plan      # install selected skills
 vd install codex --scope repo       # symlink into .agents/skills for this repo
 vd install codex --copy --force     # replace existing entries with copied snapshots
-vd install                          # open the picker (single, comma-separated, or 'all')
+vd install                          # detect local agents; install user-level into each
+vd install --pick                   # old numbered picker (user / repo / copy)
 ```
 
 Droid uses the same guarded symlink/copy flow with Factory's native discovery paths:
