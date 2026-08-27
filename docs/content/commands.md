@@ -380,7 +380,7 @@ Detection reuses the same homes as inventory:
 | Agent | Present when this directory exists | User-scope destination |
 |------|--------------------------------------|------------------------|
 | Claude Code | `$HOME/.claude` | `$HOME/.claude/skills` via `claude --dev` (per-skill symlinks; not the marketplace plugin) |
-| Codex | `$HOME/.agents` or `$VD_CODEX_HOME` | `$HOME/.agents/skills` |
+| Codex | `$HOME/.agents` or `$VD_CODEX_HOME` | `$HOME/.agents/skills` (or `$VD_CODEX_HOME/skills`) |
 | Cursor | `$HOME/.cursor` or `$VD_CURSOR_HOME` | `$HOME/.cursor/skills` (or `$VD_CURSOR_HOME/skills`) |
 | Droid | `$HOME/.factory` | `$HOME/.factory/skills` |
 | Pi | `$HOME/.pi` | `$HOME/.pi/agent/skills` |
@@ -409,7 +409,7 @@ Pick several at once with a comma-separated list (e.g. `1,5,7`). Link and snapsh
 If no skills are found locally (no `--root`/`VD_ROOT`/`.git` repo and no `~/.vd/skills`), `vd install` offers to run [`vd bootstrap`](#vd-bootstrap) first; in non-interactive contexts it errors with that hint instead. If skills exist but no agent homes are present, it prints a clear message and suggests `vd install <agent>` or `vd install --pick` instead of opening the picker.
 
 **Agents:**
-- `codex` — installs local `skills/<name>/` directories into Codex discovery paths. Default scope is user, which writes symlinks to `$HOME/.agents/skills`. Use `--scope repo` to write `.agents/skills/<name>` in the current repo.
+- `codex` — installs local `skills/<name>/` directories into Codex discovery paths. Default scope is user, which writes symlinks to `$HOME/.agents/skills` (or `$VD_CODEX_HOME/skills` when that inventory override is set). Use `--scope repo` to write `.agents/skills/<name>` in the current repo.
 - `droid` - installs local `skills/<name>/` directories into Factory Droid discovery paths. Default scope is user at `$HOME/.factory/skills`; `--scope repo` writes `.factory/skills/<name>` in the current repo. Installs use relative symlinks on Unix and copies on Windows.
 - `pi` - installs local `skills/<name>/` directories into Pi discovery paths. Default scope is user at `$HOME/.pi/agent/skills`; `--scope repo` writes `.pi/skills/<name>` in the current repo. Installs use relative symlinks on Unix and copies on Windows.
 - `cursor` - installs local `skills/<name>/` directories into Cursor discovery paths used by local Cursor and Cursor Cloud Agents. Default scope is user at `$HOME/.cursor/skills` (or `$VD_CURSOR_HOME/skills` when that inventory override is set); `--scope repo` writes `.cursor/skills/<name>` in the current repo. Installs use relative symlinks on Unix and copies on Windows. This is a first-class Cursor target, not an alias of `codex`.

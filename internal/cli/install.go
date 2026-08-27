@@ -44,7 +44,7 @@ With no agent argument, vd install detects which agents exist on this
 machine and installs skills at user scope into each one:
 
   claude   $HOME/.claude/skills     (per-skill --dev symlinks)
-  codex    $HOME/.agents/skills
+  codex    $HOME/.agents/skills     (or $VD_CODEX_HOME/skills)
   cursor   $HOME/.cursor/skills     (or $VD_CURSOR_HOME/skills)
   droid    $HOME/.factory/skills
   pi       $HOME/.pi/agent/skills

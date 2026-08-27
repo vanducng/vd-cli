@@ -73,6 +73,39 @@ func TestCodex_ForceReplacesExistingDestination(t *testing.T) {
 	}
 }
 
+func TestCodex_UserScopeUsesAgentsSkills(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("VD_CODEX_HOME", "")
+	writeSkill(t, repo, "foo")
+
+	results, err := Codex(repo, CodexOptions{Skills: []string{"foo"}, DryRun: true})
+	if err != nil {
+		t.Fatalf("Codex: %v", err)
+	}
+	want := filepath.Join(home, ".agents", "skills", "foo")
+	if len(results) != 1 || results[0].Dest != want || results[0].Action != "would symlink" {
+		t.Fatalf("results = %#v, want dry-run dest %s", results, want)
+	}
+}
+
+func TestCodex_UserScopeHonorsVDCodexHome(t *testing.T) {
+	repo := t.TempDir()
+	codexHome := t.TempDir()
+	t.Setenv("VD_CODEX_HOME", codexHome)
+	writeSkill(t, repo, "foo")
+
+	results, err := Codex(repo, CodexOptions{Skills: []string{"foo"}, DryRun: true})
+	if err != nil {
+		t.Fatalf("Codex: %v", err)
+	}
+	want := filepath.Join(codexHome, "skills", "foo")
+	if len(results) != 1 || results[0].Dest != want {
+		t.Fatalf("results = %#v, want dest %s", results, want)
+	}
+}
+
 func TestCodex_RepoScopeUsesAgentsSkills(t *testing.T) {
 	repo := t.TempDir()
 	writeSkill(t, repo, "foo")

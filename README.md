@@ -158,6 +158,7 @@ A native **[desktop app](desktop/README.md)** (Wails) is available as a third fr
 | Var | Effect |
 |---|---|
 | `VD_ROOT` | Pin a default repo root |
+| `VD_CODEX_HOME` | Override Codex's discovery root (default `~/.agents`); `vd install codex` writes skills under `$VD_CODEX_HOME/skills` |
 | `VD_CURSOR_HOME` | Override Cursor's discovery root (default `~/.cursor`); `vd install cursor` writes skills under `$VD_CURSOR_HOME/skills` |
 | `VD_NO_UPDATE_CHECK` | Disable the upstream version check |
 | `XDG_CACHE_HOME` | Override the cache directory (default `~/.cache`) |

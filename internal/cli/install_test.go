@@ -557,6 +557,28 @@ func TestRunInstall_AutoSeveralAgents(t *testing.T) {
 	}
 }
 
+func TestRunInstall_AutoCodexHonorsVDCodexHome(t *testing.T) {
+	isolateAgentHomes(t)
+	codexHome := t.TempDir()
+	t.Setenv("VD_CODEX_HOME", codexHome)
+	root := setupE2ERepo(t)
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := runInstall(cmd, root, []string{"foo"}, installOptions{scope: "user", dryRun: true})
+	if err != nil {
+		t.Fatalf("runInstall auto: %v", err)
+	}
+	want := "would symlink codex skill foo -> " + filepath.Join(codexHome, "skills", "foo")
+	if !strings.Contains(out.String(), want) {
+		t.Fatalf("output = %q, want %q", out.String(), want)
+	}
+	if strings.Contains(out.String(), filepath.Join(".agents", "skills", "foo")) {
+		t.Fatalf("auto Codex dest ignored VD_CODEX_HOME:\n%s", out.String())
+	}
+}
+
 func TestRunInstall_AutoRejectsRepoScope(t *testing.T) {
 	home := isolateAgentHomes(t)
 	if err := os.Mkdir(filepath.Join(home, ".cursor"), 0o755); err != nil {

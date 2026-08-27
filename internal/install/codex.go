@@ -110,16 +110,28 @@ func installSkillLinksClaimed(repoRoot, destRoot string, skills []string, opts L
 func codexDest(repoRoot, scope string) (string, error) {
 	switch scope {
 	case "user":
-		home, err := os.UserHomeDir()
+		home, err := codexHome()
 		if err != nil {
-			return "", fmt.Errorf("resolve home directory: %w", err)
+			return "", err
 		}
-		return filepath.Join(home, ".agents", "skills"), nil
+		return filepath.Join(home, "skills"), nil
 	case "repo":
 		return filepath.Join(repoRoot, ".agents", "skills"), nil
 	default:
 		return "", fmt.Errorf("invalid codex scope %q (valid: user, repo)", scope)
 	}
+}
+
+// codexHome matches inventory discovery: $VD_CODEX_HOME if set, else ~/.agents.
+func codexHome() (string, error) {
+	if home := os.Getenv("VD_CODEX_HOME"); home != "" {
+		return home, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home directory: %w", err)
+	}
+	return filepath.Join(home, ".agents"), nil
 }
 
 func resolveSkillNames(skillsDir string, requested []string) ([]string, error) {
