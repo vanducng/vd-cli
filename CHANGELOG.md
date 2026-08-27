@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.14.1](https://github.com/vanducng/vd-cli/compare/v3.14.0...v3.14.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **vd:** honor VD_CODEX_HOME in vd install codex ([#101](https://github.com/vanducng/vd-cli/issues/101)) ([2d2149c](https://github.com/vanducng/vd-cli/commit/2d2149c61ef978f3811d7a504bf3a1c818c7d107))
+
 ## [3.14.0](https://github.com/vanducng/vd-cli/compare/v3.13.7...v3.14.0) (2026-08-22)
 
 
