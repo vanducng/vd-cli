@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.14.3](https://github.com/vanducng/vd-cli/compare/v3.14.2...v3.14.3) (2026-10-29)
+
+
+### Bug Fixes
+
+* **docs:** focus the search input when the dialog itself holds focus ([#108](https://github.com/vanducng/vd-cli/issues/108)) ([de06e55](https://github.com/vanducng/vd-cli/commit/de06e552ea991603783bcb3684a57148d28df8a3))
+
 ## [3.14.2](https://github.com/vanducng/vd-cli/compare/v3.14.1...v3.14.2) (2026-10-29)
 
 
