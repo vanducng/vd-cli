@@ -4,6 +4,13 @@ All notable changes to the `vd` CLI.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow [SemVer](https://semver.org/).
 
+## [3.14.2](https://github.com/vanducng/vd-cli/compare/v3.14.1...v3.14.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* **docs:** focus the search input even when Pagefind mounts late ([#106](https://github.com/vanducng/vd-cli/issues/106)) ([004bb65](https://github.com/vanducng/vd-cli/commit/004bb656477be35164e7f5ba2389dcbfc2ffbff4))
+
 ## [3.14.1](https://github.com/vanducng/vd-cli/compare/v3.14.0...v3.14.1) (2026-08-27)
 
 
